@@ -35,8 +35,10 @@ enum TourAdvanceTrigger { tapTarget, navigate, auto }
 
 /// Which guided-tour variant a user sees. The slim-vs-full A/B concluded and
 /// its `tour_ab_enabled` config key was deleted 2026-07-25 — everyone gets
-/// `slim`. `assignTourVariant`/`tourBucket` remain: the salted bucket is
-/// load-bearing for `assignPaywallArm` until the reverse-trial close-out.
+/// `slim`. The bucketing that assigned it (`tourBucket` / `assignTourVariant`)
+/// outlived the A/B only because the salted bucket backed `assignPaywallArm`;
+/// both died with the reverse-trial close-out (W5 Wave A, 2026-08-01). The enum
+/// itself stays — `OnboardingTourState.variant` still selects a step list.
 enum TourVariant { full, slim }
 
 @immutable
@@ -160,7 +162,13 @@ const List<OnboardingTourStepDef> kSlimOnboardingTourSteps = [
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
     anchorId: 'beginMuhasabahCta',
-    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
+    // Positional, not by name. This string used to read "Tap Begin
+    // Muhāsabah to start" and went stale the moment W4 Wave 5 renamed the
+    // CTA — leaving a coachmark pointing at a control that no longer went by
+    // that name, which reads as the app being broken rather than as a hint.
+    // The step spotlights its anchor, so "here" is both truer and impossible
+    // to drift. Pinned by tour_cta_copy_drift_test.dart.
+    message: 'Assalamu alaikum, {name} 👋 Tap here to begin today\'s reflection.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -279,7 +287,13 @@ const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
     anchorId: 'beginMuhasabahCta',
-    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
+    // Positional, not by name. This string used to read "Tap Begin
+    // Muhāsabah to start" and went stale the moment W4 Wave 5 renamed the
+    // CTA — leaving a coachmark pointing at a control that no longer went by
+    // that name, which reads as the app being broken rather than as a hint.
+    // The step spotlights its anchor, so "here" is both truer and impossible
+    // to drift. Pinned by tour_cta_copy_drift_test.dart.
+    message: 'Assalamu alaikum, {name} 👋 Tap here to begin today\'s reflection.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -408,9 +422,9 @@ const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
   ),
 ];
 
-/// Default tour = slim (the go-forward variant). The A/B picks the live variant
-/// at runtime via [assignTourVariant]; this alias is the idle/fallback default
-/// and is what the unit tests pin.
+/// Default tour = slim (the go-forward variant, and now the only assigned one —
+/// the A/B and its bucketing are both gone). This alias is the idle/fallback
+/// default and is what the unit tests pin.
 const List<OnboardingTourStepDef> kOnboardingTourSteps =
     kSlimOnboardingTourSteps;
 
@@ -419,24 +433,6 @@ List<OnboardingTourStepDef> tourStepsForVariant(TourVariant variant) =>
     variant == TourVariant.full
         ? kFullOnboardingTourSteps
         : kSlimOnboardingTourSteps;
-
-/// Stable 0–99 bucket for [userId] (FNV-1a/32 over UTF-16 code units). Pure and
-/// deterministic across sessions/devices with no persistence, so a user keeps
-/// the same variant every launch. Empty id (anon) hashes to a fixed bucket.
-int tourBucket(String userId) {
-  var hash = 0x811c9dc5;
-  for (final unit in userId.codeUnits) {
-    hash = (hash ^ unit) & 0xffffffff;
-    hash = (hash * 0x01000193) & 0xffffffff;
-  }
-  return hash % 100;
-}
-
-/// 50/50 split: lower half of the bucket space → slim, upper half → full.
-/// Stable per [userId]. No live caller since the tour A/B concluded (2026-07-25);
-/// kept because [tourBucket] backs `assignPaywallArm` and tests pin the hash.
-TourVariant assignTourVariant(String userId) =>
-    tourBucket(userId) < 50 ? TourVariant.slim : TourVariant.full;
 
 /// Number of steps in the DEFAULT (slim) tour. Used by tests + as a fallback;
 /// live bounds checks use the active variant's `OnboardingTourState.steps`.

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/theme/app_typography.dart';
+import '../features/paywall/paywall_navigation.dart';
+import '../features/paywall/paywall_placement.dart';
 
 /// Modal sheet shown when a free-tier user hits the journal save limit.
 ///
@@ -119,7 +121,7 @@ class UpgradeRequiredSheet extends StatelessWidget {
                   // this BuildContext is unmounting and GoRouter.of could fail.
                   final router = GoRouter.of(context);
                   Navigator.of(context).pop();
-                  router.push('/paywall');
+                  pushPaywallOn(router, placement: PaywallPlacement.softInApp);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,

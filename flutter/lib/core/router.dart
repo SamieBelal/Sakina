@@ -16,11 +16,14 @@ import '../features/streaks/screens/companion_screen.dart';
 import '../features/streaks/screens/wardrobe_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/onboarding_stage.dart';
-import '../features/onboarding/screens/hook_screen.dart';
+import '../features/onboarding/screens/comfort_opening_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
 import '../services/analytics_events.dart';
+import '../services/daily_question_analytics.dart';
 import 'widget_deep_link.dart';
+import '../features/paywall/paywall_navigation.dart';
+import '../features/paywall/paywall_placement.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
@@ -75,11 +78,10 @@ String? onboardingGateRedirect({
   final stage = resolveOnboardingStage(
     isAuthenticated: appSession.isAuthenticated,
     hasOnboarded: appSession.hasOnboarded,
-    tourCompleted: appSession.tourCompleted,
     // Session-only valve bypass counts as "cleared" for THIS session only.
     paywallCleared: appSession.paywallCleared || appSession.gateValveBypass,
     isPremium: appSession.isPremiumCached,
-    // New build routes on the post-tour MODE (soft|off|hard). The legacy
+    // New build routes on the entry-gate MODE (soft|off|hard). The legacy
     // boolean is no longer passed here — `postTourPaywallMode` already folds it
     // in via its back-compat derivation (app_session._defaultPostTourPaywallMode).
     paywallMode: appSession.postTourPaywallMode,
@@ -94,21 +96,19 @@ String? onboardingGateRedirect({
           ? null
           : kOnboardingPaywallPath;
     case OnboardingStage.softPaywall:
-      // Present the DISMISSIBLE soft paywall at the post-tour gate. Pull onto it
+      // Present the DISMISSIBLE soft paywall at the entry gate. Pull onto it
       // from ANY in-app route (pre-auth/onboarding/signin already returned
-      // above) — NOT just '/', because the slim tour completes on '/duas' (the
-      // duaBuildComplete step), so a '/'-only pull silently skipped the wall at
-      // the real tour exit. "Soft" is enforced by the screen, not the redirect:
+      // above) — NOT just '/', because a user can arrive on any tab, so a
+      // '/'-only pull silently skipped the wall for everyone who did not land
+      // home. "Soft" is enforced by the screen, not the redirect:
       // its X / purchase calls markPaywallCleared() → stage flips to `app`, so
       // the user is stood up here once and is then free (no re-pull).
       return currentPath == kOnboardingSoftPaywallPath
           ? null
           : kOnboardingSoftPaywallPath;
-    case OnboardingStage.tour:
     case OnboardingStage.app:
-      // The tour runs as an overlay over the home shell, so a tour-stage user
-      // just stays in the app (the overlay drives them). If a tour/cleared
-      // user is somehow sitting on either entry wall, send them home.
+      // Cleared to use the app. If such a user is somehow sitting on either
+      // entry wall, send them home.
       return (currentPath == kOnboardingPaywallPath ||
               currentPath == kOnboardingSoftPaywallPath)
           ? '/'
@@ -126,6 +126,12 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
     observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
+    // Keeps the `/paywall` placement alive across a re-parse. `appSession`
+    // notifies often (hydration, token refresh, gate latches) and every
+    // notification re-parses the encoded route information — which drops a
+    // non-JSON-encodable `extra` to null without this. See
+    // `paywallPlacementExtraCodec`.
+    extraCodec: paywallPlacementExtraCodec,
     redirect: (context, state) {
       // Widget + Live Activity deep links arrive as a full `sakina://widget/...`
       // URI. The home widget routes via `HomeWidget.widgetClicked`, but a Live
@@ -163,11 +169,17 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
       // Standalone paywall (for already-onboarded users hitting the upgrade
       // sheet from journal save limits, etc). Does NOT fire completeOnboarding.
       GoRoute(
-        path: '/paywall',
+        path: paywallRoutePath,
         parentNavigatorKey: rootNavigatorKey,
+        // The placement rides in as the route's `extra` (see
+        // `pushPaywall`), so a future surface that is not the generic in-app
+        // upsell can route here without inheriting the wrong attribution.
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
-          placement: AnalyticsEvents.placementSoftInApp,
+          placement: placementFromRouteExtra(state.extra),
+          // Null for every entry point that pushes a bare placement, which
+          // leaves the condensed page on its period-agnostic default line.
+          softValueLine: valueLineFromRouteExtra(state.extra),
           onComplete: () => GoRouter.of(context).pop(),
         ),
       ),
@@ -182,7 +194,7 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           hardGate: true,
-          placement: AnalyticsEvents.placementHardWall,
+          placement: PaywallPlacement.hardWall,
           onComplete: () => GoRouter.of(context).go('/'),
         ),
       ),
@@ -215,11 +227,16 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         ),
       ),
 
-      // Welcome / auth landing (full screen, no bottom nav)
+      // Welcome / auth landing (full screen, no bottom nav).
+      //
+      // The comfort opening REPLACED the old hook/welcome screen on 2026-07-29
+      // (Wave H §6). `push` is load-bearing here beyond the back stack: its
+      // future completes when the flow is popped back, which is what restores
+      // the screen's canvas after its departure dissolve.
       GoRoute(
         path: '/welcome',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => HookScreen(
+        builder: (context, state) => ComfortOpeningScreen(
           onNext: () => GoRouter.of(context).push('/onboarding'),
           onSignIn: () => GoRouter.of(context).push('/signin'),
         ),
@@ -243,7 +260,14 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
       GoRoute(
         path: '/muhasabah',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const MuhasabahScreen(),
+        // `?entry=` carries how the user got here into `daily_question_shown`
+        // (W4 Wave 7). Untagged means the app brought them here on open, so it
+        // reads as `day_open` — every in-app push tags itself, and
+        // `daily_question_entry_source_test.dart` fails the build if a new one
+        // forgets.
+        builder: (context, state) => MuhasabahScreen(
+          entrySource: questionEntrySourceFor(state.uri.queryParameters),
+        ),
       ),
 
       // Companion stage (full screen, no bottom nav). Tapping the Home

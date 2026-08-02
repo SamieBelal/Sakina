@@ -204,19 +204,37 @@ class _RamadanGiftCardState extends ConsumerState<RamadanGiftCard> {
 
   @override
   Widget build(BuildContext context) {
+    // **The card owns its own bottom margin**, matching `DuaTimesCard` and
+    // `ReferralNudgeCard`. This one was the outlier: it had none, so the home
+    // column had to supply the gap — and when W4 Wave 5 lifted the daily CTA
+    // above the promo stack, the spacer it inherited ended up ABOVE the gift
+    // card instead of below it, leaving the claimed-gift banner butted flat
+    // against the dashboard card with no breathing room at all.
+    //
+    // Owning the margin rather than restoring a `SizedBox` in the column is
+    // what makes it correct in both directions: a hidden card contributes zero
+    // height (the common case, outside an occasion window), and a shown card
+    // spaces itself wherever in the column it ends up next.
+    Widget spaced(Widget child) => Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: child,
+        );
+
     return switch (_state) {
       // Loading collapses to the same zero-height surface as inactive — the
       // card is rare enough that resolving silently beats a 220px flash on
       // every cold launch outside of an occasion window. See state-doc above.
       _GiftCardLoading() => const SizedBox.shrink(),
       _GiftCardInactive() => const SizedBox.shrink(),
-      _GiftCardPreClaim(:final occasionId) => _PreClaimCard(
-          occasionId: occasionId,
-          claiming: _claiming,
-          onAccept: () => _acceptGift(occasionId),
+      _GiftCardPreClaim(:final occasionId) => spaced(
+          _PreClaimCard(
+            occasionId: occasionId,
+            claiming: _claiming,
+            onAccept: () => _acceptGift(occasionId),
+          ),
         ),
       _GiftCardPostClaim(:final expiresAt) =>
-        _PostClaimStatus(expiresAt: expiresAt),
+        spaced(_PostClaimStatus(expiresAt: expiresAt)),
     };
   }
 }

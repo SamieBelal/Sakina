@@ -20,16 +20,24 @@
 //      so only one reserve RPC fires.
 //   7. Rapid freebie taps — same debounce for the Day-1 freebie path so
 //      `claim_first_bypass` doesn't fire twice on a double-tap.
+//
+// Extended by W3 Wave 2 with regression 8: the queue seam adds a NEW way for the
+// real `discoverName` body to fail — a throwing `unseal_next_name`. The refund
+// path must still work through it, exercised against the real body rather than a
+// `discoverNameOverride`.
 
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/name_queue_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/user_local_day.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../support/fake_supabase_sync_service.dart';
 
@@ -64,6 +72,7 @@ Future<void> Function(DailyLoopNotifier) _failsWithStateError() {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tzdata.initializeTimeZones();
 
   late FakeSupabaseSyncService fakeSync;
   late _FakePurchaseService fakePurchase;
@@ -75,9 +84,11 @@ void main() {
     fakePurchase = _FakePurchaseService();
     PurchaseService.debugSetOverride(fakePurchase);
     await hydrateTokenCache(balance: 100, totalSpent: 0);
+    debugResetUserLocalDay();
   });
 
   tearDown(() {
+    debugResetUserLocalDay();
     SupabaseSyncService.debugReset();
     PurchaseService.debugClearOverride();
   });
@@ -318,5 +329,61 @@ void main() {
     // Let the in-flight claim resolve so test teardown is clean.
     claimCompleter.complete({'ok': false, 'reason': 'consumed'});
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  });
+
+  test(
+      'REGRESSION 8 (W3) — a throwing unseal_next_name still CANCELS the '
+      'reservation', () async {
+    // The queue seam's new failure mode, run through the REAL discoverName body
+    // rather than an override: `unsealNext()` deliberately propagates, the
+    // existing catch writes state.error, and the wrapper must therefore refund.
+    // If the RPC call were ever moved outside that try, this test goes red and
+    // the user pays 25 tokens for a reveal that did not happen.
+    fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+          'ok': true,
+          'reservation_id': 'r-unseal-fail',
+          'balance': 75,
+          'bypasses_used': 1,
+        };
+    final committedIds = <String>[];
+    final cancelledIds = <String>[];
+    fakeSync.rpcHandlers['commit_ai_bypass'] = (params) async {
+      committedIds.add(params!['p_reservation_id'] as String);
+      return {'ok': true};
+    };
+    fakeSync.rpcHandlers['cancel_ai_bypass'] = (params) async {
+      cancelledIds.add(params!['p_reservation_id'] as String);
+      return {'ok': true, 'refunded_tokens': 25, 'balance': 100};
+    };
+
+    final container = ProviderContainer(overrides: [
+      dailyLoopProvider.overrideWith(
+        (ref) => DailyLoopNotifier(
+          nameQueueService: NameQueueService(
+            currentUserId: () => fakeSync.userId,
+            selectRows: (_) async => [
+              {'position': 1, 'name_id': 11, 'unsealed_at': null},
+              {'position': 2, 'name_id': 22, 'unsealed_at': null},
+            ],
+            callRpc: (_, __) async => throw StateError('unseal exploded'),
+          ),
+        ),
+      ),
+    ]);
+    addTearDown(container.dispose);
+    final notifier = container.read(dailyLoopProvider.notifier);
+    // Let _initialize land first — copyWith clears `error`, so a late-resolving
+    // init would wipe the very error the wrapper reads.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    await notifier.discoverNameWithBypass();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(cancelledIds, ['r-unseal-fail'],
+        reason: 'an unseal failure means the reveal genuinely did not happen — '
+            'the tokens must come back');
+    expect(committedIds, isEmpty);
+    expect(notifier.state.engagedCard, isNull,
+        reason: 'nothing may be granted for a reveal that failed to resolve');
   });
 }

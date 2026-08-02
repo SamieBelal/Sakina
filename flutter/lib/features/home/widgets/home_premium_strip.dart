@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 
@@ -92,6 +93,6 @@ class HomePremiumStrip extends ConsumerWidget {
 
   void _openPaywall(BuildContext context, WidgetRef ref) {
     ref.read(analyticsProvider).track(AnalyticsEvents.homePremiumStripTapped);
-    context.push('/paywall');
+    pushPaywall(context, placement: PaywallPlacement.softInApp);
   }
 }

@@ -31,15 +31,84 @@ void main() {
       expect(onboardingLegacyEncouragementPageIndex, 21);
     });
 
-    test('OnboardingState schema version is 7', () {
-      const s = OnboardingState();
-      expect(s.toJson()['version'], 7);
+    // --- REEL flow (One Ship W2-E1), the shipping default -------------------
+
+    test('onboardingReelLastPageIndex is 18 (paywall gate at 18)', () {
+      expect(onboardingReelLastPageIndex, 18);
     });
 
-    test('fromJson discards blobs older than version 7', () {
-      // A v6 blob with a stored currentPage should be dropped, returning a fresh state.
+    test('the reel hook and reveal are pages 0 and 1', () {
+      expect(onboardingReelHookPageIndex, 0);
+      expect(onboardingReelRevealPageIndex, 1);
+    });
+
+    test('onboardingReelNoBackBeforeIndex is 2 (first page past the reveal)',
+        () {
+      expect(onboardingReelNoBackBeforeIndex, 2);
+      expect(
+        onboardingReelNoBackBeforeIndex,
+        onboardingReelRevealPageIndex + 1,
+        reason: 'the latch must start immediately after the reveal — a gap '
+            'would leave a page that can still back into a burnt deck',
+      );
+    });
+
+    test('the reel signup trio sits at 16/17 with the gate at 18', () {
+      expect(onboardingReelEmailPageIndex, 16);
+      expect(onboardingReelPasswordPageIndex, 17);
+      expect(onboardingReelPostSignupPageIndex, 18);
+    });
+
+    test('onboardingReelTotalSegments is 15 (19 pages minus the 4 bar-less)',
+        () {
+      // Was 14 until 2026-07-29, when the founder put a bar on the queue plan.
+      // One page mid-flow with no bar — and a bare chevron where every other
+      // page has the back circle — read as a broken screen, not as a pause.
+      // Bar-less now: hook, reveal, rating gate, paywall.
+      expect(onboardingReelTotalSegments, 15);
+      expect(onboardingReelPlanSegment, 7);
+      expect(
+        onboardingReelTotalSegments,
+        (onboardingReelLastPageIndex + 1) - 4,
+        reason: 'bar hidden on hook, reveal, rating gate and paywall',
+      );
+    });
+
+    test('lastPageIndexForFlow resolves all three flows', () {
+      expect(lastPageIndexForFlow(OnboardingFlowKind.reel),
+          onboardingReelLastPageIndex);
+      expect(lastPageIndexForFlow(OnboardingFlowKind.trimmed),
+          onboardingLastPageIndex);
+      expect(lastPageIndexForFlow(OnboardingFlowKind.legacy),
+          onboardingLegacyLastPageIndex);
+    });
+
+    test('onboardingFlowValueFor maps the kind to the profile column value',
+        () {
+      // Both fallbacks are `legacy`: the column names the EXPERIENCE, and
+      // neither kill-switch flow is the reel one.
+      expect(
+          onboardingFlowValueFor(OnboardingFlowKind.reel), onboardingFlowReel);
+      expect(onboardingFlowValueFor(OnboardingFlowKind.trimmed),
+          onboardingFlowLegacy);
+      expect(onboardingFlowValueFor(OnboardingFlowKind.legacy),
+          onboardingFlowLegacy);
+    });
+
+    test('the reel kill-switch flag key is the one the plan names', () {
+      expect(reelFirstOnboardingFlag, 'reel_first_onboarding_enabled');
+    });
+
+    test('OnboardingState schema version is 8', () {
+      const s = OnboardingState();
+      expect(s.toJson()['version'], 8);
+    });
+
+    test('fromJson discards blobs older than version 8', () {
+      // A v7 blob with a stored currentPage should be dropped, returning a
+      // fresh state — the reel flow renumbered the pages (One Ship W2-B3).
       final old = OnboardingState.fromJson({
-        'version': 6,
+        'version': 7,
         'currentPage': 17,
         'intention': 'spiritual-growth',
       });
@@ -47,7 +116,7 @@ void main() {
       expect(old.intention, isNull);
     });
 
-    test('fromJson preserves v7 blobs', () {
+    test('fromJson preserves v8 blobs', () {
       const original = OnboardingState(currentPage: 5, intention: 'curious');
       final restored = OnboardingState.fromJson(original.toJson());
       expect(restored.currentPage, 5);

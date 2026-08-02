@@ -10,6 +10,9 @@ import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/notification_service.dart';
+import '../../streaks/models/companion_state.dart';
+import '../../streaks/providers/cosmetics_ui_providers.dart';
+import '../../streaks/widgets/companion_medallion.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -18,11 +21,35 @@ class NotificationScreen extends ConsumerWidget {
   const NotificationScreen({
     required this.onNext,
     required this.onBack,
+    this.progressSegment = 14,
+    this.totalSegments,
+    this.lanternVariant = false,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
+
+  /// Segment this screen lights on the progress bar, and the bar's length.
+  /// Defaulted to the kill-switch flows' values; the reel flow reuses this
+  /// screen at a different position on a shorter bar (W2-E1).
+  final int progressSegment;
+  final int? totalSegments;
+
+  /// Reel flow only (Wave G): swap the generic bell illustration for the
+  /// lantern in its **unlit, waiting** state, and the three generic benefit
+  /// rows for a preview of the system dialog that is about to appear.
+  ///
+  /// Why this is the flow's most valuable lantern placement: `pendingUnlit`
+  /// does not mean "notifications off", it means *waiting to be lit* — the
+  /// literal truth of a lamp whose owner hasn't returned today. Showing the
+  /// real state turns an OS permission ask into a stake in something the user
+  /// already owns, without the lantern having to say a word.
+  ///
+  /// **Off by default on purpose.** The kill-switch flows must reproduce
+  /// today's production experience exactly, so trimmed/legacy keep the SVG and
+  /// the benefit rows untouched.
+  final bool lanternVariant;
 
   Future<void> _requestPermission(WidgetRef ref) async {
     bool granted = false;
@@ -54,7 +81,8 @@ class NotificationScreen extends ConsumerWidget {
     ];
 
     return OnboardingPageWrapper(
-      progressSegment: 14,
+      progressSegment: progressSegment,
+      totalSegments: totalSegments,
       onBack: onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,15 +111,38 @@ class NotificationScreen extends ConsumerWidget {
                     textAlign: TextAlign.left,
                   ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
                   const SizedBox(height: AppSpacing.xl),
-                  Center(
-                    child: SvgPicture.asset(
-                      'assets/illustrations/onboarding_notification.svg',
-                      height: 180,
-                    ),
-                  ).animate().fadeIn(duration: 600.ms, delay: 300.ms).slideY(
-                      begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
+                  if (lanternVariant)
+                    Center(
+                      // ambient:false — this is a cream surface, and the
+                      // painter's full-canvas aura renders as a grey box here.
+                      child: Consumer(
+                        builder: (_, ref, __) => CompanionMedallion(
+                          state: const CompanionState(
+                            brightness: CompanionBrightness.pendingUnlit,
+                            protected: false,
+                          ),
+                          size: 132,
+                          ambient: false,
+                          skin: ref.watch(renderableLanternSkinProvider),
+                        ),
+                      ),
+                    ).animate().fadeIn(duration: 600.ms, delay: 300.ms).slideY(
+                        begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms)
+                  else
+                    Center(
+                      child: SvgPicture.asset(
+                        'assets/illustrations/onboarding_notification.svg',
+                        height: 180,
+                      ),
+                    ).animate().fadeIn(duration: 600.ms, delay: 300.ms).slideY(
+                        begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
                   const SizedBox(height: AppSpacing.xl),
-                  ...benefits.asMap().entries.map((entry) {
+                  if (lanternVariant)
+                    const _PermissionPrimer()
+                        .animate()
+                        .fadeIn(duration: 500.ms, delay: 500.ms),
+                  if (!lanternVariant)
+                    ...benefits.asMap().entries.map((entry) {
                     final delay = (500 + entry.key * 100).ms;
                     final (icon, text) = entry.value;
                     return Padding(
@@ -175,6 +226,103 @@ class NotificationScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+        ],
+      ),
+    );
+  }
+}
+
+/// A preview of the system permission dialog, shown *before* it appears
+/// (Wave G — the device on Duolingo's notification screen).
+///
+/// The point is not decoration: a first-time user meets the real iOS sheet with
+/// two equally-weighted buttons and about a second to decide, and the single
+/// biggest predictor of granting is knowing which one to press before it opens.
+/// Showing an inert copy costs nothing and removes the surprise.
+///
+/// Deliberately **not** a pixel-faithful iOS reproduction — this is drawn in
+/// Sakina's own palette and type. A convincing fake of a system dialog is a
+/// dark pattern; a recognisable diagram of one is a courtesy. It carries no
+/// tap targets at all, so it cannot be mistaken for the real thing.
+class _PermissionPrimer extends StatelessWidget {
+  const _PermissionPrimer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Next, iOS will ask permission to send notifications. '
+          'Choose Allow.',
+      excludeSemantics: true,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              border: Border.all(
+                color: AppColors.borderLight.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '"Sakina" Would Like to Send You Notifications',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryLight,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Divider(
+                  height: 1,
+                  color: AppColors.borderLight.withValues(alpha: 0.6),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Don't Allow",
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Allow',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(child: Container()),
+              Expanded(
+                child: Icon(
+                  Icons.arrow_upward_rounded,
+                  size: 22,
+                  color: AppColors.primary.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

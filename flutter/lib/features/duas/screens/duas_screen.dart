@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +14,8 @@ import 'package:sakina/features/duas/widgets/built_dua_section_view.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
@@ -166,6 +167,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           DailyCapSheet.show(
             sheetContext,
             feature: GatedFeature.builtDua,
+            gateReason: next.buildGateResult!.reason,
             tokenBalance: balance,
             bypassesUsedToday: bypassesUsed,
             isPremium: premium,
@@ -177,7 +179,16 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             onUpgrade: buildPaywallUpgradeCallback(
               reason: next.buildGateResult!.reason,
               pushPaywall: () {
-                if (mounted) GoRouter.of(context).push('/paywall');
+                if (mounted) {
+                  pushPaywall(
+                    context,
+                    placement: PaywallPlacement.softInApp,
+                    valueLine: softGateValueLine(
+                      GatedFeature.builtDua,
+                      next.buildGateResult!.reason,
+                    ),
+                  );
+                }
               },
             ),
           ).whenComplete(notifier.dismissBuildGate);
@@ -190,7 +201,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         WarmupExhaustedSheet.show(
           context,
           feature: next.buildWarmupJustExhausted!,
-          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+          onUpgrade: () =>
+              pushPaywall(context, placement: PaywallPlacement.softInApp),
         ).whenComplete(notifier.dismissBuildWarmupExhausted);
       }
       // Show upgrade sheet when the free saved-dua limit is hit

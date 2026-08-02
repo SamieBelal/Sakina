@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 
+/// Default bar length, sized for the two kill-switch flows. Named so the page
+/// wrapper's fallback and this default cannot drift apart.
+const int onboardingProgressSegments = 23;
+
 class OnboardingProgressBar extends StatelessWidget {
   const OnboardingProgressBar({
     required this.currentSegment,
@@ -12,7 +16,7 @@ class OnboardingProgressBar extends StatelessWidget {
     // flow, so the bar showed "2 left" on the last step then vanished. 23 also
     // completes the legacy flow (its max is encouragement at segment 23, which
     // fills all indices). See onboarding screen page lists.
-    this.totalSegments = 23,
+    this.totalSegments = onboardingProgressSegments,
     super.key,
   });
 

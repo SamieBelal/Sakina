@@ -45,7 +45,6 @@ void main() {
 
   test('flags default to ungated before hydration', () {
     final session = buildSession();
-    expect(session.tourCompleted, true);
     expect(session.paywallCleared, true);
     expect(session.hardPaywallFlowEnabled, false);
     session.dispose();
@@ -53,7 +52,9 @@ void main() {
 
   test('hydrateOnboardingGate loads real values from caches + readers',
       () async {
-    // New user mid-gate: tour not seen, latch explicitly false.
+    // New user mid-gate: latch explicitly false. The tour-seen flag is set to
+    // the "abandoned mid-tour" value on purpose — §F1a made it inert, and the
+    // hydrate must not consult it (that read is what stranded those users).
     SharedPreferences.setMockInitialValues({
       onboardingTourSeenFlag('user-1'): false,
       'onboarding_paywall_cleared:user-1': false,
@@ -62,7 +63,8 @@ void main() {
 
     await session.hydrateOnboardingGate();
 
-    expect(session.tourCompleted, false);
+    expect(session.tourCompleted, true,
+        reason: 'vestigial — always true regardless of the on-disk flag');
     expect(session.paywallCleared, false);
     expect(session.isPremiumCached, false);
     expect(session.hardPaywallFlowEnabled, true);
@@ -75,7 +77,7 @@ void main() {
 
     await session.hydrateOnboardingGate();
 
-    // Tour seen flag absent → tourCompleted false, BUT latch absent → cleared.
+    // Latch absent → cleared (grandfather guard).
     expect(session.paywallCleared, true);
     session.dispose();
   });
@@ -88,27 +90,38 @@ void main() {
 
     await session.enterOnboardingGate();
 
-    expect(session.tourCompleted, false);
     expect(session.paywallCleared, false);
     expect(await OnboardingGateService().isPaywallCleared(), false);
     expect(notified, greaterThan(0));
     session.dispose();
   });
 
-  test('markTourCompleted + markPaywallCleared flip flags and notify', () async {
+  test('markPaywallCleared flips the latch and notifies', () async {
     final session = buildSession();
-    await session.enterOnboardingGate(); // both false now
+    await session.enterOnboardingGate(); // uncleared now
 
     var notified = 0;
     session.addListener(() => notified++);
 
-    session.markTourCompleted();
-    expect(session.tourCompleted, true);
-
     session.markPaywallCleared();
     expect(session.paywallCleared, true);
 
-    expect(notified, 2);
+    expect(notified, 1);
+    session.dispose();
+  });
+
+  test('tourCompleted is vestigially true and markTourCompleted is a no-op',
+      () async {
+    // §F1a. Kept as a constant so the F1b cleanup can retire the call sites in
+    // one pass; nothing may make it false again, or the stranding bug class
+    // could be reintroduced by a caller that still reads it.
+    final session = buildSession();
+    expect(session.tourCompleted, isTrue);
+    await session.enterOnboardingGate();
+    expect(session.tourCompleted, isTrue,
+        reason: 'entering the gate must not re-create a mid-tour state');
+    session.markTourCompleted();
+    expect(session.tourCompleted, isTrue);
     session.dispose();
   });
 
@@ -130,8 +143,7 @@ void main() {
 
     // Session 2: cold relaunch. hydrateOnboardingGate reads the persisted
     // latch BEFORE any economy batch sync. It must come back gated (false), so
-    // the synchronous redirect + one-shot tour-start see the real value — not
-    // the ungated default that caused the legacy-skippable-tour race.
+    // the synchronous redirect sees the real value — not the ungated default.
     final s2 = buildSession();
     await s2.hydrateOnboardingGate();
     expect(s2.paywallCleared, false,

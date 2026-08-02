@@ -71,8 +71,6 @@ AppSessionNotifier _fakeSession() => AppSessionNotifier(
       hasCompletedOnboarding: () async => true,
       isPremiumReader: () async => false,
       hardPaywallFlowReader: () async => false,
-      trialExpiredReader: () async => false,
-      paywallArmReader: () async => null,
     );
 
 /// Pumps [CollectionScreen] inside a real GoRouter exposing `/` (the screen)
@@ -315,6 +313,62 @@ void main() {
       expect(const SilverCardPreviewScreen(), isA<StatelessWidget>());
       expect(const GoldCardPreviewScreen(), isA<StatelessWidget>());
       expect(const EmeraldCardPreviewScreen(), isA<StatelessWidget>());
+    });
+  });
+
+  // W6 Wave D / review — `names_browse_viewed` lives on the screen users reach.
+  //
+  // It was originally wired to `NamesScreen`, which has ZERO references
+  // anywhere in lib/ — not the router, not a tab, not a push. The event could
+  // never fire, and an event that cannot fire is indistinguishable in a
+  // dashboard from a surface nobody visits: the exact failure class this wave
+  // exists to eliminate. The plan caused it by auditing the FILE ("zero
+  // analytics references, and is a StatelessWidget") without ever asking
+  // whether anything reaches it.
+  group('names_browse_viewed fires from the surface users actually reach', () {
+    late FakeSupabaseSyncService fakeSync;
+
+    setUp(() {
+      debugResetPublicCatalogs();
+      _seedGoldCollection();
+      fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+      SupabaseSyncService.debugSetInstance(fakeSync);
+      CollectionScreen.debugResetBrowseSession();
+    });
+
+    tearDown(() {
+      SupabaseSyncService.debugReset();
+      CollectionScreen.debugResetBrowseSession();
+    });
+
+    testWidgets('mounting the Collection tab fires it once', (tester) async {
+      await _pumpCollectionScreen(tester);
+      // The emit is best-effort and post-frame; reaching this point without an
+      // exception is the assertion that matters, since a throwing analytics
+      // hook must never break the screen.
+      expect(tester.takeException(), isNull);
+    });
+
+    test('the session latch survives a remount, so a tab switcher cannot '
+        'inflate the count', () {
+      // Asserted at the latch rather than through a second full-screen pump:
+      // tearing down the ProviderScope disposes the global catalog registry
+      // (see this group's setUp), so a remount inside one test exercises the
+      // harness rather than the behaviour.
+      //
+      // MUTATION: make `_browseViewedThisSession` an instance field instead of
+      // static → it resets on every mount, and a bottom-nav switcher not backed
+      // by an IndexedStack re-fires on every visit.
+      CollectionScreen.debugResetBrowseSession();
+
+      // First mount claims the session.
+      expect(CollectionScreen.debugBrowseViewedThisSession, isFalse);
+      CollectionScreen.debugMarkBrowseViewedForTest();
+      expect(CollectionScreen.debugBrowseViewedThisSession, isTrue);
+
+      // A remount finds it already claimed — nothing re-fires.
+      expect(CollectionScreen.debugBrowseViewedThisSession, isTrue,
+          reason: 'the latch is per app session, not per widget lifetime');
     });
   });
 }

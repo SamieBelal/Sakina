@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/card_collection_service.dart' show CardTier, CardTierX;
 import 'package:sakina/services/dua_live_activity_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/widget_data_service.dart';
@@ -27,6 +30,144 @@ Future<int> clearScopedPreferencesForUser(
     await prefs.remove(key);
   }
   return scopedKeys.length;
+}
+
+/// The One Ship W1 profile columns for an UPDATE payload, non-null values only.
+///
+/// A key is emitted only when the flow produced a value. An explicit null would
+/// clobber an earlier persist ([AuthService.saveOnboardingData] runs 2-4× per
+/// signup) and, once `onboarding_completed` is true, the freeze trigger raises
+/// on any *distinct* value — including a null over a real answer.
+///
+/// Top level so the non-null-only contract is unit-testable without a live
+/// Supabase client (same idiom as [clearScopedPreferencesForUser]).
+Map<String, dynamic> w1ProfileColumns({
+  Map<String, dynamic>? acquisitionPromise,
+  String? firstProblemText,
+  String? onboardingFlow,
+}) =>
+    {
+      if (acquisitionPromise != null) 'acquisition_promise': acquisitionPromise,
+      if (firstProblemText != null) 'first_problem_text': firstProblemText,
+      if (onboardingFlow != null) 'onboarding_flow': onboardingFlow,
+    };
+
+/// The quiz-answer columns of an onboarding persist. Explicit nulls are part of
+/// the contract here (unlike [w1ProfileColumns]): these columns are only ever
+/// written by this one path, so a null is the answer, not a gap.
+Map<String, dynamic> onboardingQuizColumns({
+  String? displayName,
+  String? intention,
+  String? familiarity,
+  List<String> attribution = const [],
+  String? ageRange,
+  String? prayerFrequency,
+  int? starterNameId,
+  List<String> duaTopics = const [],
+  String? duaTopicsOther,
+  int? dailyCommitmentMinutes,
+  String? reminderTime,
+  bool commitmentAccepted = false,
+}) =>
+    {
+      'display_name': AuthService.resolveDisplayName(displayName),
+      'onboarding_intention': intention,
+      'onboarding_familiarity': familiarity,
+      'onboarding_attribution': attribution,
+      'age_range': ageRange,
+      'prayer_frequency': prayerFrequency,
+      'starter_name_id': starterNameId,
+      'dua_topics': duaTopics,
+      'dua_topics_other': duaTopicsOther,
+      'daily_commitment_minutes': dailyCommitmentMinutes,
+      'reminder_time': reminderTime,
+      'commitment_accepted': commitmentAccepted,
+    };
+
+/// One UPDATE statement of an onboarding persist: which group of columns, and
+/// a [stage] for the failure log.
+typedef ProfileUpdate = ({String stage, Map<String, dynamic> columns});
+
+/// The UPDATEs [AuthService.saveOnboardingData] sends, **in the order it sends
+/// them**, one statement per group.
+///
+/// W1 FIRST. The two groups fail for different reasons — `acquisition_promise`
+/// carries a check constraint and `onboarding_flow` is covered by the
+/// post-completion freeze trigger — so they were split to bound the blast
+/// radius. Order is the other half of that: the W1 write has a DEADLINE (once
+/// `onboarding_completed` flips true the freeze trigger rejects any distinct
+/// value, so a W1 write lost on the last persist is lost forever), while the
+/// quiz columns stay writable and are re-sent by every later persist. Running
+/// the deadline-bound write behind a statement that can fail inverts that.
+///
+/// Top level so the order is unit-testable without a live Supabase client.
+List<ProfileUpdate> onboardingProfileUpdates({
+  String? displayName,
+  String? intention,
+  String? familiarity,
+  List<String> attribution = const [],
+  String? ageRange,
+  String? prayerFrequency,
+  int? starterNameId,
+  List<String> duaTopics = const [],
+  String? duaTopicsOther,
+  int? dailyCommitmentMinutes,
+  String? reminderTime,
+  bool commitmentAccepted = false,
+  Map<String, dynamic>? acquisitionPromise,
+  String? firstProblemText,
+  String? onboardingFlow,
+}) {
+  final w1 = w1ProfileColumns(
+    acquisitionPromise: acquisitionPromise,
+    firstProblemText: firstProblemText,
+    onboardingFlow: onboardingFlow,
+  );
+  return [
+    if (w1.isNotEmpty) (stage: 'w1', columns: w1),
+    (
+      stage: 'quiz',
+      columns: onboardingQuizColumns(
+        displayName: displayName,
+        intention: intention,
+        familiarity: familiarity,
+        attribution: attribution,
+        ageRange: ageRange,
+        prayerFrequency: prayerFrequency,
+        starterNameId: starterNameId,
+        duaTopics: duaTopics,
+        duaTopicsOther: duaTopicsOther,
+        dailyCommitmentMinutes: dailyCommitmentMinutes,
+        reminderTime: reminderTime,
+        commitmentAccepted: commitmentAccepted,
+      ),
+    ),
+  ];
+}
+
+/// Sends [updates] one statement at a time through [send], isolating each so a
+/// failure cannot abort the ones behind it — the whole reason
+/// [onboardingProfileUpdates] splits the payload in the first place.
+///
+/// [onFailure] receives the stage and the error CLASS (never the raw driver
+/// message, which would explode the analytics property cardinality).
+///
+/// Top level and injectable so the isolation is testable without a live
+/// Supabase client — the same idiom as [onboardingProfileUpdates] itself.
+Future<void> sendOnboardingProfileUpdates(
+  List<ProfileUpdate> updates,
+  Future<void> Function(ProfileUpdate update) send, {
+  void Function(String stage, String errorClass)? onFailure,
+}) async {
+  for (final update in updates) {
+    try {
+      await send(update);
+    } catch (e, stack) {
+      debugPrint('[Auth] onboarding persist (${update.stage}) UPDATE failed: '
+          '$e\n$stack');
+      onFailure?.call(update.stage, e.runtimeType.toString());
+    }
+  }
 }
 
 /// Outcome of [performSignUpWithRecovery].
@@ -137,6 +278,16 @@ Future<SignUpResult> performSignUpWithRecovery({
 
 class AuthService {
   late final _supabase = Supabase.instance.client;
+
+  /// Static analytics hook (mirrors `OnboardingNotifier.onAnalyticsEvent`) —
+  /// wired in `main.dart` so this service stays Riverpod-free.
+  ///
+  /// The onboarding persist is best-effort by design: it must never block the
+  /// user's completion on a DB failure. That makes a dropped answer invisible
+  /// without this, since the only other trace is a `debugPrint` nobody sees in
+  /// production.
+  static void Function(String name, Map<String, Object?> props)?
+      onAnalyticsEvent;
 
   // Default written to `user_profiles.display_name` when onboarding state
   // has no usable name. Without this, the column persisted null for a
@@ -283,24 +434,53 @@ class AuthService {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
+    // One Ship W1 columns — W2's reel flow is their first writer.
+    Map<String, dynamic>? acquisitionPromise,
+    String? firstProblemText,
+    String? onboardingFlow,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
-    await _supabase.from('user_profiles').update({
-      'display_name': resolveDisplayName(displayName),
-      'onboarding_intention': intention,
-      'onboarding_familiarity': familiarity,
-      'onboarding_attribution': attribution,
-      'age_range': ageRange,
-      'prayer_frequency': prayerFrequency,
-      'starter_name_id': starterNameId,
-      'dua_topics': duaTopics,
-      'dua_topics_other': duaTopicsOther,
-      'daily_commitment_minutes': dailyCommitmentMinutes,
-      'reminder_time': reminderTime,
-      'commitment_accepted': commitmentAccepted,
-    }).eq('id', userId);
+    assert(
+      acquisitionPromise == null || acquisitionPromise.containsKey('contract'),
+      'acquisition_promise must carry a "contract" key (DB check constraint)',
+    );
+
+    // Two statements, W1 first, each isolated — see [onboardingProfileUpdates]
+    // for why the split and the order both matter. Isolated because the split
+    // is pointless if the first failure aborts the second: bounding the blast
+    // radius means each group survives the other's constraint violations.
+    await sendOnboardingProfileUpdates(
+      onboardingProfileUpdates(
+        displayName: displayName,
+        intention: intention,
+        familiarity: familiarity,
+        attribution: attribution,
+        ageRange: ageRange,
+        prayerFrequency: prayerFrequency,
+        starterNameId: starterNameId,
+        duaTopics: duaTopics,
+        duaTopicsOther: duaTopicsOther,
+        dailyCommitmentMinutes: dailyCommitmentMinutes,
+        reminderTime: reminderTime,
+        commitmentAccepted: commitmentAccepted,
+        acquisitionPromise: acquisitionPromise,
+        firstProblemText: firstProblemText,
+        onboardingFlow: onboardingFlow,
+      ),
+      (update) async => _supabase
+          .from('user_profiles')
+          .update(update.columns)
+          .eq('id', userId),
+      onFailure: (stage, errorClass) => onAnalyticsEvent?.call(
+        AnalyticsEvents.onboardingPersistFailed,
+        {
+          AnalyticsEvents.propStage: stage,
+          AnalyticsEvents.propErrorClass: errorClass,
+        },
+      ),
+    );
   }
 
   /// Seed the user's collection with the starter Name they got from the
@@ -313,12 +493,25 @@ class AuthService {
   /// home greeting can render the starter Name synchronously without waiting
   /// for the next Supabase round-trip (the previous behavior caused a
   /// noticeable "today's Name" flicker on the day-0 home greeting).
-  Future<void> seedStarterCard(int nameId) async {
+  ///
+  /// [tier] defaults to the legacy `bronze`; the reel flow passes
+  /// [CardTier.silver] because its reveal SHOWS a Silver card (W2-C1,
+  /// deterministic — there is no tier roll to clamp).
+  ///
+  /// An existing row is **clamped, never incremented**: the tier becomes
+  /// `max(current, tier)`, so a re-run of `completeOnboarding` (which is
+  /// designed to be re-runnable) can raise a Bronze row to the Silver the user
+  /// was shown, but can never step a Gold/Emerald card back down or ratchet a
+  /// card up one tier per call the way the engage path does.
+  Future<void> seedStarterCard(
+    int nameId, {
+    CardTier tier = CardTier.bronze,
+  }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     final existing = await _supabase
         .from('user_card_collection')
-        .select('id')
+        .select('id, tier')
         .eq('user_id', userId)
         .eq('name_id', nameId)
         .maybeSingle();
@@ -326,10 +519,23 @@ class AuthService {
       await _supabase.from('user_card_collection').insert({
         'user_id': userId,
         'name_id': nameId,
-        'tier': 'bronze',
+        'tier': tier.name,
       });
+    } else if (_tierRank(existing['tier'] as String?) < tier.number) {
+      await _supabase
+          .from('user_card_collection')
+          .update({'tier': tier.name}).eq('id', existing['id'] as Object);
     }
     await writeCachedStarterNameId(nameId);
+  }
+
+  /// The stored tier's rank, or the ceiling for an unrecognised value so an
+  /// unknown tier is never clobbered by the clamp.
+  int _tierRank(String? stored) {
+    for (final t in CardTier.values) {
+      if (t.name == stored) return t.number;
+    }
+    return CardTier.emerald.number;
   }
 
   Future<void> markOnboardingCompleted() async {

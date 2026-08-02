@@ -39,11 +39,16 @@ class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
     state = await getDailyRewards();
   }
 
-  Future<DailyRewardClaimResult> claim() async {
-    final result = await claimDailyReward();
-    state = await getDailyRewards();
-    return result;
-  }
+  // `claim()` lived here until W4 Wave 4. Its only caller was the day-open
+  // overlay's "Claim Reward" button, and that button is gone: the grant moved
+  // to answer-submit (`DailyLoopNotifier.submitDailyAnswer`) so the reward
+  // follows the practice rather than the app launch, and the ceremony moved
+  // behind "Ameen".
+  //
+  // Deleted rather than left orphaned because `claimDailyReward` is exactly the
+  // wrong thing to leave a spare entry point to — the next reader working out
+  // which claim path is live must not find a second plausible one that nothing
+  // calls. There is one live claim, and it is in `daily_loop_provider.dart`.
 
   @override
   void dispose() {

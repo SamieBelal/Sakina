@@ -6,6 +6,7 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -82,7 +83,10 @@ const List<BeginnerQuest> beginnerQuests = [
     xpReward: 75,
     tokenReward: 50,
     scrollReward: 5,
-    route: '/muhasabah',
+    // `?entry=home_cta` — a quest card is an in-app tap like any other (W4
+    // Wave 7). Untagged it would land as `day_open` and inflate the one entry
+    // source the app is supposed to initiate on its own.
+    route: '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta',
   ),
   BeginnerQuest(
     id: BeginnerQuestId.firstReflect,
@@ -369,7 +373,10 @@ const _monthlyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 3,
-    title: 'Unlock 3 Silver Names',
+    // Tier words attach to the CARD, never the Name (CLAUDE.md). "a Silver
+    // Name" reads as though the Names of Allah come in grades; the tier is a
+    // property of the collectible artwork.
+    title: 'Unlock 3 Silver cards',
     description: 'Tier up 3 Names to Silver in your Collection.',
     icon: Icons.military_tech_rounded,
     xpReward: 120,
@@ -409,7 +416,8 @@ const _monthlyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 7,
-    title: 'Unlock 1 Gold Name',
+    // See the Silver quest above — tier belongs to the card, not the Name.
+    title: 'Unlock 1 Gold card',
     description: 'Tier up a Name all the way to Gold this month.',
     icon: Icons.workspace_premium_rounded,
     xpReward: 200,
@@ -1252,7 +1260,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<void> updateMonthlyBuiltDuas(int count) =>
       _updateProgress(QuestCadence.monthly, 2, count);
 
-  /// Monthly pool 3: Unlock 3 Silver Names this month
+  /// Monthly pool 3: Unlock 3 Silver cards this month
   Future<void> updateMonthlySilverNames(int count) =>
       _updateProgress(QuestCadence.monthly, 3, count);
 
@@ -1268,7 +1276,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<void> updateMonthlySavedRelatedDuas(int count) =>
       _updateProgress(QuestCadence.monthly, 6, count);
 
-  /// Monthly pool 7: Unlock 1 Gold Name this month
+  /// Monthly pool 7: Unlock 1 Gold card this month
   Future<void> updateMonthlyGoldNames(int count) =>
       _updateProgress(QuestCadence.monthly, 7, count);
 

@@ -29,18 +29,35 @@
 // lapsed-trial sheet via post-frame callbacks). Instead we pin the bugs at
 // two complementary levels:
 //
-//   1. A behavioral test on a stub widget that mirrors the EXACT
-//      production guard pattern (State field + try/finally around
-//      GatingService.canUse + markUsed). Exercises real `GatingService` so
-//      `discover_name_uses` is a true side-effect probe — same approach as
-//      the reflect/duas tests, just lifted into a State-class harness
-//      because the guard lives on a screen rather than a notifier.
+//   1. A behavioral test on a stub widget that mirrors the production guard
+//      shape (State field + try/finally around an async CTA body). Exercises
+//      real `GatingService` so `discover_name_uses` is a true side-effect
+//      probe — same approach as the reflect/duas tests, just lifted into a
+//      State-class harness because the guard lives on a screen rather than a
+//      notifier.
 //
 //   2. A source-level invariant on `progress_screen.dart` that fails if
 //      anyone reverts to the buggy `_showDiscoverGateSheet(BuildContext)`
 //      single-arg shape, the hardcoded `push('/paywall')` upgrade callback,
 //      or removes the `_discoverInFlight` guard. Mirrors the muhasabah
 //      `muhasabah_screen_source_test.dart` idiom already used in this repo.
+//
+// UPDATED by W4 Wave 1 (plan 2026-07-30-one-ship-04): `markUsed` no longer
+// lives at either CTA — it moved into `DailyLoopNotifier.discoverName`, so that
+// opening the daily question and backing out cannot burn the user's one free
+// reveal. `canUse` STAYS at the CTA, and so does `_discoverInFlight`.
+//
+// What that does to this file:
+//   - The stub below still pins the guard SHAPE, which is what Bug A was
+//     about, but the work it guards is now `canUse` + the provider call. It is
+//     a model of the shape, not a copy of the current CTA body.
+//   - Two new source-level pins assert the negative: neither screen may call
+//     `GatingService().markUsed` again. That is the regression this wave is
+//     protecting against, and it is invisible to any behavioral test that does
+//     not wire the whole screen.
+//   - The consumption contract itself (charged once, on success only, never on
+//     the bypass paths) is pinned behaviorally in
+//     `test/features/daily/discover_name_mark_used_test.dart`.
 
 import 'dart:async';
 import 'dart:io';
@@ -77,11 +94,13 @@ void main() {
       'two synchronous taps in the same microtask only fire markUsed once '
       '(pre-loading race — pinned by _discoverInFlight, NOT by any post-await flag)',
       (tester) async {
-        // Stub widget mirroring the EXACT production guard pattern from
+        // Stub widget mirroring the production guard shape from
         // progress_screen.dart `_buildMuhasabahRow` (completed state) and
         // muhasabah_screen.dart `_buildCompleted` "Seek Another Name" CTA.
-        // The pattern under test is the State-field flag + try/finally
-        // around the GatingService canUse/markUsed sequence.
+        // The pattern under test is the State-field flag + try/finally around
+        // an async CTA body. `markUsed` stands in here for the work the real
+        // CTAs now delegate to `discoverName` — the point is that a second tap
+        // must not reach it, wherever it lives.
         final controller = _DiscoverCtaController();
         await tester.pumpWidget(
           MaterialApp(
@@ -156,113 +175,119 @@ void main() {
     );
   });
 
-  group('Bug B + structural pins on progress_screen.dart', () {
+  group('progress_screen.dart no longer hosts a re-roll at all', () {
+    // 2026-08-01 (founder): the home CTA's completed state was deleted — once
+    // the day's muḥāsabah is done the slot closes rather than swapping to a
+    // "Today's muḥāsabah is complete" panel. That panel was the only host of
+    // "Meet another Name", so `_rerollName`, `_showDiscoverGateSheet` and the
+    // `_discoverInFlight` guard went with it.
+    //
+    // Bug A and Bug B were NOT unpinned by that deletion. They were re-pointed
+    // at the surviving call site — the muḥāsabah completion screen's "Seek
+    // Another Name", which carries the identical gate, cap sheet and
+    // rerollPremium wall and is the screen the user is standing on the instant
+    // the loop completes. Those pins are the group below, and they are now the
+    // only ones, so treat them as load-bearing.
+    //
+    // What this group pins is the negative: if a second copy of the gated
+    // re-roll is ever rebuilt on the home screen, it must come back WITH its
+    // guard rather than without it. A bare `canUse` here — no in-flight flag,
+    // no `buildPaywallUpgradeCallback` — is exactly the pair of bugs above.
     late String source;
 
     setUpAll(() {
+      // COMMENTS STRIPPED. The doc on `_buildMuhasabahCta` names the deleted
+      // helpers on purpose — it is the note telling the next reader not to
+      // rebuild them — and a raw `contains` would read that prose as the code
+      // coming back.
       source = File('lib/features/progress/screens/progress_screen.dart')
-          .readAsStringSync();
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//') &&
+              !l.trimLeft().startsWith('///'))
+          .join('\n');
     });
 
-    test(
-      '_showDiscoverGateSheet accepts a GateReason (not just BuildContext)',
-      () {
-        // The bug was the single-arg signature `_showDiscoverGateSheet(
-        // BuildContext context)` which threw away `gate.reason` and
-        // hardcoded the paywall push. The fix takes `(BuildContext, GateReason)`.
-        final hasGateReasonParam = RegExp(
-          r'_showDiscoverGateSheet\s*\(\s*BuildContext\s+\w+\s*,\s*GateReason\s+\w+\s*\)',
-        ).hasMatch(source);
-        expect(
-          hasGateReasonParam,
-          isTrue,
-          reason:
-              '_showDiscoverGateSheet must accept a GateReason so premium '
-              'users hitting the 30/day fair-use ceiling get a no-op upgrade '
-              'CTA instead of being routed to /paywall (Bug B). If this '
-              'fails, someone reverted to the single-arg signature.',
-        );
-      },
-    );
-
-    test(
-      '_showDiscoverGateSheet uses buildPaywallUpgradeCallback (not a hardcoded paywall push)',
-      () {
-        expect(
-          source.contains('buildPaywallUpgradeCallback'),
-          isTrue,
-          reason:
-              'progress_screen must use buildPaywallUpgradeCallback so the '
-              'premiumFairUse branch returns a no-op. A hardcoded `() => '
-              "GoRouter.of(context).push('/paywall')` as the onUpgrade is "
-              'the regression we just fixed.',
-        );
-      },
-    );
-
-    test(
-      'completed-state CTA passes gate.reason into _showDiscoverGateSheet',
-      () {
-        // The call site (around line 644) used to be
-        // `_showDiscoverGateSheet(context)`. After the fix it must pass
-        // `gate.reason` so the no-op-for-premium routing kicks in.
-        final hasReasonArg = RegExp(
-          r'_showDiscoverGateSheet\s*\(\s*context\s*,\s*gate\.reason\s*\)',
-        ).hasMatch(source);
-        expect(
-          hasReasonArg,
-          isTrue,
-          reason:
-              'The completed-state CTA must call '
-              '`_showDiscoverGateSheet(context, gate.reason)`. Without the '
-              'reason arg, premium fair-use users get the wrong upgrade CTA.',
-        );
-      },
-    );
-
-    test('completed-state CTA has a synchronous _discoverInFlight guard', () {
-      // Bug A pin: regression-fail if the State field is removed or the
-      // try/finally around the onTap body disappears.
+    test('no gated action is invoked from the home screen', () {
       expect(
-        source.contains('_discoverInFlight'),
-        isTrue,
-        reason:
-            'progress_screen must declare `_discoverInFlight` on the State '
-            'class and gate the "Seek Another Name" onTap on it (set BEFORE '
-            'any await, cleared in finally). Without it, double-taps race '
-            'past `canUse` and `markUsed` fires twice — same shape as the '
-            'reflect/duas D-E5 race.',
-      );
-
-      // Pattern: `if (_discoverInFlight) return;` followed by
-      // `_discoverInFlight = true;` and a `try {` ... `} finally {
-      // _discoverInFlight = false; }`.
-      final hasGuardShape = RegExp(
-        r'if\s*\(\s*_discoverInFlight\s*\)\s*return\s*;'
-        r'[\s\S]*?_discoverInFlight\s*=\s*true\s*;'
-        r'[\s\S]*?try\s*\{'
-        r'[\s\S]*?\}\s*finally\s*\{'
-        r'[\s\S]*?_discoverInFlight\s*=\s*false\s*;',
+        RegExp(r'canUse\s*\(').hasMatch(source),
+        isFalse,
+        reason: 'progress_screen gates nothing since the completed card was '
+            'deleted. If you are adding a gated action back, add the '
+            '_discoverInFlight guard shape and the buildPaywallUpgradeCallback '
+            'routing WITH it — see the muhasabah_screen pins below for the '
+            'shape, and re-point this test rather than deleting it.',
       );
       expect(
-        hasGuardShape.hasMatch(source),
-        isTrue,
-        reason:
-            'The "Seek Another Name" onTap must follow the canonical guard '
-            'shape: early-return on the flag, set the flag synchronously '
-            'BEFORE any await, wrap the whole body in try/finally that '
-            'clears the flag. Anything else risks the flag sticking true '
-            'on an exception path and locking the CTA permanently.',
+        source.contains('_showDiscoverGateSheet'),
+        isFalse,
+        reason: 'the cap sheet presenter left with the re-roll; a second copy '
+            'is a second thing to keep correct',
+      );
+    });
+
+    test('the home screen still never CONSUMES (W4 Wave 1)', () {
+      // The negative pin survives the deletion unchanged: with a question
+      // between the tap and the reveal, marking at the tap means opening the
+      // prompt and backing out burns the day's free reveal. The charge lives at
+      // the tail of `DailyLoopNotifier.discoverName`, where a Name has
+      // demonstrably been engaged.
+      expect(
+        RegExp(r'markUsed\s*\(').hasMatch(source),
+        isFalse,
+        reason: 'progress_screen must not call GatingService.markUsed. If this '
+            'fails, someone moved consumption back onto the tap and a user who '
+            'opens the daily question and backs out is charged for a reveal '
+            'they never saw.',
       );
     });
   });
 
   group('Bug B + structural pins on muhasabah_screen.dart', () {
+    // SINCE 2026-08-01 THIS IS THE ONLY COPY. The home screen's completed-state
+    // re-roll was deleted with the card that hosted it, so every Bug B pin that
+    // used to be duplicated against progress_screen.dart now lives here alone.
+    // Relaxing one of these no longer leaves a second guarded call site behind.
     late String source;
 
     setUpAll(() {
       source = File('lib/features/daily/screens/muhasabah_screen.dart')
           .readAsStringSync();
+    });
+
+    test('_showDiscoverGateSheet accepts a GateReason', () {
+      // The original bug was a signature that threw `gate.reason` away and
+      // hardcoded the paywall push, so premium users hitting the 30/day
+      // fair-use ceiling were routed to the paywall they had already paid for.
+      expect(
+        RegExp(r'_showDiscoverGateSheet\s*\(\s*GateReason\s+\w+\s*\)')
+            .hasMatch(source),
+        isTrue,
+        reason: '_showDiscoverGateSheet must take the reason so the '
+            'premiumFairUse branch can be told apart. If this fails, someone '
+            'reverted to a reason-less signature.',
+      );
+    });
+
+    test('it uses buildPaywallUpgradeCallback, not a hardcoded paywall push',
+        () {
+      expect(
+        source.contains('buildPaywallUpgradeCallback'),
+        isTrue,
+        reason: 'muhasabah_screen must use buildPaywallUpgradeCallback so the '
+            'premiumFairUse branch returns a no-op. A hardcoded '
+            "`push('/paywall')` as the onUpgrade is the Bug B regression.",
+      );
+    });
+
+    test('the CTA passes gate.reason into the sheet', () {
+      expect(
+        RegExp(r'_showDiscoverGateSheet\s*\(\s*gate\.reason\s*\)')
+            .hasMatch(source),
+        isTrue,
+        reason: 'without the reason arg, premium fair-use users get the wrong '
+            'upgrade CTA — they are sold what they already bought.',
+      );
     });
 
     test('completed-state "Seek Another Name" CTA has _discoverInFlight guard',
@@ -288,6 +313,19 @@ void main() {
           reason:
               'The completed-state CTA must follow the canonical guard shape '
               '(see progress_screen pin for details).');
+    });
+
+    test('the "Seek Another Name" CTA gates but does not CONSUME (W4 Wave 1)',
+        () {
+      expect(source.contains('canUse('), isTrue,
+          reason: 'the gate check must stay at the CTA');
+      expect(
+        RegExp(r'markUsed\s*\(').hasMatch(source),
+        isFalse,
+        reason: 'muhasabah_screen must not call GatingService.markUsed — the '
+            'charge belongs to discoverName, which only marks once a Name has '
+            'actually been engaged. See the progress_screen pin for why.',
+      );
     });
   });
 }

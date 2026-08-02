@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +9,6 @@ import '../features/tour/providers/onboarding_tour_controller.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
 import '../services/gating_service.dart';
-import '../services/trial_expiry_service.dart';
 import '../widgets/iap_to_sub_upsell_banner.dart';
 import 'app_session.dart';
 
@@ -73,6 +74,12 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     GatingService.onProfileHydrated = () {
       if (!mounted) return;
       ref.invalidate(iapToSubBannerStateProvider);
+      // W6 Wave A: `free_tier_cohort` cannot be registered at boot — it's a
+      // user-scoped prefs key `hydrateFromProfile` itself just wrote, so a
+      // fresh install has no value until this, the first `sync_all_user_data`.
+      // Same hook, a second statement — not a second hook. Best-effort: a
+      // throwing read must never break the banner-refresh signal above it.
+      unawaited(_registerFreeTierCohort());
     };
 
     try {
@@ -112,6 +119,23 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     if (nextAuth != _lastAuth) {
       _lastAuth = nextAuth;
       ref.invalidate(premiumStateProvider);
+    }
+  }
+
+  /// Registers the `free_tier_cohort` super property (`reel_v1` | `legacy`)
+  /// now that [GatingService.hydrateFromProfile] has written a fresh cache.
+  /// `isNewCohort()` is the same cache-only read every gate check already
+  /// trusts, so this can never disagree with the app's own gating behaviour.
+  Future<void> _registerFreeTierCohort() async {
+    try {
+      final newCohort = await GatingService().isNewCohort();
+      if (!mounted) return;
+      ref.read(analyticsProvider).setSuperProperties({
+        AnalyticsEvents.propFreeTierCohort:
+            newCohort ? GatingService.cohortReelV1 : 'legacy',
+      });
+    } catch (_) {
+      // Analytics best-effort — must never surface to the hydration signal.
     }
   }
 
@@ -181,27 +205,13 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
       // Invalidate the premium state so the card + banner re-read on
       // next watch.
       ref.invalidate(premiumStateProvider);
-      // Reverse-trial resume re-check (eng-review #1): refresh the trial cache
-      // and, if the 3-day trial just crossed into the past while backgrounded,
-      // emit `trial_expired` exactly once. Routing then falls to the soft gate
-      // on the next premium read (already invalidated above). Best-effort and
-      // fire-and-forget so the lifecycle path never blocks on it.
-      if (mounted) {
-        _checkTrialExpiry();
-      }
-    }
-  }
-
-  /// Resolves the reverse-trial expiry transition and emits `trial_expired`
-  /// once when the trial just lapsed. Separated out so the async work doesn't
-  /// hold up the synchronous lifecycle callback. Best-effort throughout.
-  Future<void> _checkTrialExpiry() async {
-    try {
-      final decision = await resolveTrialExpiry();
-      if (!mounted || !decision.justExpired) return;
-      ref.read(analyticsProvider).track(AnalyticsEvents.trialExpired);
-    } catch (_) {
-      // Analytics / prefs best-effort — must never break the resume path.
+      // The reverse-trial resume re-check used to hang off this branch: it
+      // refreshed the app-granted `trial_premium_until` cache and emitted
+      // `trial_expired` once on the Day-3 crossing. Deleted with the rest of
+      // the experiment (W5 Wave A) — nothing grants that trial any more, so
+      // there is no expiry transition left to observe. The RC store-trial
+      // lapse is a separate surface (`LapsedTrialSheet`, off `hadTrial()`) and
+      // is unaffected.
     }
   }
 

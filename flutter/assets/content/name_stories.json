@@ -1,0 +1,1638 @@
+[
+  {
+    "deck_id": "as-salam@1",
+    "name_id": 6,
+    "transliteration": "As-Salam",
+    "chip_keys": [
+      "anxiety"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "For the weight you named — a mind that won't stop racing — there is a Name.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 6, verbatim",
+        "primary": "The Source of Serenity",
+        "arabic": "السَّلَامُ",
+        "transliteration": "As-Salam",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The Cave",
+        "primary": "Hunted out of Mecca, the Prophet ﷺ hid in a cave with his closest friend. The searchers came so close that Abu Bakr said: if one of them looks down, he will see us. The Prophet ﷺ was unshaken.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The Cave",
+        "primary": "He answered: \"What do you think of two, the third of whom is Allah? Do not worry — Allah is certainly with us.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The Cave",
+        "primary": "And Allah sent down His serenity upon him. The danger was still outside — the stillness inside was real.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Surely in the remembrance of Allah do hearts find comfort.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 13:28"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 6, verbatim in full — these are the Prophet's ﷺ own post-prayer words, Sahih Muslim 591",
+        "primary": "O Allah, You are Peace and from You comes peace. Blessed are You, O Owner of Majesty and Honor.",
+        "arabic": "اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
+        "transliteration": "Allahumma Antas-Salam wa minkas-salam tabarakta ya Dhal-Jalali wal-Ikram",
+        "translation": "",
+        "source": "Sahih Muslim 591"
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair-synergy beat — Name₁ deck carries it",
+        "primary": "As-Salam — peace itself — is the Name for what is inside you. Al-Wakeel, the second Name of your answer, is the One you trust with what is outside your hands.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Cave narrative; \"Do not worry; Allah is certainly with us\"; \"sent down His serenity\"",
+        "url": "https://quran.com/9/40",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 9:40"
+      },
+      {
+        "claim": "Abu Bakr's words (\"If any of them should look under his feet, he would see us\") + \"two, the third of whom is Allah\"",
+        "url": "https://sunnah.com/bukhari:3653",
+        "verified": "✅ verified (archive)",
+        "source_label": "Sahih al-Bukhari 3653 (sahih)"
+      },
+      {
+        "claim": "Hearts find comfort",
+        "url": "https://quran.com/13/28",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 13:28"
+      },
+      {
+        "claim": "Post-prayer dhikr (full dua text)",
+        "url": "https://sunnah.com/muslim:591",
+        "verified": "✅ verified (archive)",
+        "source_label": "Sahih Muslim 591 (sahih)"
+      },
+      {
+        "claim": "\"Source of Serenity\" rendering",
+        "url": "https://quran.com/59/23",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 59:23"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-wakeel@1",
+    "name_id": 35,
+    "transliteration": "Al-Wakeel",
+    "chip_keys": [
+      "anxiety"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "A racing mind spends the night rehearsing tomorrow. This is the Name of the One you can hand tomorrow to.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 35, verbatim + one authored gloss line to unify the renderings the user will meet",
+        "primary": "The Trustee — the Guardian you hand your affairs to",
+        "arabic": "الْوَكِيلُ",
+        "transliteration": "Al-Wakeel",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "After Uhud",
+        "primary": "Wounded after Uhud, the believers were warned that their enemies had gathered against them — and were told to be afraid. They were not.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "After Uhud",
+        "primary": "The warning only made them grow stronger in faith. They answered with one sentence: ḥasbunallāhu wa niʿmal-wakīl — \"Allah alone is sufficient for us, and He is the best Protector.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "After Uhud",
+        "primary": "\"So they returned with Allah's favours and grace, suffering no harm.\" The harm they had been told to fear never came.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked as such",
+        "primary": "…And whoever puts their trust in Allah, then He ˹alone˺ is sufficient for them.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 65:3"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 35, verbatim — the same words the believers spoke at Uhud, and Ibrahim at the fire",
+        "primary": "Allah is enough for us, and He is the best disposer of affairs.",
+        "arabic": "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",
+        "transliteration": "Hasbunallahu wa ni'mal-Wakil",
+        "translation": "",
+        "source": "Qur'an 3:173"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "You were never asked to hold every outcome. Handing them over is not giving up — it is trust, placed with the One who holds them.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"Wounded\" (after their injury)",
+        "url": "https://quran.com/3/172",
+        "verified": "✅ verified reference (wording per Khattab 3:172 \"after their injury\")",
+        "source_label": "Qur'an 3:172"
+      },
+      {
+        "claim": "Warning \"so fear them\" → grew stronger → ḥasbunallāh",
+        "url": "https://quran.com/3/173",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 3:173"
+      },
+      {
+        "claim": "\"Returned… suffering no harm\"",
+        "url": "https://quran.com/3/174",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 3:174"
+      },
+      {
+        "claim": "Same phrase spoken by Ibrahim at the fire + the Prophet ﷺ",
+        "url": "https://sunnah.com/bukhari:4563",
+        "verified": "✅ verified (archive)",
+        "source_label": "Sahih al-Bukhari 4563 (sahih)"
+      },
+      {
+        "claim": "Trust clause (excerpt; verse begins mid-sentence)",
+        "url": "https://quran.com/65/3",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 65:3"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-wadud@1",
+    "name_id": 27,
+    "transliteration": "Al-Wadud",
+    "chip_keys": [
+      "far-from-allah"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You named the distance. This Name is about what happens on the other side of it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 27, verbatim",
+        "primary": "The Most Loving",
+        "arabic": "الْوَدُودُ",
+        "transliteration": "Al-Wadud",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The lost camel",
+        "primary": "A traveler alone in the desert loses his camel — and with it all his food and water. He lies down in the shade, all hope gone.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 2747a / Bukhari 6309"
+      },
+      {
+        "kind": "story",
+        "label": "The lost camel",
+        "primary": "Then he looks up — and it is standing before him. His joy is so wild the words come out backwards: \"O Allah, You are my servant and I am Your Lord.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 2747a / Bukhari 6309"
+      },
+      {
+        "kind": "story",
+        "label": "The lost camel",
+        "primary": "The Prophet ﷺ said: Allah is more pleased with the repentance of His servant than that man was with his camel.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 2747a / Bukhari 6309"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "So seek your Lord's forgiveness and turn to Him in repentance. Surely my Lord is Most Merciful, All-Loving.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 11:90 (Wadud in-text)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 27, verbatim",
+        "primary": "O Allah, I ask You for Your love and the love of those who love You.",
+        "arabic": "اللَّهُمَّ إِنِّي أَسْأَلُكَ حُبَّكَ وَحُبَّ مَنْ يُحِبُّكَ",
+        "transliteration": "Allahumma inni as'aluka hubbaka wa hubba man yuhibbuk",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "That pleasure is what the Prophet ﷺ said repentance is met with. And the way back is not yours to invent — Al-Hadi, the second Name of your answer, is the Guide.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/muslim:2747a",
+        "verified": "both sahih, verified via archive",
+        "source_label": "Muslim 2747a"
+      },
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:6309",
+        "verified": "both sahih, verified via archive",
+        "source_label": "Bukhari 6309"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/11/90",
+        "verified": "✅",
+        "source_label": "Qur'an 11:90"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-hadi@1",
+    "name_id": 33,
+    "transliteration": "Al-Hadi",
+    "chip_keys": [
+      "far-from-allah"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Feeling far is one thing. Not knowing the way back is another. This Name is the answer to the second.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 33, verbatim",
+        "primary": "The Guide",
+        "arabic": "الْهَادِي",
+        "transliteration": "Al-Hadi",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Musa on the road to Midian",
+        "primary": "Musa fled Egypt at his lowest — a life taken, the city behind him, nothing ahead but open road.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 28:22"
+      },
+      {
+        "kind": "story",
+        "label": "Musa on the road to Midian",
+        "primary": "He carried no certainty. Only this: \"I trust my Lord will guide me to the right way.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 28:22"
+      },
+      {
+        "kind": "story",
+        "label": "Musa on the road to Midian",
+        "primary": "What met him was not the past. It was Midian — shelter, and a family.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 28:22"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked — final clause of a longer verse",
+        "primary": "…And Allah surely guides the believers to the Straight Path.",
+        "arabic": "هَادِ",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 22:54 (Name-form in-text)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 33, verbatim",
+        "primary": "O Allah, guide us and make us a means of guidance for others.",
+        "arabic": "اللَّهُمَّ اهْدِنَا وَاهْدِ بِنَا",
+        "transliteration": "Allahumma ihdina wa ihdi bina",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Even the strongest believers ask \"guide us\" in every prayer, every day. Needing guidance was never falling behind — asking for it is the prayer itself.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/28/22",
+        "verified": "✅",
+        "source_label": "Qur'an 28:22"
+      },
+      {
+        "claim": "beat-1 backstory",
+        "url": "https://quran.com/28/15",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "28:15"
+      },
+      {
+        "claim": "beat-1 backstory",
+        "url": "https://quran.com/28/21",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "28:21"
+      },
+      {
+        "claim": "beat-3 Midian",
+        "url": "https://quran.com/28/23",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "28:23-27"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/22/54",
+        "verified": "✅",
+        "source_label": "22:54"
+      },
+      {
+        "claim": "takeaway basis",
+        "url": "https://quran.com/1/6",
+        "verified": "✅",
+        "source_label": "1:6"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-ghaffar@1",
+    "name_id": 11,
+    "transliteration": "Al-Ghaffar",
+    "chip_keys": [
+      "guilt"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "For the weight you named — the sin you keep returning from — there is a Name that keeps answering.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 11, verbatim",
+        "primary": "The Ever-Forgiving",
+        "arabic": "الْغَفَّارُ",
+        "transliteration": "Al-Ghaffar",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The servant who kept returning",
+        "primary": "A man sinned, and said: my Lord, I have sinned — forgive me. And he was forgiven. Time passed, and he fell again.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 7507"
+      },
+      {
+        "kind": "story",
+        "label": "The servant who kept returning",
+        "primary": "Again he asked. Again he was forgiven. And a third time — Allah answered that His servant knew he had a Lord who forgives, and He forgave him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 7507"
+      },
+      {
+        "kind": "story",
+        "label": "The servant who kept returning",
+        "primary": "In the story, the loop you are ashamed of ends the same way every time — not at the sin, but at the return.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 7507"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "O My servants who have exceeded the limits against their souls! Do not lose hope in Allah's mercy, for Allah certainly forgives all sins.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 39:53 (excerpt)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 11, verbatim",
+        "primary": "My Lord, forgive me and accept my repentance. You are the Acceptor of Repentance, the Forgiving.",
+        "arabic": "رَبِّ اغْفِرْ لِي وَتُبْ عَلَيَّ إِنَّكَ أَنْتَ التَّوَّابُ الْغَفُورُ",
+        "transliteration": "Rabbighfir li wa tub 'alayya innaka Antat-Tawwabul-Ghafur",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "Al-Ghaffar is the forgiving that does not run out. At-Tawwab — the second Name of your answer — is about the turning back itself.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:7507",
+        "verified": "sahih, verified via archive; beat 2 is marked paraphrase — the hadith's full clause is \"a Lord who forgives sins and punishes for them\"; scholars read the ending as \"so long as he keeps repenting\" — beat 3 keeps the return in view",
+        "source_label": "Bukhari 7507"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/39/53",
+        "verified": "✅",
+        "source_label": "Qur'an 39:53"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "at-tawwab@1",
+    "name_id": 31,
+    "transliteration": "At-Tawwab",
+    "chip_keys": [
+      "guilt"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You think the shameful part is having to come back again. Coming back has its own Name.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 31, verbatim",
+        "primary": "The Acceptor of Repentance",
+        "arabic": "التَّوَّابُ",
+        "transliteration": "At-Tawwab",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The man who took a hundred lives",
+        "primary": "A man of an earlier nation had taken ninety-nine lives. He asked: is repentance possible for me? He was told no — and the count became one hundred. Still, he kept asking.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3470"
+      },
+      {
+        "kind": "story",
+        "label": "The man who took a hundred lives",
+        "primary": "Then he was told: go to a righteous town. He set out — and died on the road, still on his way.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3470"
+      },
+      {
+        "kind": "story",
+        "label": "The man who took a hundred lives",
+        "primary": "The angels of mercy and the angels of punishment disputed over him. And the earth was commanded to draw the town closer — he was found a single span nearer to it, and forgiven.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3470"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Then Adam was inspired with words ˹of prayer˺ by His Lord, so He accepted his repentance. Surely He is the Accepter of Repentance, Most Merciful.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:37 (Name in-text)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 31, verbatim",
+        "primary": "O Allah, forgive me and accept my repentance. Indeed You are At-Tawwab, the Most Merciful.",
+        "arabic": "اللَّهُمَّ اغْفِرْ لِي وَتُبْ عَلَيَّ إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ",
+        "transliteration": "Allahumma ighfir li wa tub alayyah innaka anta at-tawwabur-rahim",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "In every one of these stories, the acceptance met the person mid-road. The turning is enough to begin.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:3470",
+        "verified": "sahih, verified via archive — story copy uses ONLY Bukhari 3470 details; the \"scholar not monk / leave the land\" details are Muslim 2766, UNVERIFIED, excluded",
+        "source_label": "Bukhari 3470"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/2/37",
+        "verified": "✅",
+        "source_label": "Qur'an 2:37"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-jabbar@1",
+    "name_id": 9,
+    "transliteration": "Al-Jabbar",
+    "chip_keys": [
+      "heavy"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "For the weight you named — the heaviness that doesn't lift — there is a Name for what is broken being mended.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 9, verbatim",
+        "primary": "The Compeller — Restorer of the Broken",
+        "arabic": "الْجَبَّارُ",
+        "transliteration": "Al-Jabbar",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Yaqub's grief, and the mending of the house of Yusuf",
+        "primary": "Yaqub wept for his son Yusuf — grief so heavy it took his eyesight. He carried it to one place only: \"I complain of my anguish and sorrow only to Allah.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12"
+      },
+      {
+        "kind": "story",
+        "label": "Yaqub's grief, and the mending of the house of Yusuf",
+        "primary": "Then came the day a shirt arrived — the same kind of shirt that once carried false blood — and this time it carried his son's scent. \"He cast the shirt over Jacob's face, so he regained his sight.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12"
+      },
+      {
+        "kind": "story",
+        "label": "Yaqub's grief, and the mending of the house of Yusuf",
+        "primary": "Sight restored. Son restored. Whole again.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked",
+        "primary": "…do not lose hope in the mercy of Allah…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12:87"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 9, verbatim",
+        "primary": "O Compeller, mend my brokenness.",
+        "arabic": "يَا جَبَّارُ اجْبُرْ كَسْرِي",
+        "transliteration": "Ya Jabbar ujbur kasri",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "Al-Jabbar is the Name for what broke. Ash-Shafi — the second Name of your answer — is the Name for what still hurts.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/12/86",
+        "verified": "✅ verified",
+        "source_label": "Qur'an 12:86"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/12/87",
+        "verified": "✅ verified",
+        "source_label": "12:87"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/12/96",
+        "verified": "✅ verified",
+        "source_label": "12:96"
+      },
+      {
+        "claim": "beat-1/2 details: eyesight",
+        "url": "https://quran.com/12/84",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:84"
+      },
+      {
+        "claim": "beat-1/2 details: false-blood shirt",
+        "url": "https://quran.com/12/18",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:18"
+      },
+      {
+        "claim": "beat-1/2 details: scent",
+        "url": "https://quran.com/12/94",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:94"
+      },
+      {
+        "claim": "jabr/bone-setter sense",
+        "url": "https://yaqeeninstitute.org/read/paper/the-meaning-of-allahs-name-al-jabbar-the-compeller-and-mender-of-broken-hearts",
+        "verified": "secondary framing",
+        "source_label": "Yaqeen: Al-Jabbar — Mender of Broken Hearts"
+      },
+      {
+        "claim": "12:87 quoted as excerpt — the verse's ending clause is omitted by design (this chip's readers must never hear despair equated with faithlessness at the deck's tender point). 12:100 removed from this deck (cross-deck dedup: it is the sign-pair Lateef climax).",
+        "url": "",
+        "verified": "",
+        "source_label": ""
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "ash-shafi@1",
+    "name_id": 38,
+    "transliteration": "Ash-Shafi",
+    "chip_keys": [
+      "heavy"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Some heaviness is a wound. This is the Name the Prophet ﷺ himself called on for healing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 38, verbatim",
+        "primary": "The Healer",
+        "arabic": "الشَّافِي",
+        "transliteration": "Ash-Shafi",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Ayyub: the quietest complaint, the doubled answer",
+        "primary": "Ayyub lost his health, then his family. His whole prayer was one line: \"I have been touched with adversity, and You are the Most Merciful of the merciful.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:83-84"
+      },
+      {
+        "kind": "story",
+        "label": "Ayyub: the quietest complaint, the doubled answer",
+        "primary": "He stated the pain and named the Mercy. He demanded nothing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:83-84"
+      },
+      {
+        "kind": "story",
+        "label": "Ayyub: the quietest complaint, the doubled answer",
+        "primary": "\"So We answered his prayer and removed his adversity, and gave him back his family, twice as many, as a mercy from Us.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:83-84"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And He ˹alone˺ heals me when I am sick.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 26:80"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 38, verbatim — the Prophet's ﷺ ruqyah as the catalog carries it; cf. Sahih al-Bukhari 5743, whose wording/clause order differs slightly",
+        "primary": "O Allah, Lord of people, remove the illness, heal — You are the Healer, there is no healing except Your healing, a healing that leaves no illness behind.",
+        "arabic": "اللَّهُمَّ رَبَّ النَّاسِ أَذْهِبِ الْبَأْسَ اشْفِ أَنتَ الشَّافِي لَا شِفَاءَ إِلَّا شِفَاؤُكَ شِفَاءً لَا يُغَادِرُ سَقَمًا",
+        "transliteration": "Allahumma Rabban-nasi, adhhib il-ba's, ishfi anta'sh-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama",
+        "translation": "",
+        "source": "cf. Sahih al-Bukhari 5743"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "The answer to Ayyub was not repair. It was more than there was before the breaking.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/21/83-84",
+        "verified": "✅ (Khattab rendering pinned)",
+        "source_label": "Qur'an 21:83"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/21/84",
+        "verified": "✅ (Khattab rendering pinned)",
+        "source_label": "21:84"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/26/80",
+        "verified": "✅",
+        "source_label": "26:80"
+      },
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:5743",
+        "verified": "sahih, verified via archive — source of the Name + the catalog dua",
+        "source_label": "Bukhari 5743"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "ar-razzaq@1",
+    "name_id": 13,
+    "transliteration": "Ar-Razzaq",
+    "chip_keys": [
+      "rizq"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "For the weight you named — the fear of not having enough, of not providing — there is a Name.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 13, verbatim",
+        "primary": "The Provider",
+        "arabic": "الرَّزَّاقُ",
+        "transliteration": "Ar-Razzaq",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The birds",
+        "primary": "The Prophet ﷺ answered the fear of tomorrow with a picture: a bird, going out in the morning with nothing in hand.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 2344, hasan"
+      },
+      {
+        "kind": "story",
+        "label": "The birds",
+        "primary": "He said: if you relied upon Allah as He deserves to be relied upon, He would provide for you as He provides for the birds — they go out in the morning empty, and return full.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 2344, hasan"
+      },
+      {
+        "kind": "story",
+        "label": "The birds",
+        "primary": "And the bird still goes out — reliance was never sitting still; it is going out with the weight handed over.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 2344, hasan"
+      },
+      {
+        "kind": "verse",
+        "label": "composite of 65:2-3, disclosed",
+        "primary": "And whoever is mindful of Allah, He will make a way out for them, and provide for them from sources they could never imagine.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 65:2-3"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 13, verbatim",
+        "primary": "O Allah, suffice me with what is lawful against what is unlawful, and enrich me by Your favor over all others.",
+        "arabic": "اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ",
+        "transliteration": "Allahumma ikfini bi halalika 'an haramik wa aghnini bi fadlika amman siwak",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "Ar-Razzaq is about what reaches you. Al-Fattah — the second Name of your answer — is about the doors it comes through.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/tirmidhi:2344",
+        "verified": "grade: Hasan (Darussalam); Tirmidhi's own remark: hasan sahih (verified via archive; grade displayed honestly)",
+        "source_label": "Tirmidhi 2344"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/65/2",
+        "verified": "✅ (composite excerpt disclosed)",
+        "source_label": "Qur'an 65:2"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/65/3",
+        "verified": "✅ (composite excerpt disclosed)",
+        "source_label": "65:3"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-fattah@1",
+    "name_id": 23,
+    "transliteration": "Al-Fattah",
+    "chip_keys": [
+      "rizq"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "And for the doors that look shut — the application, the job, the way forward — this is the Name of the One who opens.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 23, verbatim",
+        "primary": "The Opener",
+        "arabic": "الْفَتَّاحُ",
+        "transliteration": "Al-Fattah",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Hudaybiyyah: the shut door that was a victory",
+        "primary": "At Hudaybiyyah the Prophet ﷺ turned back from the Ka'bah, short of the pilgrimage they had set out for. Every door looked shut.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 48:1 + Bukhari 4172/4833"
+      },
+      {
+        "kind": "story",
+        "label": "Hudaybiyyah: the shut door that was a victory",
+        "primary": "On the road home, revelation named that very moment: \"Indeed, We have granted you a clear triumph.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 48:1 + Bukhari 4172/4833"
+      },
+      {
+        "kind": "story",
+        "label": "Hudaybiyyah: the shut door that was a victory",
+        "primary": "The shut door itself was the opening — named a triumph before anyone could yet see why.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 48:1 + Bukhari 4172/4833"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked",
+        "primary": "Whatever mercy Allah opens up for people, none can withhold it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 35:2"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 23, verbatim",
+        "primary": "O Opener, open for us the best of openings.",
+        "arabic": "يَا فَتَّاحُ افْتَحْ لَنَا خَيْرَ الْفَتْحِ",
+        "transliteration": "Ya Fattahu iftah lana khayral fath",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "None of the gatekeepers you fear — the interviewer, the landlord, the market — can withhold what He opens. That is what this Name means.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/48/1",
+        "verified": "✅",
+        "source_label": "Qur'an 48:1"
+      },
+      {
+        "claim": "revelation moment",
+        "url": "https://sunnah.com/bukhari:4833",
+        "verified": "both sahih, verified via archive",
+        "source_label": "Bukhari 4833"
+      },
+      {
+        "claim": "\"It refers to the Al-Hudaibiya Pledge\"",
+        "url": "https://sunnah.com/bukhari:4172",
+        "verified": "both sahih, verified via archive",
+        "source_label": "Bukhari 4172"
+      },
+      {
+        "claim": "beat-1's turned-back-short-of-the-pilgrimage framing is uncontested sirah documented in Bukhari's Hudaybiyyah chapters (e.g. 2731-2732), beyond the two cited hadiths",
+        "url": "https://sunnah.com/bukhari:2731",
+        "verified": "audit note 2026-07-25",
+        "source_label": "2731-2732"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/35/2",
+        "verified": "✅",
+        "source_label": "Qur'an 35:2"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "ar-rahman@1",
+    "name_id": 2,
+    "transliteration": "Ar-Rahman",
+    "chip_keys": [
+      "sign"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "recognition",
+        "label": "",
+        "primary": "You didn't find this by accident. You don't have to name what you're carrying — it is not too heavy to be known.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "comfort_verse",
+        "label": "✅ DECIDED, founder 2026-07-25: Saheeh International rendering — closest cadence to the phrase the reel audience carries. Verified verbatim via quran.com API resource 20.",
+        "primary": "Allāh does not charge a soul except [with that within] its capacity.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:286"
+      },
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Before any Name for what hurts, there is the Name that opens the Qur'an itself.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 2, verbatim",
+        "primary": "The Most Gracious",
+        "arabic": "الرَّحْمَنُ",
+        "transliteration": "Ar-Rahman",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The mother among the captives",
+        "primary": "Among the captives of a battle was a woman who had lost her child — searching, frantic, nursing any infant she found.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 5999"
+      },
+      {
+        "kind": "story",
+        "label": "The mother among the captives",
+        "primary": "When she found her own child, she took him to her chest and nursed him. The Prophet ﷺ asked his companions: do you think this woman could throw her son into a fire? Never, they said — not if she could help it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 5999"
+      },
+      {
+        "kind": "story",
+        "label": "The mother among the captives",
+        "primary": "He said: \"Allah is more merciful to His slaves than this lady to her son.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 5999"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked",
+        "primary": "But My mercy encompasses everything.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 7:156"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 2, verbatim",
+        "primary": "O Most Gracious, have mercy on me with Your mercy that encompasses all things.",
+        "arabic": "يَا رَحْمَنُ ارْحَمْنِي بِرَحْمَتِكَ الَّتِي وَسِعَتْ كُلَّ شَيْءٍ",
+        "transliteration": "Ya Rahman irhamni bi rahmatika allati wasi'at kulla shay",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "A mercy that wide is where you begin. Al-Lateef — the next Name of your journey — is the kindness working in the details you can't see yet.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:5999",
+        "verified": "sahih, verified via archive; parallel Muslim 2754 also verified",
+        "source_label": "Bukhari 5999"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/7/156",
+        "verified": "✅ (first clause only, by design — the verse's continuation is conditional and would read as a bargain to a burdened user)",
+        "source_label": "Qur'an 7:156"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/2/286",
+        "verified": "✅",
+        "source_label": "2:286"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/55/1",
+        "verified": "✅ (runner-up frame: \"the One who taught speech\" — bench for copy iteration)",
+        "source_label": "55:1-4"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-lateef@1",
+    "name_id": 36,
+    "transliteration": "Al-Lateef",
+    "chip_keys": [
+      "sign"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You couldn't put it into words. The One this Name belongs to never needed them.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 36, verbatim",
+        "primary": "The Subtle",
+        "arabic": "اللَّطِيفُ",
+        "transliteration": "Al-Lateef",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Yusuf's answer at the end",
+        "primary": "Betrayed by his brothers, thrown in a well, sold, imprisoned for years on a false charge — and for most of Yusuf's story, nothing looks rescued.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12:100"
+      },
+      {
+        "kind": "story",
+        "label": "Yusuf's answer at the end",
+        "primary": "At the end — his family gathered, the years explained — he names what had been happening the whole time: \"Indeed my Lord is subtle in fulfilling what He wills.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12:100"
+      },
+      {
+        "kind": "story",
+        "label": "Yusuf's answer at the end",
+        "primary": "Not power. Not vindication. Subtle kindness, threaded through every wound — visible only from the far side.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 12:100"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Allah is Ever Kind to His servants.",
+        "arabic": "لَطِيفٌ بِعِبَادِهِ",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 42:19 (the Name in-text)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 36, verbatim",
+        "primary": "O Subtle One, be gentle with me in all that destiny has decreed.",
+        "arabic": "يَا لَطِيفُ الْطُفْ بِي فِيمَا جَرَتْ بِهِ الْمَقَادِيرُ",
+        "transliteration": "Ya Lateefu ultuf bi fima jarat bihi al-maqadir",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "\"Whether you speak secretly or openly — He surely knows best what is hidden in the heart.\" (Qur'an 67:13) What you couldn't say was never unsaid to Him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 67:13"
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/12/100",
+        "verified": "✅ (Name in-text at the resolution)",
+        "source_label": "Qur'an 12:100"
+      },
+      {
+        "claim": "beat-1 arc: well",
+        "url": "https://quran.com/12/15",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:15"
+      },
+      {
+        "claim": "beat-1 arc: sold",
+        "url": "https://quran.com/12/20",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:20"
+      },
+      {
+        "claim": "beat-1 arc: prison",
+        "url": "https://quran.com/12/42",
+        "verified": "⚠️ reference rows added post-review — founder verifies on click",
+        "source_label": "12:42"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/42/19",
+        "verified": "✅",
+        "source_label": "42:19"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/67/13",
+        "verified": "✅ (67:14 ends in the Name — framed as general truth per the recognition contract, never \"this verse found you\")",
+        "source_label": "67:13"
+      },
+      {
+        "claim": "Spec deviation for founder blessing: the takeaway slot carries a verse quote (67:13) — spec beat 8 is authored copy; kept because it is the single best chip-echo line in the pool.",
+        "url": "",
+        "verified": "",
+        "source_label": ""
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-baseer@1",
+    "name_id": 46,
+    "transliteration": "Al-Baseer",
+    "chip_keys": [
+      "unseen"
+    ],
+    "position_in_pair": 1,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You said no one sees it. This Name is about the One who always has.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 46, verbatim",
+        "primary": "The All-Seeing",
+        "arabic": "الْبَصِيرُ",
+        "transliteration": "Al-Baseer",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Hajar in the empty valley",
+        "primary": "Ibrahim left Hajar and her baby in a valley with no people and no water. She asked one question: has Allah ordered this? Yes. \"Then He will not neglect us.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3364"
+      },
+      {
+        "kind": "story",
+        "label": "Hajar in the empty valley",
+        "primary": "When the water ran out, she ran between Safa and Marwa seven times, searching for anyone — \"she might see somebody, but she could not see anybody.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3364"
+      },
+      {
+        "kind": "story",
+        "label": "Hajar in the empty valley",
+        "primary": "No human eye saw her. But an angel struck the ground — and water broke out: Zamzam — and her running became a rite every pilgrim repeats to this day.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 3364"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked",
+        "primary": "…Surely Allah is All-Hearing, All-Seeing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 58:1 (revealed for a woman whose complaint the person in the same room could not hear)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 46, verbatim",
+        "primary": "O All-Seeing, You see what no one else sees. Bear witness for me in what only You know.",
+        "arabic": "يَا بَصِيرُ أَنْتَ تَرَى مَا لَا يَرَى أَحَدٌ فَاشْهَدْ لِي بِمَا لَا يَعْلَمُهُ سِوَاكَ",
+        "transliteration": "Ya Basir, anta tara ma la yara ahad, fashhadli bima la ya'lamuhu siwak",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "pair synergy",
+        "primary": "Al-Baseer sees what you carry. As-Samad — the second Name of your answer — is the One you can set it down on.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:3364",
+        "verified": "sahih, verified via archive — beat 1 quotes Hajar's \"Then He will not neglect us\"; the angel's later \"Allah never neglects His people\" is a distinct line in the same hadith, not rendered in the deck",
+        "source_label": "Bukhari 3364"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/58/1",
+        "verified": "✅ (Name in-text; al-Mujadilah context verified via Ibn Majah 188, sahih)",
+        "source_label": "Qur'an 58:1"
+      },
+      {
+        "claim": "al-Mujadilah context",
+        "url": "https://sunnah.com/ibnmajah:188",
+        "verified": "sahih",
+        "source_label": "Ibn Majah 188"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "as-samad@1",
+    "name_id": 34,
+    "transliteration": "As-Samad",
+    "chip_keys": [
+      "unseen"
+    ],
+    "position_in_pair": 2,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Carrying it alone is the heaviest version. This Name means no one has to.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 34, verbatim",
+        "primary": "The Eternal Refuge",
+        "arabic": "الصَّمَدُ",
+        "transliteration": "As-Samad",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Zakariyya's hidden call",
+        "primary": "An old man with no heir prayed a prayer the Qur'an calls private — a hidden call. No audience. No witnesses. Only a lifetime of asking.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 19:2-7"
+      },
+      {
+        "kind": "story",
+        "label": "Zakariyya's hidden call",
+        "primary": "\"My Lord! Surely my bones have become brittle, and grey hair has spread across my head, but I have never been disappointed in my prayer to You, my Lord!\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 19:2-7"
+      },
+      {
+        "kind": "story",
+        "label": "Zakariyya's hidden call",
+        "primary": "The answer came with a name no human had ever carried: \"We give you the good news of a son, whose name will be John — a name We have not given to anyone before.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 19:2-7"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Allah—the Sustainer ˹needed by all˺.",
+        "arabic": "اللَّهُ الصَّمَدُ",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 112:2 (the Name itself)"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 34, verbatim",
+        "primary": "O Allah, O Eternal Refuge, make me needless of all others through You.",
+        "arabic": "اللَّهُمَّ يَا صَمَدُ اجْعَلْنِي غَنِيًّا بِكَ عَنْ سِوَاكَ",
+        "transliteration": "Allahumma ya Samad, ij'alni ghaniyyan bika 'an siwak",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "\"Needed by all\" means everyone leans here — the strongest people you know included. Leaning is not weakness; it is the meaning of the Name.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/19/2",
+        "verified": "✅",
+        "source_label": "Qur'an 19:2"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/19/3",
+        "verified": "✅",
+        "source_label": "19:3"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/19/4",
+        "verified": "✅",
+        "source_label": "19:4"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/19/7",
+        "verified": "✅",
+        "source_label": "19:7"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/112/2",
+        "verified": "✅ (quran.com renders As-Samad \"the Sustainer ˹needed by all˺\")",
+        "source_label": "112:2"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-07-25",
+    "review_verdict": "good"
+  }
+]

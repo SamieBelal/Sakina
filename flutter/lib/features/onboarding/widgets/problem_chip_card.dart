@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_motion.dart';
+import '../../../core/constants/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
+import '../content/problem_chips.dart';
+
+/// One selectable line on the hook screen (One Ship W2-B2, spec ①⑥ — visual
+/// treatment revised 2026-07-27 after the founder's first simulator pass).
+///
+/// **Borderless by design.** The first build gave every option a white fill and
+/// a 1.5px border, so the screen rendered as seven stacked rectangles — the
+/// single biggest reason it read as a form rather than an invitation. The row
+/// now sits directly on the canvas with a hairline rule beneath it; the only
+/// thing that draws a shape is the option the user actually chooses. Nothing
+/// about the tap target changed: still ≥64pt, still the whole row.
+///
+/// **Unchosen rows recede.** When a selection is in flight the others drop to
+/// [_unselectedFade] opacity, so the screen resolves to the single line the
+/// user picked instead of holding seven live-looking choices behind the
+/// transition.
+///
+/// **The sign row is styled exactly like the other six** (founder, 2026-07-29).
+/// It used to be lighter and greyer, and for one day it also had a hairline
+/// break above it. Both were attempts to mark it as the way out — and together
+/// they lifted it out of the list into an "other" bucket, sitting directly above
+/// the free-text link, which is another way out. Two escape hatches stacked,
+/// reading as duplicates.
+///
+/// They are not duplicates, they are opposites: this row means *I don't want to
+/// type*, the link means *I do*. So the row belongs in the list as the seventh
+/// feeling — "I can't put it into words" is a feeling, exactly like "Everything
+/// feels heavy" — and the link below is the only escape. Nothing needs a
+/// distinction because they are visibly different kinds of thing.
+///
+/// (A tinted surface was rejected on 2026-07-25 for a separate reason that still
+/// holds: a tint reads as pre-selected, and the selected state IS that tint.)
+class ProblemChipCard extends StatelessWidget {
+  const ProblemChipCard({
+    required this.chip,
+    required this.selected,
+    required this.onTap,
+    this.dimmed = false,
+    this.showRule = true,
+    this.rowHeight = minHeight,
+    super.key,
+  });
+
+  static const double minHeight = 64;
+
+  /// Compact rows for short screens. 56 keeps the list — and crucially the
+  /// escape hatch — above the fold on an iPhone SE while staying well clear of
+  /// Apple's 44pt tap floor.
+  static const double compactMinHeight = 56;
+
+  /// How far an unchosen row recedes. Public because the list's own ornaments
+  /// (the sign-row separator) have to recede by exactly the same amount.
+  static const double unselectedFade = 0.35;
+
+  /// The list's hairline. One definition, so the rule between rows and the rule
+  /// that breaks out the sign row cannot drift apart.
+  static final Color ruleColor = AppColors.borderLight.withValues(alpha: 0.55);
+
+  /// Minimum row height; the row still grows for Dynamic Type.
+  final double rowHeight;
+
+  final ProblemChip chip;
+  final bool selected;
+
+  /// Another row owns the commit — recede so the chosen line reads alone.
+  final bool dimmed;
+
+  /// Hairline rule beneath the row; suppressed on the last one.
+  final bool showRule;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = AppTypography.bodyLarge.copyWith(
+      fontSize: 17.5,
+      fontWeight: FontWeight.w400,
+      color: AppColors.textPrimaryLight,
+      height: 1.35,
+    );
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: chip.label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedOpacity(
+          // Unhurried recede — the asymmetry against the fast confirm below is
+          // deliberate: the answer is acknowledged instantly, the alternatives
+          // withdraw gently.
+          duration: AppMotion.recede,
+          curve: AppMotion.enter,
+          opacity: dimmed ? unselectedFade : 1,
+          child: AnimatedContainer(
+            // Fast on purpose (~140ms). A slow tint on an emotionally loaded
+            // answer reads as the app deliberating over what was just admitted.
+            duration: AppMotion.feedback,
+            curve: AppMotion.enter,
+            constraints: BoxConstraints(minHeight: rowHeight),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 4,
+            ),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primaryLight : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              border: Border(
+                bottom: BorderSide(
+                  // The rule belongs to the list, not the row: it disappears
+                  // under the chosen line and under the last row.
+                  color: (showRule && !selected) ? ruleColor : Colors.transparent,
+                ),
+              ),
+            ),
+            child: Text(chip.label, style: baseStyle),
+          ),
+        ),
+      ),
+    );
+  }
+}

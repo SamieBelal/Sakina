@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/gift_service.dart';
+import 'package:sakina/services/install_id_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,12 +50,33 @@ class PurchaseService {
       final configuration = PurchasesConfiguration(apiKey);
       await Purchases.configure(configuration);
       _initialized = true;
+      await _attachInstallId();
       completer.complete();
     } catch (error, stackTrace) {
       completer.completeError(error, stackTrace);
       rethrow;
     } finally {
       _initializationFuture = null;
+    }
+  }
+
+  /// Stamps this install's id onto the RevenueCat subscriber as a CUSTOM
+  /// attribute (W2-E3), so a purchase can be joined back to the pre-signup reel
+  /// events that carry the same id as a Mixpanel super property.
+  ///
+  /// Deliberately not RevenueCat's reserved `$mixpanelDistinctId`: that
+  /// attribute asserts the subscriber IS a given Mixpanel distinct id, which
+  /// stops being true the moment `identify()` runs. See
+  /// [installIdPropertyName].
+  ///
+  /// Best-effort — a failed attribute write must never fail `initialize`, which
+  /// gates every purchase path in the app.
+  Future<void> _attachInstallId() async {
+    try {
+      final installId = await InstallIdService().getOrCreate();
+      await Purchases.setAttributes({installIdPropertyName: installId});
+    } catch (error) {
+      debugPrint('[Purchases] install_id attribute failed: $error');
     }
   }
 
@@ -67,16 +89,16 @@ class PurchaseService {
       'referral_premium_until';
 
   /// Base SharedPreferences key for the cached `trial_premium_until` ISO
-  /// string (the reverse-trial source). Scoped to the user via
-  /// [SupabaseSyncService.scopedKey] before read/write so a shared device
-  /// doesn't bleed trial premium across accounts. Sibling to
-  /// [referralPremiumUntilPrefsBaseKey] / [giftPremiumUntilPrefsBaseKey];
-  /// populated by [refreshTrialPremiumCache] and OR'd into [isPremium].
+  /// string — the app-granted reverse trial. Scoped to the user via
+  /// [SupabaseSyncService.scopedKey] so a shared device doesn't bleed trial
+  /// premium across accounts. Sibling to [referralPremiumUntilPrefsBaseKey] /
+  /// [giftPremiumUntilPrefsBaseKey].
   ///
-  /// NOT `@visibleForTesting` (unlike the referral key): the reverse-trial
-  /// resume re-check in `trial_expiry_service.dart` reads this scoped key from
-  /// production code, mirroring [giftPremiumUntilPrefsBaseKey]'s cross-service
-  /// visibility.
+  /// READ-ONLY since the reverse-trial close-out (W5 Wave A, 2026-08-01): the
+  /// writer was deleted with the experiment, so nothing populates this key any
+  /// more. It survives so a device that activated a trial BEFORE the close-out
+  /// still has it honored by [isPremium] until the cached timestamp lapses on
+  /// its own. Do not add a new writer — `activate_trial` has no caller left.
   static const String trialPremiumUntilPrefsBaseKey = 'trial_premium_until';
 
   /// True iff any premium source is active: Sakina Gift window, RevenueCat
@@ -88,9 +110,11 @@ class PurchaseService {
   ///    so a kill-switched / not-yet-initialized RC build still honors an
   ///    active gift.
   /// 2. RC entitlement next — authoritative billing source when initialized.
-  /// 3. Referral cache, then trial cache last — SharedPrefs only, populated at
-  ///    deterministic refresh moments (auth foreground, post-signup, post-RPC,
-  ///    app-resume) via [refreshReferralPremiumCache] / [refreshTrialPremiumCache].
+  /// 3. Referral cache, then trial cache last — SharedPrefs only. Referral is
+  ///    populated at deterministic refresh moments (auth foreground,
+  ///    post-signup, post-RPC) via [refreshReferralPremiumCache]. The trial
+  ///    cache has no writer left (reverse-trial close-out); this read only
+  ///    honors trials activated by a pre-close-out build, until they lapse.
   ///
   /// Hot-path constraint: called from 8+ providers / services on every render
   /// pass. None of the gift / referral / trial paths hit Supabase from the hot
@@ -175,16 +199,18 @@ class PurchaseService {
         'referral_premium_until',
       );
 
-  /// Fetches `trial_premium_until` from Supabase and updates the local cache
-  /// (the reverse-trial source). Call at: app foreground (authenticated),
-  /// app-resume + home-load (so a just-expired Day-3 trial is detected
-  /// promptly — see the reverse-trial ADR resume re-check), and immediately
-  /// after `activate_trial` returns. Best-effort — sibling to
-  /// [refreshReferralPremiumCache].
-  Future<void> refreshTrialPremiumCache() => refreshTimedPremiumCache(
-        trialPremiumUntilPrefsBaseKey,
-        'trial_premium_until',
-      );
+  // `refreshTrialPremiumCache()` lived here — the writer for the app-granted
+  // reverse trial. Deleted with the experiment (W5 Wave A, 2026-08-01): its
+  // only two callers were `reverse_trial_onboarding.dart` (post-`activate_trial`)
+  // and `trial_expiry_service.dart` (app-resume), both retired, and nothing
+  // grants that trial any more.
+  //
+  // The READ side deliberately survives — see [isPremium]'s last clause. A
+  // device that activated a trial before the close-out already holds the cached
+  // timestamp, so honoring it to natural expiry needs no writer; the value
+  // self-expires. Since the build carrying this deletion ships after the last
+  // in-flight trial lapses, there is no window where a user needs the column
+  // re-read. Both the key and the read can go in a later hygiene pass.
 
   String? _safeCurrentUserId() {
     try {
@@ -422,6 +448,34 @@ class PurchaseService {
     }).toList();
   }
 
+  /// Per-USER introductory-offer eligibility, keyed by product identifier.
+  ///
+  /// [getOfferings] can only say whether a PRODUCT carries an intro offer.
+  /// Apple grants one introductory offer per Apple ID per subscription group
+  /// **ever**, so a product with a live free trial is still a straight charge
+  /// for anyone who already used theirs — and a paywall that reads only the
+  /// product tells them "free" and bills them on tap (W5 Wave B.3).
+  ///
+  /// Returns an empty map when the SDK is not initialized or the lookup throws;
+  /// callers must treat a missing/unknown entry as NOT eligible (RevenueCat's
+  /// own guidance) so the failure mode is a lost trial start, never a false
+  /// promise. Android always answers
+  /// [IntroEligibilityStatus.introEligibilityStatusUnknown] — Play evaluates
+  /// eligibility itself at purchase time — so the paywall's resolver keeps a
+  /// platform fallback rather than hiding trial copy from every Android user.
+  Future<Map<String, IntroEligibilityStatus>> getIntroEligibility(
+    List<String> productIds,
+  ) async {
+    if (!_initialized || productIds.isEmpty) return const {};
+    try {
+      final result =
+          await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+      return result.map((id, eligibility) => MapEntry(id, eligibility.status));
+    } catch (_) {
+      return const {};
+    }
+  }
+
   /// Returns packages from the `consumables` offering — the token and scroll
   /// SKUs the Store screen sells. Lives in a non-current offering on purpose:
   /// the paywall reads `offerings.current` (subscriptions only), and mixing
@@ -507,6 +561,13 @@ class PurchaseService {
     }
 
     await Purchases.logIn(userId);
+    // Re-stamp on the IDENTIFIED subscriber. `initialize` stamps the anonymous
+    // one, and RevenueCat only carries UNSYNCED attributes across `logIn` — an
+    // attribute that already synced (the common case, since init runs many
+    // screens before signup) stays on the anonymous subscriber, so the paying
+    // subscriber would carry no install_id and the reel→purchase join would
+    // miss exactly the users who bought. Idempotent: same key, same value.
+    await _attachInstallId();
   }
 
   String _platformApiKey({

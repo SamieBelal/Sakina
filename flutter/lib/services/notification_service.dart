@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/achievement_toast.dart';
 import 'analytics_event_names.dart';
+import 'reveal_entry_source.dart';
 import 'supabase_sync_service.dart';
+import 'user_local_day.dart';
 
 const String notifyDailyTagKey = 'notify_daily';
 const String notifyStreakTagKey = 'notify_streak';
@@ -472,6 +474,22 @@ class NotificationService {
 
   /// Sync the user's IANA timezone to Supabase for server-side scheduling.
   /// Call on app open / after auth.
+  ///
+  /// **Also refreshes the client's cached zone**, which is not incidental to
+  /// notifications. `resolveUserTimeZone` reads a process memo, then scoped
+  /// prefs, and only reaches the server if both miss — so the cache, once
+  /// written, wins forever. Updating Supabase without updating it left the two
+  /// halves of the app on different days after a user travelled: the server
+  /// derived `unseal_next_name`'s local day and the notification schedule from
+  /// the NEW zone while `planQueueReveal`, the daily-cap key and the local-day
+  /// blob all stayed on the OLD one. Near a date boundary that suppresses a
+  /// legitimate unseal — the client holds a day the server has already moved
+  /// past.
+  ///
+  /// `cacheUserTimeZone` is documented as the pair to this call ("Call after
+  /// syncing the device zone… so the two never disagree") and carries its own
+  /// user-ID race check, so a sign-out mid-await cannot stamp one account's
+  /// zone onto another's key.
   Future<void> syncTimezone() async {
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
@@ -483,6 +501,9 @@ class NotificationService {
         userId,
         <String, dynamic>{'timezone': timezone},
       );
+      // Only after the server has accepted it — a cache ahead of the server is
+      // the same disagreement pointing the other way.
+      await cacheUserTimeZone(timezone);
     } catch (error) {
       debugPrint('notification syncTimezone failed: $error');
     }
@@ -515,6 +536,14 @@ class NotificationService {
           'type': type ?? 'unknown',
           'route': route,
         });
+      } catch (_) {}
+      // Second-Name lifecycle attribution (W6 Wave B / W3 §9). Stamped for
+      // every click, not just types that route to `/muhasabah` — no push type
+      // does today, and a user re-engaged by ANY push is a plausible reason
+      // they went on to unseal. This is exactly the "directional, not exact"
+      // imprecision the attribution is documented to accept.
+      try {
+        stampRevealEntrySource(AnalyticsEvents.revealSourcePush);
       } catch (_) {}
     });
   }

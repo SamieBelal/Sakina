@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/referrals/referral_nudge_gate.dart';
 import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
-import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/referral_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,16 +55,6 @@ class _FakeReferralService extends ReferralService {
 
 class _StubSupabase extends Fake implements SupabaseClient {}
 
-/// Overrides the single RC reader the gate depends on. `startedAt == null`
-/// models "no active RC premium"; a past date models a subscriber past grace.
-class _FakePurchaseService extends PurchaseService {
-  _FakePurchaseService(this.startedAt) : super.test();
-  final DateTime? startedAt;
-
-  @override
-  Future<DateTime?> getActivePremiumStartedAt() async => startedAt;
-}
-
 class _SpyAnalytics extends AnalyticsService {
   final List<({String event, Map<String, dynamic>? properties})> events = [];
   @override
@@ -91,9 +81,7 @@ void main() {
   late _SpyAnalytics analytics;
   late _FakeReferralService fakeRef;
 
-  // Fixed "now" 5 days after premium began → comfortably past the 2-day grace.
   final now = DateTime.utc(2026, 6, 10, 12);
-  final pastGrace = now.subtract(const Duration(days: 5));
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -103,10 +91,18 @@ void main() {
     fakeRef = _FakeReferralService();
   });
 
-  tearDown(() {
-    SupabaseSyncService.debugReset();
-    PurchaseService.debugClearOverride();
-  });
+  tearDown(SupabaseSyncService.debugReset);
+
+  /// Seeds the streak cache `getStreak()` reads — the card's audience gate since
+  /// 2026-07-29 (it used to be an active RevenueCat entitlement).
+  ///
+  /// The prefs key is private to `streak_service.dart`, so it is mirrored here.
+  /// If it ever changes, every test below goes zero-height at once, which is a
+  /// loud enough failure.
+  Future<void> seedStreak(int days) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(fakeSync.scopedKey('sakina_current_streak'), days);
+  }
 
   Widget harness({Future<void> Function(String)? shareOverride}) {
     return ProviderScope(
@@ -129,9 +125,10 @@ void main() {
       .where((e) => e.event == AnalyticsEvents.homeReferralNudgeShown)
       .length;
 
-  testWidgets('renders zero-height + skips the Supabase query when not premium',
+  testWidgets(
+      'renders zero-height + skips the Supabase query below the milestone',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(null));
+    await seedStreak(consistentStreakDays - 1);
     fakeRef.nextState = _state();
 
     await tester.pumpWidget(harness());
@@ -140,13 +137,13 @@ void main() {
     expect(find.textContaining('Send to friends'), findsNothing);
     expect(tester.getSize(find.byType(ReferralNudgeCard)), Size.zero);
     expect(shownCount(), 0);
-    // Perf short-circuit: a non-premium user never hits Supabase.
+    // Perf short-circuit: a user below the milestone never hits Supabase.
     expect(fakeRef.getStateCalled, isFalse);
   });
 
   testWidgets('shows the card + fires shown once on the happy path',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
 
     await tester.pumpWidget(harness());
@@ -171,7 +168,7 @@ void main() {
   });
 
   testWidgets('hidden when a grant has already been earned', (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(
       confirmedCount: 3,
       grants: [
@@ -191,7 +188,7 @@ void main() {
   });
 
   testWidgets('hidden when progress is already 3/3', (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 3); // grants empty, progress=3
 
     await tester.pumpWidget(harness());
@@ -202,7 +199,7 @@ void main() {
 
   testWidgets('tapping the CTA shares the code + fires share_tapped',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
 
     await tester.pumpWidget(harness());
@@ -222,7 +219,7 @@ void main() {
 
   testWidgets('tapping dismiss collapses the card + persists + fires dismissed',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
 
     await tester.pumpWidget(harness());
@@ -245,10 +242,13 @@ void main() {
     );
   });
 
-  testWidgets('hidden + no RC call when there is no signed-in user',
+  testWidgets('hidden, and queries nothing, when there is no signed-in user',
       (tester) async {
     fakeSync.userId = null;
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    // Seeded eligible on purpose: the uid check has to win regardless. With no
+    // uid the streak prefs are unscoped anyway, so this also pins that a signed
+    // -out device can't inherit the last user's streak into the ask.
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
 
     await tester.pumpWidget(harness());
@@ -261,7 +261,7 @@ void main() {
 
   testWidgets('resolve failure (Supabase throws) collapses to hidden, no throw',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.throwOnGetState = Exception('boom');
 
     await tester.pumpWidget(harness());
@@ -275,7 +275,7 @@ void main() {
 
   testWidgets('no setState-after-dispose when resolve completes post-unmount',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
 
     await tester.pumpWidget(harness());
@@ -288,7 +288,7 @@ void main() {
 
   testWidgets('share CTA no-ops (no throw, card stays) when user has no code',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
     fakeRef.codeToReturn = null; // ensureReferralCode hasn't produced one yet
 
@@ -306,7 +306,7 @@ void main() {
   });
 
   testWidgets('share routes through the shareOverride seam', (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
     final captured = <String>[];
 
@@ -324,7 +324,7 @@ void main() {
 
   testWidgets('share is locked out while one is already in flight',
       (tester) async {
-    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    await seedStreak(consistentStreakDays);
     fakeRef.nextState = _state(confirmedCount: 1);
     final gate = Completer<void>();
     fakeRef.shareGate = gate; // hold the first share open

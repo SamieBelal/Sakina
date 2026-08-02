@@ -10,7 +10,6 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/app_session.dart';
-import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
@@ -33,28 +32,25 @@ import 'package:sakina/features/home/widgets/home_premium_strip.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/lapsed_trial_service.dart';
-import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
-import 'package:sakina/services/gating_service.dart';
-import 'package:sakina/services/purchase_service.dart';
-import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/features/paywall/lapsed_soft_gate_analytics.dart';
-import 'package:sakina/features/paywall/upgrade_callback.dart';
-import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
-import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/features/progress/widgets/daily_loop_cta_card.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
-import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 
 /// Resolved hero-tile content for the home dashboard's "Today's Name" /
@@ -118,14 +114,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _rewardCalendarExpanded = false;
   bool _launchGateReady = false;
 
-  /// Synchronous re-entry guard for the "Seek Another Name" CTA. Flipped
-  /// true at the very top of the GestureDetector onTap BEFORE any await, so
-  /// a second tap that lands while the first is still inside
-  /// `GatingService.canUse()` is rejected. Mirrors the duas/reflect D-E5
-  /// `_submitInFlight` regression fix — without it both taps pass the gate
-  /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
-  bool _discoverInFlight = false;
-
   /// True while the streak-rescue sheet is on screen — see
   /// [_maybeShowStreakRescue]. Resets when the sheet closes (NOT a permanent
   /// latch), so if the user leaves to buy tokens and returns with the lapse
@@ -147,31 +135,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     _checkDiscoveryQuiz();
     _maybeShowLapsedTrialSheet();
     _maybeShowCancellationFeedback();
-    // Chain tour-start onto launch-overlay dismissal: when DailyLaunchOverlay
-    // is showing (day-0 starter-name claim, daily reward sheet), the tour
-    // would otherwise punch through and highlight widgets behind it. The
-    // tour controller also has its own route-stack guard in
-    // OnboardingTourOverlayHost as belt-and-braces.
-    _maybeShowDailyLaunch().then((_) {
-      if (!mounted) return;
-      final session = ref.read(appSessionProvider);
-      final stage = resolveOnboardingStage(
-        isAuthenticated: session.isAuthenticated,
-        hasOnboarded: session.hasOnboarded,
-        tourCompleted: session.tourCompleted,
-        paywallCleared: session.paywallCleared || session.gateValveBypass,
-        isPremium: session.isPremiumCached,
-        hardPaywallFlowEnabled: session.hardPaywallFlowEnabled,
-      );
-      final notifier = ref.read(onboardingTourControllerProvider.notifier);
-      if (stage == OnboardingStage.tour) {
-        // New mandatory gate: resume the forced tour at the persisted step.
-        notifier.resumeForGate();
-      } else if (!session.hardPaywallFlowEnabled) {
-        // Legacy opportunistic tour (kill switch off) — unchanged behaviour.
-        notifier.start();
-      }
-    });
+    // The guided tour used to start from here, chained onto the launch-overlay
+    // dismissal so it didn't punch through DailyLaunchOverlay. The tour was
+    // deleted 2026-07-28 (One Ship W2 §F1a — it cost ~48% of signups), so this
+    // is now just the launch overlay.
+    unawaited(_maybeShowDailyLaunch());
   }
 
   /// Reactive cancellation survey (Path B): catches cancels done in the OS
@@ -225,7 +193,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         context,
         momentsDuringTrial: decision.activity.momentsDuringTrial,
         daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
-        onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        onUpgrade: () =>
+            pushPaywall(context, placement: PaywallPlacement.softInApp),
         onDismiss: () => recordLapsedSoftGateDismissed(
           analytics,
           placement: AnalyticsEvents.placementPostTrialSoft,
@@ -237,7 +206,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   Future<void> _maybeShowDailyLaunch() async {
-    final should = await shouldShowDailyLaunch();
+    // The UTC reward gate AND the user-local "have we already asked today"
+    // marker, in one call. W4 Wave 4 added the second one — see
+    // `daily_question_gate.dart` for why the two clocks stay separate and why
+    // their disagreement is resolved toward not-asking.
+    final should = await shouldAutoEnterDailyQuestion();
     if (!mounted) return;
     if (!should) {
       setState(() => _launchGateReady = true);
@@ -253,6 +226,26 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         return;
       }
       setState(() => _launchGateReady = true);
+      // **Where the user actually is, not just whether this screen is still
+      // mounted** (W4 Wave 4).
+      //
+      // `shouldAutoEnterDailyQuestion` does a network reconcile, and the
+      // home-widget deep link replays after the first frame too, so the two
+      // race. `parseWidgetDeepLink` maps the duʿā widget to `/duas`, which
+      // lives INSIDE the ShellRoute — the same shell as `/`. When the reconcile
+      // wins, `.go('/duas')` lands underneath this opaque root-navigator route
+      // and the `mounted` check above does not catch it.
+      //
+      // Before this wave that cost a stray dismiss tap. It costs much more now:
+      // this overlay's primary action routes into `/muhasabah`, so the app
+      // would take someone who asked for their duʿā times and put a question
+      // about their heart in front of them. Auto-entry must never become a
+      // hijacking — if the user has gone somewhere else, the day-open has
+      // missed its moment and waits for the home CTA.
+      if (GoRouterState.of(context).uri.path != '/') {
+        completer.complete();
+        return;
+      }
       await Navigator.of(context, rootNavigator: true).push(
         PageRouteBuilder(
           // Named so TourRouteObserver can detect it as a blocking route
@@ -341,10 +334,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           .addPostFrameCallback((_) => _kickRescueCheck());
     }
 
-    // Replay-tour re-trigger: Settings "Replay app tour" calls
-    // onboardingTourControllerProvider.replay() directly — the controller
-    // owns the lifecycle, no per-screen hook needed here.
-
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors
     // DailyLaunchOverlay so the user sees one consistent Name from the
@@ -387,20 +376,46 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               _buildGreetingRow(state),
               const SizedBox(height: AppSpacing.md),
 
-              // 2. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
+              // 2. THE DAILY CTA — first thing after the greeting, on purpose
+              //    (W4 Wave 5 / plan §7).
+              //
+              //    Everything that used to sit here pushed the purpose of the
+              //    app below the fold: up to five self-collapsing promo cards
+              //    (of which HomePremiumStrip was unconditional for free users),
+              //    then a whole dashboard card — stats row, XP bar, a 152px
+              //    lantern, the streak line, a 60px Name and a teaching
+              //    paragraph — before the muḥāsabah row appeared, around 800px
+              //    into a ~700-760px viewport.
+              //
+              //    Nothing below was deleted to fix that; it was reordered.
+              //    Lifting the CTA to the top is what demotes the rest, and it
+              //    costs no feature. Ordering here is now: greeting → the job →
+              //    everything else.
+              //
+              //    Load-bearing for Wave 2's defer: "Not right now" returns the
+              //    user here with the loop still live, and this card is the only
+              //    way back in. A defer into a below-the-fold CTA is a defer
+              //    into a dead end.
+              // Its own trailing spacer rides inside the builder, so that when
+              // the day completes the CTA and the gap below it disappear
+              // together instead of leaving a hole (2026-08-01, founder).
+              _buildMuhasabahCta(state),
+
+              // 3. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
               //    nothing outside occasion windows; gated by Env kill switch
               //    and the GiftService loading-gate per CLAUDE.md PR #8.
               const RamadanGiftCard(),
-              const SizedBox(height: AppSpacing.md),
 
-              // 2a. Duʿā-times card (awqāt al-ijābah). Render-gated: shows only
+              // 3a. Duʿā-times card (awqāt al-ijābah). Render-gated: shows only
               //     when there's an active or imminent duʿā window; otherwise
               //     collapses to SizedBox.shrink() (no spacer wasted). CTA-first
               //     on the sacred canvas; every tap drives Build-a-Duʿā. See
               //     docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md.
+              //     Still high in the scroll because it is genuinely
+              //     time-bounded — but under the daily CTA, not over it.
               const DuaTimesCard(),
 
-              // 2b. Post-conversion referral nudge (active RC subscribers only,
+              // 3b. Post-conversion referral nudge (active RC subscribers only,
               //     until they earn their first referral grant). Self-collapses
               //     to SizedBox.shrink() for everyone else (no spacer here — the
               //     card owns its own bottom margin only when shown, so a hidden
@@ -408,19 +423,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //     hard paywall removed, on the welcome side of the wall.
               const ReferralNudgeCard(),
 
-              // 2c. Add-the-widget nudge — shown once the user has a streak
+              // 3c. Add-the-widget nudge — shown once the user has a streak
               //     (they've felt the loop), until dismissed. Adoption is the
               //     gating factor for widget retention. Self-collapses like the
               //     referral card, so no spacer needed here.
               const WidgetInstallNudgeCard(),
 
-              // 2d. Home → Premium strip — free-user upgrade entry point,
-              //     placed just above the muḥāsabah CTA (inside the dashboard
-              //     card below). Self-collapses to SizedBox.shrink() for premium
-              //     users, so no spacer needed here.
+              // 3d. Home → Premium strip. Was unconditional and ABOVE the daily
+              //     CTA — an upgrade ad outranking the core loop for every free
+              //     user, every open. Same strip, same audience, now below the
+              //     thing they came for.
               const HomePremiumStrip(),
 
-              // 3. Unified dashboard card
+              // 4. Unified dashboard card
               _buildDashboardCard(state, hero),
               // Just enough to breathe above the bottom nav. The
               // SingleChildScrollView's pagePadding already adds ~24px
@@ -821,11 +836,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
 
-          // Muhasabah row
-          const SizedBox(height: 16),
-          Container(height: 1, color: AppColors.dividerLight),
-          const SizedBox(height: 14),
-          _buildMuhasabahRow(state),
+          // The muḥāsabah row used to sit here, between this divider and the
+          // Quests one. That shared rhythm is exactly what made the purpose of
+          // the app read as the fourth item in a settings list, so it moved out
+          // of the card entirely (W4 Wave 5). What remains below — Quests,
+          // Anchor Names, Daily Rewards — is genuinely a navigation stack, and
+          // now looks like one.
 
           // Quests
           const SizedBox(height: 16),
@@ -926,205 +942,75 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         .slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Muhasabah Row (inside dashboard card)
-  // ═══════════════════════════════════════════════════════════════════════════
+  /// The home screen's primary daily CTA (W4 Wave 5).
+  ///
+  /// The visual design lives in [DailyLoopCtaCard]; navigation stays here,
+  /// because the card is deliberately pure presentation.
+  ///
+  /// **No gating runs on this screen any more.** It used to host the metered
+  /// re-roll (`_rerollName` + `_showDiscoverGateSheet` + a `_discoverInFlight`
+  /// guard) behind the completed card's "Meet another Name". All of it was
+  /// deleted with that card on 2026-08-01 — the same gated action survives, and
+  /// always did, as the primary CTA of the muḥāsabah completion screen
+  /// ("Seek Another Name", muhasabah_screen.dart), which is where the user
+  /// stands the moment the loop closes. Two entry points into one gated action
+  /// became one; nothing about the gate, the cap sheet or the `rerollPremium`
+  /// wall changed. Do not rebuild a second copy here.
+  Widget _buildMuhasabahCta(DailyLoopState state) {
+    // Done for today — the slot closes entirely (2026-08-01, founder). This
+    // returns BEFORE the TourAnchor and the fade-in on purpose: an anchor
+    // wrapping a zero-size child still registers `beginMuhasabahCta`, and the
+    // tour would spotlight a 0x0 rect. Both tour steps that use that anchor are
+    // the FIRST step of their tour, so they only ever run against an
+    // uncompleted loop and lose nothing by its absence.
+    //
+    // The trailing spacer is returned from here rather than left as a sibling
+    // in the Column: a sibling `SizedBox` survives this branch and reopens the
+    // gap the card just closed. Same shape as `DuaTimesCard` below.
+    if (state.currentStep == DailyLoopStep.completed) {
+      return const SizedBox.shrink();
+    }
 
-  void _showDiscoverGateSheet(BuildContext context, GateReason reason) {
-    final sheetContext = context;
-    () async {
-      final balance = (await getTokens()).balance;
-      final bypassesUsed = await daily_usage.getDiscoverNameBypassesUsedToday();
-      final premium = await PurchaseService().isPremium();
-      final firstBypassEligible = await GatingService().firstBypassEligible();
-      final displayName = await GatingService().displayName();
-      if (!sheetContext.mounted) return;
-      final notifier = ref.read(dailyLoopProvider.notifier);
-      DailyCapSheet.show(
-        sheetContext,
-        feature: GatedFeature.discoverName,
-        tokenBalance: balance,
-        bypassesUsedToday: bypassesUsed,
-        isPremium: premium,
-        onBypassRequested: (_) async {
-          // After a successful bypass discover, route into the muhasabah
-          // screen so the gacha animation plays. Mirrors the natural-flow
-          // sequencing in this card.
-          await notifier.discoverNameWithBypass();
-          if (sheetContext.mounted) sheetContext.push('/muhasabah');
-        },
-        firstBypassAvailable: firstBypassEligible,
-        userDisplayName: displayName,
-        onFirstBypassRequested: (_) async {
-          await notifier.discoverNameWithFirstBypass();
-          if (sheetContext.mounted) sheetContext.push('/muhasabah');
-        },
-        // Premium users hitting the 30/day fair-use ceiling see the same sheet
-        // as free users hitting their 1/day cap, but the upgrade CTA must be a
-        // no-op for them — they're already paying. `buildPaywallUpgradeCallback`
-        // returns no-op for `premiumFairUse` and pushes /paywall otherwise.
-        // Mirrors the muhasabah_screen completed-state CTA.
-        onUpgrade: buildPaywallUpgradeCallback(
-          reason: reason,
-          pushPaywall: () {
-            if (mounted) GoRouter.of(context).push('/paywall');
-          },
-        ),
-      );
-    }();
-  }
+    final DailyLoopCtaState ctaState;
+    if (state.checkinDone ||
+        state.currentStep != DailyLoopStep.checkin) {
+      ctaState = DailyLoopCtaState.inProgress;
+    } else {
+      // Also where Wave 2's "Not right now" defer lands: the day marker is
+      // written, but nothing was consumed and no Name was met, so the whole
+      // loop — question, reveal and reward — is still collectible from here.
+      // That is the entire reason the defer is a defer and not an exit, so this
+      // branch must keep rendering the inviting face, not a spent one.
+      ctaState = DailyLoopCtaState.notStarted;
+    }
 
-  Widget _buildMuhasabahRow(DailyLoopState state) {
-    final completed = state.currentStep == DailyLoopStep.completed;
-    final inProgress =
-        state.checkinDone || state.currentStep != DailyLoopStep.checkin;
-    final promptLabel = _buildMuhasabahPromptLabel(state);
-
-    // Tour anchor: TourAnchor wraps both conditional branches so the tour
-    // overlay can anchor onto the active CTA (Begin Muḥāsabah today, or
-    // Seek Another Name once checked in). The anchor name doesn't change
-    // even though the underlying widget swaps — that's intentional, the
-    // step name is just "the muhasabah CTA on home".
-    return TourAnchor(
-      surface: TourSurface.home,
-      anchorId: 'beginMuhasabahCta',
-      child: _buildMuhasabahRowInner(state, completed, inProgress, promptLabel),
+    // Tour anchor: same surface and anchorId as before the restructure. The id
+    // is deliberately NOT renamed alongside the copy — it names the position on
+    // the screen, not the label.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TourAnchor(
+          surface: TourSurface.home,
+          anchorId: 'beginMuhasabahCta',
+          child: DailyLoopCtaCard(
+            state: ctaState,
+            onStart: () {
+              HapticFeedback.mediumImpact();
+              // `home_cta`, and this is the tap the defer design is measured
+              // on: `daily_question_shown{entry_source:'home_cta'}` following a
+              // `daily_question_skipped` is the same-day return rate, i.e.
+              // whether "Not right now" is a deferral within the product or a
+              // polite exit from it (plan §9).
+              context.push('/muhasabah?$questionEntryQueryParam='
+                  '$questionEntryHomeCta');
+            },
+          ),
+        ).animate().fadeIn(duration: 400.ms, delay: 150.ms),
+        const SizedBox(height: AppSpacing.md),
+      ],
     );
-  }
-
-  Widget _buildMuhasabahRowInner(
-    DailyLoopState state,
-    bool completed,
-    bool inProgress,
-    String promptLabel,
-  ) {
-    if (completed) {
-      return GestureDetector(
-        onTap: () async {
-          // Synchronous re-entry guard. A double-tap that lands while the
-          // first call is still inside `GatingService.canUse()` previously
-          // passed the gate twice and fired `markUsed` twice — same shape as
-          // the reflect/duas D-E5 race. Set the flag BEFORE any await; the
-          // try/finally clears it on every exit including early returns.
-          if (_discoverInFlight) return;
-          _discoverInFlight = true;
-          try {
-            HapticFeedback.mediumImpact();
-            final notifier = ref.read(dailyLoopProvider.notifier);
-            final gate =
-                await GatingService().canUse(GatedFeature.discoverName);
-            if (!gate.allowed) {
-              if (mounted) _showDiscoverGateSheet(context, gate.reason);
-              return;
-            }
-            await notifier.resetToday();
-            if (!mounted) return;
-            context.push('/muhasabah');
-            // markUsed fires here (not on the muhasabah screen) because the
-            // discoverName flow is initiated from this CTA — the muhasabah
-            // route is just where the gacha animation plays out.
-            final outcome =
-                await GatingService().markUsed(GatedFeature.discoverName);
-            if (outcome == UsageOutcome.warmupJustExhausted && mounted) {
-              WarmupExhaustedSheet.show(
-                context,
-                feature: GatedFeature.discoverName,
-                onUpgrade: () => GoRouter.of(context).push('/paywall'),
-              );
-            }
-          } finally {
-            _discoverInFlight = false;
-          }
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Row(
-          children: [
-            const Icon(Icons.explore_outlined,
-                color: AppColors.secondary, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Discover a New Name',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    promptLabel,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
-    }
-
-    // Not started or in progress
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        context.push('/muhasabah');
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.play_circle_outline_rounded,
-                color: Colors.white, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    inProgress ? 'Continue Muhāsabah' : 'Begin Muhāsabah',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    promptLabel,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: Colors.white.withValues(alpha: 0.7), size: 14),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
-  }
-
-  String _buildMuhasabahPromptLabel(DailyLoopState state) {
-    final prompt = state.todaysQuestion?.question.trim();
-    if (prompt == null || prompt.isEmpty) {
-      return 'Daily spiritual check-in';
-    }
-
-    return 'Today: $prompt';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

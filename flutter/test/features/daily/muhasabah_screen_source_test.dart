@@ -94,32 +94,41 @@ void main() {
               'this commit.');
     });
 
-    test('initState exists and contains the one-shot discoverName trigger',
-        () {
-      // The cold-load auto-trigger lives in initState — runs ONCE per
-      // mount. If it moves back into build() it can fire on every
-      // provider notification, which is the race we just fixed.
+    test('initState starts no reveal of its own', () {
+      // UPDATED for W4 Wave 2. The one-shot postFrame trigger this test used
+      // to REQUIRE is gone: landing on /muhasabah now shows the question
+      // (`DailyQuestionPrompt`), and `discoverName()` runs from the user's own
+      // answer instead of from the screen having mounted.
+      //
+      // The invariant behind the old assertion is unchanged and is what this
+      // now guards from the other side: no implicit discover, anywhere in this
+      // widget. A post-frame auto-trigger racing `ref.invalidate` is exactly
+      // how the "phantom second gacha on Return to Home" bug happened, and
+      // re-adding one — even in initState — re-opens it.
       expect(source.contains('void initState()'), isTrue,
-          reason:
-              'MuhasabahScreen must override initState. The one-shot '
-              'auto-trigger that fires discoverName on cold load lives '
-              'there; without it, the screen never starts a new check-in '
-              'cycle when the user lands on /muhasabah fresh.');
+          reason: 'MuhasabahScreen still overrides initState (the beat-hint '
+              'counter loads there).');
 
-      // The one-shot pattern: postFrame callback inside initState that
-      // calls discoverName when checkinDone is false. Match the structure
-      // loosely to allow whitespace/formatting drift.
-      final initStateOneShot = RegExp(
-        r'void\s+initState[\s\S]*?addPostFrameCallback[\s\S]*?'
-        r'!state\.checkinDone[\s\S]*?discoverName',
+      final postFrameDiscover = RegExp(
+        r'addPostFrameCallback[\s\S]{0,400}?discoverName',
       );
-      expect(initStateOneShot.hasMatch(source), isTrue,
+      expect(postFrameDiscover.hasMatch(source), isFalse,
           reason:
-              'initState must contain the one-shot pattern: '
-              'addPostFrameCallback → check `!state.checkinDone` → call '
-              'discoverName(). If this is missing, cold-load on /muhasabah '
-              'will hang on a loading spinner because nothing kicks off '
-              'the discover flow.');
+              'A post-frame callback that calls discoverName() is the '
+              'auto-trigger W4 Wave 2 removed. The daily reveal must start '
+              'from an explicit user answer on the question surface, not from '
+              'the screen mounting — otherwise a provider invalidation can '
+              'remount the route and fire a second gacha nobody asked for.');
+    });
+
+    test('the checkin step renders the question surface', () {
+      expect(source.contains('DailyQuestionPrompt'), isTrue,
+          reason:
+              'The `checkin` step must render DailyQuestionPrompt. If this '
+              'fails, the screen has fallen back to the ReflectLoading() '
+              'spinner it used to show while the removed auto-trigger ran — '
+              'which now never runs, so the user would sit on a spinner '
+              'forever.');
     });
   });
 }

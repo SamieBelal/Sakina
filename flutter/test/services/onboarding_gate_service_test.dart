@@ -60,47 +60,31 @@ void main() {
     });
   });
 
-  group('tour resume cursor', () {
-    test('defaults to 0 when absent', () async {
-      expect(await gate.tourStepIndex(), 0);
-    });
-
-    test('persists and reads back the step index', () async {
-      await gate.setTourStepIndex(7);
-      expect(await gate.tourStepIndex(), 7);
-    });
-
-    test('clamps negative indices to 0', () async {
-      await gate.setTourStepIndex(-5);
-      expect(await gate.tourStepIndex(), 0);
-    });
-  });
+  // The `tour resume cursor` group went with the cursor itself (§F1a): the
+  // guided tour was deleted, so nothing resumes at a persisted step and
+  // `tourStepIndex` / `setTourStepIndex` no longer exist.
 
   group('hydrateFromProfile', () {
-    test('writes both values from a server payload', () async {
-      // NOTE: server JSON key is `tour_step_index` (matches the RPC/column),
-      // NOT the local prefs base key. Pinning the real server key here guards
-      // the mismatch bug that previously let the resume cursor never hydrate.
-      await gate.hydrateFromProfile({
-        'onboarding_paywall_cleared': false,
-        'tour_step_index': 4,
-      });
+    test('writes the latch from a server payload', () async {
+      await gate.hydrateFromProfile({'onboarding_paywall_cleared': false});
       expect(await gate.isPaywallCleared(), false);
-      expect(await gate.tourStepIndex(), 4);
     });
 
     test('tolerates a pre-migration payload (absent keys leave cache)',
         () async {
       await gate.setPaywallCleared(false);
-      await gate.setTourStepIndex(3);
       await gate.hydrateFromProfile({'unrelated': 1});
       expect(await gate.isPaywallCleared(), false);
-      expect(await gate.tourStepIndex(), 3);
     });
 
-    test('clamps a negative server step index', () async {
-      await gate.hydrateFromProfile({'tour_step_index': -2});
-      expect(await gate.tourStepIndex(), 0);
+    test('ignores the retired tour_step_index without throwing', () async {
+      // The RPC still returns the column; hydrate must simply not read it.
+      await gate.setPaywallCleared(false);
+      await gate.hydrateFromProfile({
+        'onboarding_paywall_cleared': true,
+        'tour_step_index': 4,
+      });
+      expect(await gate.isPaywallCleared(), true);
     });
   });
 }

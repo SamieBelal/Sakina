@@ -23,24 +23,31 @@ import 'features/dua_times/providers/dua_window_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
-import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'core/widget_deep_link.dart';
 import 'services/analytics_events.dart';
 import 'services/widget_analytics.dart';
 import 'services/widget_data_service.dart';
 import 'services/analytics_provider.dart';
+import 'services/first_visit_hint_service.dart';
 import 'services/analytics_service.dart';
 import 'services/app_config_service.dart';
 import 'services/auth_service.dart';
 import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/cosmetics_service.dart';
+import 'services/daily_question_analytics.dart';
 import 'services/gating_service.dart';
+import 'services/install_id_service.dart';
+import 'services/reel_deep_link_service.dart';
+import 'services/reveal_entry_source.dart';
 import 'services/streak_service.dart';
 import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
+import 'services/user_data_batch_sync_service.dart';
+import 'features/onboarding/screens/onboarding_reveal_screen.dart';
+import 'features/onboarding/screens/source_question_screen.dart';
 import 'widgets/billing_issue_banner.dart';
 import 'widgets/iap_to_sub_upsell_banner.dart';
 
@@ -85,16 +92,27 @@ String? extractValidReferralCode(Uri uri) {
 /// Universal-link handling (`https://sakina.app/r/<code>`) is OUT OF SCOPE
 /// for v1 — we don't own the domain, so AASA/assetlinks.json hosting isn't
 /// available. See docs/superpowers/plans/2026-05-14-refer-unlock.md.
-Future<void> _captureInboundReferral(AppLinks appLinks) async {
+Future<void> _captureInboundLinks(AppLinks appLinks) async {
   try {
     final initial = await appLinks.getInitialLink();
-    if (initial != null) await _persistReferralFromUri(initial);
+    if (initial != null) await _persistInboundLink(initial);
   } catch (_) {
     // First-launch on Android can throw on getInitialLink — non-fatal.
   }
   // Warm-launch deep links: subscribe AFTER awaiting the initial-link so
   // the cold-launch URI is committed first.
-  appLinks.uriLinkStream.listen(_persistReferralFromUri);
+  appLinks.uriLinkStream.listen(_persistInboundLink);
+}
+
+/// Every inbound `sakina://` link we capture before `runApp`. Each handler
+/// recognises its own host and ignores the rest, so the order is irrelevant
+/// and adding one cannot break another.
+Future<void> _persistInboundLink(Uri uri) async {
+  await _persistReferralFromUri(uri);
+  // `sakina://reel/<id>` and `sakina://feel/<emotion>` (W2-E4) — same shape as
+  // the referral key above: pure parser, unscoped prefs, drained later by the
+  // onboarding screen. See reel_deep_link_service.dart.
+  await captureReelDeepLink(uri);
 }
 
 Future<void> _persistReferralFromUri(Uri uri) async {
@@ -172,9 +190,10 @@ Future<void> main() async {
   // provider null and every caller no-ops.
   final localNotifications = await _initLocalNotifications();
 
-  // Capture any inbound referral deep link BEFORE further init so the
-  // pending_referral prefs key is committed by the time the signup flow runs.
-  await _captureInboundReferral(AppLinks());
+  // Capture any inbound deep link BEFORE further init so the pending_referral
+  // / pending_reel_arrival / pending_feel_chip prefs keys are committed by the
+  // time the signup flow and the onboarding entry read them.
+  await _captureInboundLinks(AppLinks());
 
   // Load onboarding flag and cached onboarding state
   final prefs = await SharedPreferences.getInstance();
@@ -202,19 +221,41 @@ Future<void> main() async {
     // launch reads fresh values from the populated cache.
     unawaited(
       AppConfigService(Supabase.instance.client).primeCache(const [
+        // The reel-flow kill switch (W2-E1). Primed here so a launch WITH a
+        // cached value decides on fresh data. Priming alone does not guarantee
+        // a revert lands: this is fire-and-forget, and `getBool` answers
+        // cache-or-fallback immediately, so on a first install (no cached
+        // value) the flag read can still return the `true` fallback before the
+        // refresh completes. `resolveOnboardingFlow` in onboarding_screen.dart
+        // is what closes that hole — it awaits one bounded fresh read of this
+        // key when nothing is cached yet.
+        reelFirstOnboardingFlag,
         'onboarding_trim_enabled',
+        // Read only for the `flag_guided_tour` analytics super property now —
+        // the tour it gated was deleted 2026-07-28 (§F1a) and the flag no
+        // longer changes any behaviour. Retire with the super property.
         'guided_tour_enabled',
-        // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
-        // miss reads the `false` fallback, which drops the user into the
-        // legacy opportunistic (skippable) tour instead of the forced gated
-        // flow. Caught in the simulator on a fresh launch.
+        // Onboarding→hard-paywall entry gate. MUST be primed: a cold-cache
+        // miss reads the `false` fallback, which lets the user into the app
+        // ungated instead of onto the wall. Caught in the simulator on a fresh
+        // launch.
         'hard_paywall_after_tour_enabled',
-        // Reverse-trial Phase A post-tour gate mode (soft|off|hard). MUST be
+        // Reverse-trial Phase A entry-gate mode (soft|off|hard). MUST be
         // primed: on the first launch after the flag flips to `soft`, a
         // cold-cache miss falls back to the legacy hard bool (still true) →
         // the user gets the HARD wall that launch, and `soft` only takes
         // effect a launch later once the background refresh lands.
         'post_tour_paywall_mode',
+        // Free-tier warmup dials (W5 D.1). Primed so a fresh install that
+        // reaches its first gate check before any background refresh reads the
+        // server's number rather than the generous offline fallback in
+        // `GatingService.warmupBudget`. Priming is best-effort by design: a
+        // miss only means the user gets MORE free uses that launch, never
+        // fewer — the fallbacks are the permissive direction.
+        // Keep in lockstep with `GatingService.warmupSizeConfigKey`.
+        'warmup_reflect_size',
+        'warmup_built_dua_size',
+        'warmup_discover_name_size',
       ]).timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
   }
@@ -254,8 +295,30 @@ Future<void> main() async {
     notificationService.addClickListener();
   }
 
-  // Initialize Mixpanel analytics (not supported on web)
+  // Initialize Mixpanel analytics (not supported on web).
+  //
+  // W6 Wave 0. This used to be an unguarded `await` on a call that could throw,
+  // in front of `runApp` — and on any narrower failure it left `_mixpanel` null,
+  // which makes every `track()` for the rest of the process a silent no-op. No
+  // exception, no log, no partial data. `MIXPANEL_TOKEN` is a compile-time
+  // define, so a build made without `--dart-define-from-file=env.json` produces
+  // exactly that: an app that behaves perfectly and reports nothing, whose
+  // first symptom is an empty dashboard at the T0+6wk keep read.
+  //
+  // The hook cannot make analytics work; it makes the absence knowable. It is
+  // deliberately loud in debug and silent-but-recorded in release — there is no
+  // crash reporter to send it to yet (that decision is split out of W6), so
+  // `initStatus` on the service is the durable record until there is.
   final analytics = AnalyticsService();
+  AnalyticsService.onInitFailure = (error, status) {
+    debugPrint('[analytics] DISABLED — $status${error == null ? '' : ': $error'}');
+    assert(
+      status != AnalyticsInitStatus.missingToken,
+      'Mixpanel token is empty. This build reports NOTHING. You almost '
+      'certainly ran flutter without --dart-define-from-file=env.json (see '
+      'CLAUDE.md). Every funnel number from this build will be missing.',
+    );
+  };
   if (!kIsWeb) {
     await analytics.initialize(Env.mixpanelToken);
   }
@@ -302,19 +365,39 @@ Future<void> main() async {
   // the four flag_* flags, is_premium) and fire the once-ever app_install
   // event. Extracted to registerBootstrapAnalytics so the guard + super-prop
   // shape is unit-testable; behavior is identical to the previous inline code.
+  // Install id (W2-E3): minted once ever, registered as the `install_id` super
+  // property so pre-signup reel events carry it, and set as the matching
+  // RevenueCat subscriber attribute inside PurchaseService.initialize above.
+  // Best-effort — a failed read simply omits the property.
+  String? installId;
+  try {
+    installId = await InstallIdService().getOrCreate();
+  } catch (_) {
+    installId = null;
+  }
   await registerBootstrapAnalytics(
     analytics: analytics,
     prefs: prefs,
     platform: defaultTargetPlatform.name,
     appVersion: appVersion,
+    installId: installId,
     flagOnboardingTrim: await appConfigForAnalytics
         .getBool('onboarding_trim_enabled', fallback: true),
+    // fallback: TRUE, matching the live prod value (W6 Wave A, §2e.1). It was
+    // `false`, and the mismatch was invisible: on a FIRST install there is no
+    // cached app_config, so this read returns the fallback while the
+    // BEHAVIOURAL read later in the session — after the fire-and-forget prime
+    // above lands — sees the real `true`. The super property and the app then
+    // disagree for the whole session, on exactly the new-install cohort the
+    // One Ship is measured on, at the widest point of the funnel.
+    //
+    // The rule this restores: an analytics fallback must mirror the flag's
+    // PROD value, not its code default. Pinned by
+    // test/services/bootstrap_super_properties_test.dart.
     flagHardPaywall: await appConfigForAnalytics
-        .getBool('hard_paywall_after_tour_enabled', fallback: false),
+        .getBool('hard_paywall_after_tour_enabled', fallback: true),
     flagGuidedTour: await appConfigForAnalytics.getBool('guided_tour_enabled',
         fallback: true),
-    flagReverseTrialExp: await appConfigForAnalytics
-        .getBool('reverse_trial_experiment_enabled', fallback: false),
     isPremium: isPremiumAtBoot,
   );
   analytics.track(AnalyticsEvents.appOpened, properties: {
@@ -332,6 +415,12 @@ Future<void> main() async {
   // Retention core-loop telemetry (2026-06-01): the daily-loop notifier has no
   // Riverpod access, so bridge its check_in_completed event the same way.
   DailyLoopNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The daily question's surface events (W4 Wave 7). Separate from the notifier
+  // hook above because a skip and an abandon never reach the provider — only
+  // the widget knows the user left without deciding, and only it holds the
+  // dwell clock. `daily_question_answered` still comes through the notifier.
+  DailyQuestionAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // Duas + Journal telemetry (2026-06-15): the Duas/Reflect notifiers have no
   // Riverpod access, so bridge `dua_built` / `journal_entry_created` the same
@@ -358,6 +447,24 @@ Future<void> main() async {
   // UI emits through the same static hook (services never touch Riverpod).
   CosmeticsAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
+  // The onboarding reveal (W2-C1/Wave G). ⚠️ This bridge was MISSING until
+  // 2026-07-28: `reveal_deck_completed`, `reveal_deck_abandoned` and
+  // `lantern_kindled` were all emitted through a hook nothing ever set, so
+  // none of them reached Mixpanel. The screen is a plain StatefulWidget by
+  // design (Wave E owns the provider writes), which is why it needs the same
+  // static-hook treatment as the services above rather than a `ref`. The
+  // card-reveal overlay's own events bridge through here too.
+  //
+  // This was assigned TWICE — here and again ~55 lines below, to an identical
+  // closure. Harmless at runtime (the second was a no-op) and a trap in review:
+  // someone fixing one copy would not know the other overwrote it. One
+  // assignment, 2026-08-02.
+  OnboardingRevealScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // First-visit hints (Wave F3). Fires at claim time, so the event count and
+  // the number of hints actually spent cannot drift.
+  FirstVisitHintService.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Home-screen widget telemetry: `widget_opened` (taps → app) from the
   // deep-link handler, and `widget_installed_state` (adoption snapshot) from
   // the sync path. Neither has Riverpod access, so they bridge through these
@@ -383,12 +490,64 @@ Future<void> main() async {
   // next. AppSessionNotifier has no Riverpod access, so it calls this static
   // hook from its signedOut branch (after final events are queued).
   AppSessionNotifier.onAnalyticsReset = analytics.resetForSignOut;
+  // Cross-user leak fix (review): the widget/push reveal-entry-source stamp
+  // (reveal_entry_source.dart) is process-global with a ~10-minute TTL, and
+  // nothing cleared it on sign-out — so on this project's shared QA device a
+  // DIFFERENT user signing in within the TTL inherited the outgoing user's
+  // stamp and had their `second_name_unsealed` misattributed to a push/widget
+  // tap they never made. Wired the same way as the analytics-reset hook
+  // above, from the ONE branch that runs for every sign-out.
+  AppSessionNotifier.onRevealEntrySourceReset = clearRevealEntrySource;
+  // onboarding_flow (W6 Wave A). DEVICE-scoped like install_id: which
+  // experience a user ran is a fact about the install, not the session, so it
+  // rides `cacheDeviceSuperProperties` and survives `resetForSignOut`.
+  //
+  // New users get this at onboarding entry (registered there one await after
+  // the kill switch resolves, BEFORE the first funnel event). This hook is the
+  // The flow is USER-scoped (review, P2): it belongs to that account, not the
+  // install. Registering it through `cacheDeviceSuperProperties` put it in the
+  // durable set `resetForSignOut` re-applies, so on a shared device the NEXT
+  // user inherited the previous one's cohort — permanently, if their own
+  // profile had no flow to overwrite it. `reset()` clears user-scoped props;
+  // a plain registration is therefore correctly wiped on sign-out.
+  //
+  // returning-user path — the flow arrives with the first sync, long after
+  // boot — and it is also the belt to that braces.
+  AppSessionNotifier.onOnboardingFlowResolved = (flow) =>
+      analytics.setSuperProperties(
+        {AnalyticsEvents.propOnboardingFlow: flow},
+      );
+  // Identity for EVERY authenticated session, not just the signup screens.
+  AppSessionNotifier.onIdentifyUser = analytics.identify;
+  // The completion chain's degrade-don't-abort failures (W2-C2): a
+  // `name_queue_seed_failed` is otherwise invisible, since completion carries
+  // on without the queue the reel flow promised.
+  OnboardingNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The reel flow's source question (W2-D3) — measurement is the screen's only
+  // reason to exist, and it is a plain ConsumerWidget with no service behind it.
+  SourceQuestionScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // …and the onboarding persist's own failures. It is best-effort by design, so
+  // without this a silently-dropped answer leaves no production trace at all.
+  AuthService.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),
     notificationService: notificationService,
     initialOnboarded: onboardingCompleted,
   );
+  // Cross-device backfill of which onboarding experience this user ran. The
+  // batch sync is a top-level function, so it hands the profile snapshot to the
+  // session through this hook (W2-C3). Wave F is what reads it. The mirror —
+  // not the plain setter — because a snapshot with no flow must leave a known
+  // flow alone.
+  UserProfileSyncHooks.onOnboardingProfileHydrated =
+      (snapshot) => appSession.mirrorServerOnboardingFlow(snapshot.onboardingFlow);
+  // `names_met` people property (One Ship W6-E, D8) — same top-level-function
+  // bridge as the hook above.
+  UserProfileSyncHooks.onSetUserProperties = analytics.setUserProperties;
 
   runApp(
     ProviderScope(
@@ -447,11 +606,11 @@ class _SakinaAppState extends State<SakinaApp> {
         children: [
           const BillingIssueBanner(),
           const IapToSubUpsellBanner(),
-          Expanded(
-            child: OnboardingTourOverlayHost(
-              child: child ?? const SizedBox.shrink(),
-            ),
-          ),
+          // The guided tour's `OnboardingTourOverlayHost` used to wrap the
+          // router here. It was unmounted 2026-07-28 (One Ship W2 §F1a) when
+          // the tour was deleted — with nothing able to start a tour, the host
+          // would only ever render its child.
+          Expanded(child: child ?? const SizedBox.shrink()),
         ],
       ),
     );

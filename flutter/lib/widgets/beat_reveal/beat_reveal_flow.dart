@@ -28,6 +28,12 @@ class BeatRevealFlow extends StatefulWidget {
   final BeatFlowStatus status;
   final ReflectResponse? response;
 
+  /// Pre-built screens, used INSTEAD of building from [response] when non-null
+  /// — the deck path (`buildBeatScreensFromDeck`), which has no AI response
+  /// behind it. [includeVerses] / [includeName] don't apply: a deck's beat list
+  /// is already the final screen order.
+  final List<BeatScreen>? screens;
+
   /// Reflect passes true (verse beats between takeaway and duʿa); muḥāsabah false.
   final bool includeVerses;
 
@@ -57,11 +63,34 @@ class BeatRevealFlow extends StatefulWidget {
   final Widget Function(Widget child)? readStoryAnchorBuilder;
   final Widget Function(Widget child)? ameenAnchorBuilder;
 
+  /// Replaces the default "Preparing your reflection…" body while [status] is
+  /// [BeatFlowStatus.loading].
+  ///
+  /// Added for the onboarding kindling beat (Wave G): that beat is not a wait,
+  /// it is the moment the lantern is lit, and it has to sit in the loading slot
+  /// specifically so it inherits the existing `AnimatedSwitcher` dissolve into
+  /// beat 1 rather than introducing a competing transition. Null everywhere
+  /// else — the two AI surfaces keep the ripple loader.
+  final Widget? loadingView;
+
+  /// Replaces the default off-topic line, and adds a second, quieter line under
+  /// it. Reflect leaves both null and keeps the string it has always shown.
+  ///
+  /// The daily loop needs its own wording because the two surfaces are not in
+  /// the same situation. In Reflect the user typed into a box whose only job is
+  /// to be reflected on, and being asked to rephrase costs them nothing. In the
+  /// daily loop they answered *"What's on your heart today?"*, have already
+  /// been given their Name, and are being asked to say it again — so the line
+  /// has to read as an invitation rather than a rejection.
+  final String? offTopicMessage;
+  final String? offTopicBody;
+
   const BeatRevealFlow({
     super.key,
     required this.status,
     required this.response,
     required this.onAmeen,
+    this.screens,
     this.includeVerses = false,
     this.includeName = true,
     this.showFirstRunHint = false,
@@ -74,6 +103,9 @@ class BeatRevealFlow extends StatefulWidget {
     this.onFirstAdvance,
     this.readStoryAnchorBuilder,
     this.ameenAnchorBuilder,
+    this.loadingView,
+    this.offTopicMessage,
+    this.offTopicBody,
   });
 
   @override
@@ -87,16 +119,45 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   bool _firstAdvanceFired = false;
   bool _nameEntrancePlayed = false;
 
-  List<BeatScreen> get _screens => widget.response == null
-      ? const <BeatScreen>[]
-      : buildBeatScreens(
-          widget.response!,
-          includeVerses: widget.includeVerses,
-          includeName: widget.includeName,
-        );
+  List<BeatScreen> get _screens {
+    final prebuilt = widget.screens;
+    if (prebuilt != null) return prebuilt;
+    final response = widget.response;
+    if (response == null) return const <BeatScreen>[];
+    return buildBeatScreens(
+      response,
+      includeVerses: widget.includeVerses,
+      includeName: widget.includeName,
+    );
+  }
 
   bool get _reducedMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+  @override
+  void didUpdateWidget(BeatRevealFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A host that swaps the content under a live flow (deck → deck, or a retry
+    // that lands a different response) would otherwise keep an index that is
+    // now out of range for the new screen list. Restart from its first beat.
+    //
+    // Compared by content, not list identity: a host that rebuilds its screen
+    // list inline in `build()` hands us a new list every frame, and an identity
+    // check would reset the flow under the user's thumb.
+    final old = oldWidget.screens;
+    final now = widget.screens;
+    final swapped = old?.length != now?.length ||
+        (old != null &&
+            now != null &&
+            old.isNotEmpty &&
+            now.isNotEmpty &&
+            old.first.semanticText != now.first.semanticText) ||
+        !identical(widget.response, oldWidget.response);
+    if (swapped) {
+      _index = 0;
+      _nameEntrancePlayed = false;
+    }
+  }
 
   void _announce(String message) {
     // ignore: deprecated_member_use
@@ -203,7 +264,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   Widget _body() {
     switch (widget.status) {
       case BeatFlowStatus.loading:
-        return _LoadingView();
+        return widget.loadingView ?? _LoadingView();
       case BeatFlowStatus.error:
         return _MessageView(
           message: "We couldn't prepare your reflection.",
@@ -213,7 +274,9 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         );
       case BeatFlowStatus.offtopic:
         return _MessageView(
-          message: "Share how you're feeling, and I'll find a Name for it.",
+          message: widget.offTopicMessage ??
+              "Share how you're feeling, and I'll find a Name for it.",
+          secondary: widget.offTopicBody,
           primaryLabel: 'Try again',
           onPrimary: widget.onOffTopicRetry,
           onReturnHome: widget.onReturnHome,
@@ -236,6 +299,11 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
     final screen = screens[_index];
     final isDua = screen.kind == BeatKind.dua;
     final isTakeaway = screen.kind == BeatKind.takeaway;
+    // The completion CTA belongs to the LAST beat, whatever its kind. On the AI
+    // path the duʿa is last, so this is the duʿa screen as before; deck decks
+    // end `…dua → takeaway`, and keying on the duʿa would strand the user on the
+    // takeaway with no way to complete.
+    final isLast = _index == screens.length - 1;
 
     return Stack(
       children: [
@@ -252,7 +320,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         // view (center-until-overflow) via the gesture arena.
         Positioned.fill(
           top: 44,
-          bottom: isDua ? 96 : 56,
+          bottom: isLast ? 96 : 56,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTapUp: (details) {
@@ -271,7 +339,15 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
             customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
               const CustomSemanticsAction(label: 'Next beat'): _advance,
               const CustomSemanticsAction(label: 'Previous beat'): _back,
-              const CustomSemanticsAction(label: 'Skip to duʿa'): _skipToDua,
+              // Gated exactly like the visible button. Registering it
+              // unconditionally left a screen-reader user able to trigger, on a
+              // deck's final beat, the same backward jump and spurious
+              // `reflect_flow_skipped` that was just removed for sighted users —
+              // and `_skipToDua`'s `target == _index` guard does not catch it,
+              // because on an 8-screen deck the duʿa is index 6 and the last
+              // beat is index 7.
+              if (!isDua && !isLast)
+                const CustomSemanticsAction(label: 'Skip to duʿa'): _skipToDua,
             },
             child: AnimatedSwitcher(
               duration:
@@ -307,14 +383,27 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
                 ),
               ),
               const SizedBox(width: 10),
-              if (!isDua) _skipButton(),
+              // On the FINAL beat the skip button is worse than useless: the
+              // shipped decks end `… dua → takeaway`, so `isDua` is false there
+              // and "Skip to duʿa" renders — jumping the user BACKWARDS and
+              // emitting a spurious `reflect_flow_skipped`. The slot it vacates
+              // is where the share icon belongs anyway.
+              if (!isDua && !isLast) _skipButton(),
+              // `!isDua` matters as much as `isLast`. The AI path's screen list
+              // always ENDS on the duʿa, so without it a second share icon
+              // appeared there — Reflect would carry two affordances at once
+              // (the floating one on its takeaway, this one on its duʿa) and the
+              // AI path would not be untouched after all. Decks end on a
+              // takeaway, so the deck path is unaffected by the guard.
+              if (isLast && !isDua && widget.onShare != null)
+                _shareIconInline(),
             ],
           ),
         ),
 
-        if (isTakeaway && widget.onShare != null) _shareButton(),
-        if (isDua) _ameenPill(),
-        if (widget.showFirstRunHint && _index <= 1 && !isDua) _tapHint(),
+        if (isTakeaway && widget.onShare != null && !isLast) _shareButton(),
+        if (isLast) _ameenPill(),
+        if (widget.showFirstRunHint && _index <= 1 && !isLast) _tapHint(),
         if (_completing) const Positioned.fill(child: _CompletionBeat()),
       ],
     );
@@ -352,6 +441,34 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               color: AppColors.sacredInk.withValues(alpha: 0.85),
               letterSpacing: 0.2,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Share on the FINAL beat, in the top-right slot the skip button vacates.
+  ///
+  /// The floating [_shareButton] cannot be reused here: it sits at `bottom: 18`
+  /// and the Ameen pill occupies `bottom: 24` plus 56 of height, so the icon
+  /// would land on top of the primary action. This is also the better moment —
+  /// someone who has just finished the deck and is about to say Ameen is far
+  /// likelier to share than someone mid-flow. The AI path keeps the floating
+  /// button, because there the takeaway is never the last beat.
+  Widget _shareIconInline() {
+    return Semantics(
+      button: true,
+      label: 'Share this reflection',
+      child: InkResponse(
+        onTap: widget.onShare,
+        radius: 26,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            Icons.ios_share,
+            size: 21,
+            color: AppColors.sacredInk.withValues(alpha: 0.85),
           ),
         ),
       ),
@@ -485,6 +602,10 @@ class _LoadingView extends StatelessWidget {
 // ── Error / off-topic (shared warm, in-canvas layout) ──────────────────────
 class _MessageView extends StatelessWidget {
   final String message;
+
+  /// An optional quieter line under [message]. Only the daily loop's off-topic
+  /// view uses it; every other message here is a single line by design.
+  final String? secondary;
   final String primaryLabel;
   final VoidCallback? onPrimary;
   final VoidCallback? onReturnHome;
@@ -492,6 +613,7 @@ class _MessageView extends StatelessWidget {
   const _MessageView({
     required this.message,
     required this.primaryLabel,
+    this.secondary,
     this.onPrimary,
     this.onReturnHome,
   });
@@ -514,6 +636,17 @@ class _MessageView extends StatelessWidget {
                 color: AppColors.sacredInk,
               ),
             ),
+            if (secondary != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                secondary!,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium.copyWith(
+                  height: 1.45,
+                  color: AppColors.sacredInk.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
             const SizedBox(height: 28),
             if (onPrimary != null)
               GestureDetector(

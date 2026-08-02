@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,14 +13,19 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:sakina/widgets/beat_reveal/beat_reveal_models.dart';
 import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/first_visit_hint_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/first_visit_hint/first_visit_hint_banner.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -116,6 +120,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           DailyCapSheet.show(
             sheetContext,
             feature: GatedFeature.reflect,
+            gateReason: next.gateResult!.reason,
             tokenBalance: balance,
             bypassesUsedToday: bypassesUsed,
             isPremium: premium,
@@ -126,7 +131,16 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
             onUpgrade: buildPaywallUpgradeCallback(
               reason: next.gateResult!.reason,
               pushPaywall: () {
-                if (mounted) GoRouter.of(context).push('/paywall');
+                if (mounted) {
+                  pushPaywall(
+                    context,
+                    placement: PaywallPlacement.softInApp,
+                    valueLine: softGateValueLine(
+                      GatedFeature.reflect,
+                      next.gateResult!.reason,
+                    ),
+                  );
+                }
               },
             ),
           ).whenComplete(notifier.dismissGate);
@@ -140,7 +154,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         WarmupExhaustedSheet.show(
           context,
           feature: next.warmupJustExhausted!,
-          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+          onUpgrade: () =>
+              pushPaywall(context, placement: PaywallPlacement.softInApp),
         ).whenComplete(notifier.dismissWarmupExhausted);
       }
       // Journal-limit upsell (decision 18A): NEVER surface it over the beat
@@ -227,7 +242,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           {
             AnalyticsEvents.propSurface: AnalyticsEvents.surfaceReflect,
             AnalyticsEvents.propBeatIndex: index,
-            AnalyticsEvents.propBeatKind: kind.name,
+            AnalyticsEvents.propBeatKind: kind.wireName,
           },
         );
       },
@@ -353,6 +368,15 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       height: 1.5,
                     ),
                   ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+
+                  // First-visit hint (F3). The tab name does not convey what
+                  // the feature does, so this says it once — beside the field,
+                  // and never again. Non-blocking: the field below stays live
+                  // the whole time the hint is up.
+                  const FirstVisitHintBanner(
+                    hint: FirstVisitHintId.reflect,
+                    padding: EdgeInsets.only(top: AppSpacing.md),
+                  ),
                   const SizedBox(height: AppSpacing.xl),
 
                   // Text field — warm white card with soft shadow

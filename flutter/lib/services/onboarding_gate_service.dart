@@ -2,17 +2,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'supabase_sync_service.dart';
 
-/// Persists the two pieces of state the post-onboarding gate needs that did not
-/// already exist:
-///   * `onboarding_paywall_cleared` — the one-time entry latch. Set TRUE when
-///     the user starts a trial, is already premium, or the offerings-fail valve
-///     is NOT used. Once true the router stops sending them to the hard wall.
-///   * `onboarding_tour_step_index` — the resume cursor so a force-kill mid-tour
-///     reopens at the abandoned step instead of restarting at 0.
+/// Persists the state the post-onboarding entry gate needs that did not already
+/// exist: `onboarding_paywall_cleared` — the one-time entry latch. Set TRUE when
+/// the user starts a trial, is already premium, or the offerings-fail valve is
+/// NOT used. Once true the router stops sending them to the wall.
 ///
-/// (The "tour completed" signal reuses the tour's existing per-user seen flag —
-/// see `onboardingTourSeenFlag` — so there is exactly one source of truth for
-/// completion.)
+/// This class also held `onboarding_tour_step_index`, the guided tour's resume
+/// cursor. The tour was deleted 2026-07-28 (One Ship W2 §F1a) — nothing resumes
+/// a tour, so the cursor (and its `tour_step_index` server mirror) went with it.
+/// Existing prefs/column values are simply left unread.
 ///
 /// Keys are user-scoped via [SupabaseSyncService.scopedKey] so a shared device
 /// doesn't bleed gate state across accounts. Server (`user_profiles`) is the
@@ -27,12 +25,9 @@ class OnboardingGateService {
   factory OnboardingGateService() => instance;
 
   static const String paywallClearedBaseKey = 'onboarding_paywall_cleared';
-  static const String tourStepIndexBaseKey = 'onboarding_tour_step_index';
 
   String get _paywallClearedKey =>
       supabaseSyncService.scopedKey(paywallClearedBaseKey);
-  String get _tourStepIndexKey =>
-      supabaseSyncService.scopedKey(tourStepIndexBaseKey);
 
   /// Reads the entry latch. Defaults to `true` (cleared) when ABSENT — this is
   /// the grandfather guard: existing users (and anyone whose key was never
@@ -62,20 +57,6 @@ class OnboardingGateService {
     );
   }
 
-  /// Reads the resume cursor. Defaults to `0` (start of tour) when absent.
-  Future<int> tourStepIndex() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_tourStepIndexKey) ?? 0;
-  }
-
-  /// Persists the resume cursor. Local-only on the hot path (called on every
-  /// tour advance); the server mirror happens lazily and is non-critical, so we
-  /// keep this cheap and synchronous-ish.
-  Future<void> setTourStepIndex(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_tourStepIndexKey, index < 0 ? 0 : index);
-  }
-
   /// Mirrors server `user_profiles` values into the local cache. Called from the
   /// same place as `GatingService.hydrateFromProfile` (batch sync on launch) so
   /// the router boots from server truth on a reinstall. Absent keys leave the
@@ -87,16 +68,7 @@ class OnboardingGateService {
     if (clearedRaw is bool) {
       await prefs.setBool(_paywallClearedKey, clearedRaw);
     }
-
-    // Server JSON key is `tour_step_index` (see the sync_all_user_data RPC in
-    // 20260603000000_onboarding_gate_columns.sql) — NOT the local prefs base
-    // key. Resume is prefs-only today (the cursor is not written server-side),
-    // so this read is forward-compat: it stays correct if a server write is
-    // ever added, instead of silently reading the wrong key.
-    final stepRaw = profile['tour_step_index'];
-    if (stepRaw is num) {
-      final v = stepRaw.toInt();
-      await prefs.setInt(_tourStepIndexKey, v < 0 ? 0 : v);
-    }
+    // The payload's `tour_step_index` is deliberately ignored — see the class
+    // doc. The RPC still returns it; nothing consumes it.
   }
 }

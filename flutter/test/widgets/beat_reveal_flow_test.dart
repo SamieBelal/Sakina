@@ -142,6 +142,33 @@ void main() {
       expect(find.text('Skip to duʿa'), findsNothing); // no skip on dua screen
     });
 
+    testWidgets('the AI path still puts the Ameen pill on the duʿa — it is last',
+        (t) async {
+      // The pill now keys on the last beat rather than the duʿa kind (decks end
+      // on a takeaway). On the AI path the duʿa IS last, so nothing moves: the
+      // pill appears there and nowhere earlier.
+      final screens = buildBeatScreens(_response());
+      expect(screens.last.kind, BeatKind.dua);
+
+      await t.pumpWidget(MaterialApp(
+        home: BeatRevealFlow(
+          status: BeatFlowStatus.ready,
+          response: _response(),
+          onAmeen: () {},
+        ),
+      ));
+      await t.pumpAndSettle();
+
+      final size = t.getSize(find.byType(BeatRevealFlow));
+      for (var i = 1; i < screens.length; i++) {
+        expect(find.text('Ameen'), findsNothing,
+            reason: 'the pill must not appear before the duʿa (at $i)');
+        await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
+        await t.pumpAndSettle();
+      }
+      expect(find.text('Ameen'), findsOneWidget);
+    });
+
     testWidgets('Ameen fires the callback exactly once', (t) async {
       var ameenCount = 0;
       await t.pumpWidget(MaterialApp(

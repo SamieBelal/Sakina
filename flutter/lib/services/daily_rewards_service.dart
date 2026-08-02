@@ -369,6 +369,26 @@ Future<void> reconcileDailyRewardsFromServer() async {
   // returns a fresh state. Only reset the launch gate if the local cache
   // previously believed the user had claimed today — that's the genuine
   // "server got wiped while we still think we claimed" case.
+  // These two `resetDailyLaunchGate()` calls are the ONLY ones in the app that
+  // deliberately do NOT also call `resetDailyQuestionGate()`, and that asymmetry
+  // is load-bearing rather than an oversight (W4 Wave 4 review, F4). Every
+  // user-intent reset — Settings, dev tools, the post-onboarding reset — clears
+  // both, because a user asking for a fresh day means a fresh day.
+  //
+  // A server reconcile is not a user asking for anything. The two gates answer
+  // different questions: the launch gate answers *"is there a reward day to
+  // open"*, which a server-side rollback genuinely can change, while the
+  // auto-entry marker answers *"have we already asked this person today"*,
+  // which it cannot. A multi-device claim rollback is no evidence that we did
+  // not ask. Clearing the marker here would re-ask on a local day the user has
+  // already been asked on — failing toward asking, which
+  // `daily_question_gate.dart`'s stated asymmetry forbids: failing to
+  // auto-enter costs one tap, auto-entering twice is nagging and cannot be
+  // undone.
+  //
+  // (An import cycle is sometimes given as the reason. It is not a real one —
+  // Dart tolerates cyclic imports, so that argument would be a preference at
+  // best. The reason is the asymmetry above.)
   if (row == null) {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(supabaseSyncService.scopedKey(_rewardsKey));
@@ -394,6 +414,9 @@ Future<void> reconcileDailyRewardsFromServer() async {
   // Conflict: local thought today was claimed but server disagrees.
   // Reset the launch gate so the overlay can fire again on this cold
   // launch — admin reset, multi-device claim rollback, etc.
+  //
+  // Launch gate only, deliberately — see the note above the `row == null`
+  // branch for why the auto-entry marker is not cleared here.
   if (localBefore.claimedToday && serverLastClaim != _today()) {
     await resetDailyLaunchGate();
   }

@@ -20,6 +20,19 @@ void main() {
   // Step 0 = home.beginMuhasabah (interactive, anchored on beginMuhasabahCta).
   final step0 = kOnboardingTourSteps[0];
 
+  /// The step's own message with the `{name}` placeholder stripped, used as the
+  /// "is the coachmark on screen?" probe.
+  ///
+  /// This used to be the hard-coded literal `'Begin Muh'`, which broke the day
+  /// W4 Wave 5 renamed the CTA and the tour copy followed — the same drift that
+  /// left the tour naming a button that no longer existed. A test that
+  /// hard-codes today's copy is one more place the copy has to be changed, and
+  /// one more place someone forgets. Deriving the probe from the step
+  /// definition means these assertions follow the copy for free and keep
+  /// testing what they are actually about: whether step 0's coachmark is
+  /// visible, not what it says this week.
+  final step0Probe = step0.message.split('{name}').last.trim();
+
   Future<ProviderContainer> pumpHost(WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -53,7 +66,7 @@ void main() {
   testWidgets('coachmark shows for an active step with a resolvable anchor',
       (tester) async {
     await pumpHost(tester);
-    expect(find.textContaining('Begin Muh'), findsOneWidget);
+    expect(find.textContaining(step0Probe), findsOneWidget);
   });
 
   testWidgets(
@@ -67,12 +80,12 @@ void main() {
     // step hangs (no timeout arms while suppressed). Here the beginMuhasabah
     // anchor is present, so a suppression flag is stale and the coachmark stays.
     final container = await pumpHost(tester);
-    expect(find.textContaining('Begin Muh'), findsOneWidget);
+    expect(find.textContaining(step0Probe), findsOneWidget);
 
     container.read(tourSuppressedProvider.notifier).state = true;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('Begin Muh'), findsOneWidget,
+    expect(find.textContaining(step0Probe), findsOneWidget,
         reason: 'stale suppression (anchor present) must not hide the coachmark');
   });
 
@@ -163,11 +176,11 @@ void main() {
     await tester.pump();
     // Before the floor elapses, the coachmark stays hidden...
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.textContaining('Begin Muh'), findsNothing,
+    expect(find.textContaining(step0Probe), findsNothing,
         reason: 'must stay hidden until the min-settle delay elapses');
     // ...and reveals once it has (a static anchor is already "at rest").
     await tester.pump(const Duration(milliseconds: 450));
-    expect(find.textContaining('Begin Muh'), findsOneWidget);
+    expect(find.textContaining(step0Probe), findsOneWidget);
   });
 
   testWidgets(
@@ -203,17 +216,17 @@ void main() {
     // Anchor is absent for a long time — well past the floor. Must stay hidden,
     // and the floor must NOT have started counting yet.
     await tester.pump(const Duration(seconds: 1));
-    expect(find.textContaining('Begin Muh'), findsNothing);
+    expect(find.textContaining(step0Probe), findsNothing);
 
     // Anchor appears now → the floor starts from here.
     showAnchor.value = true;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.textContaining('Begin Muh'), findsNothing,
+    expect(find.textContaining(step0Probe), findsNothing,
         reason: 'still within the floor measured from the anchor appearing');
 
     await tester.pump(const Duration(milliseconds: 450));
-    expect(find.textContaining('Begin Muh'), findsOneWidget,
+    expect(find.textContaining(step0Probe), findsOneWidget,
         reason: 'reveals once the post-appearance floor elapses');
   });
 
@@ -255,7 +268,7 @@ void main() {
 
     // Anchor absent + suppressed → hidden, and (crucially) no auto-advance.
     await tester.pump(const Duration(seconds: 61));
-    expect(find.textContaining('Begin Muh'), findsNothing);
+    expect(find.textContaining(step0Probe), findsNothing);
     expect(container.read(onboardingTourControllerProvider).index, 0,
         reason: 'suppressed step must not arm the anchor-timeout');
 
@@ -266,7 +279,7 @@ void main() {
     await tester.pump(); // ticker arms the settle timer now the anchor is drawable
     await tester.pump(const Duration(milliseconds: 450)); // settle elapses
     await tester.pump(); // markNeedsBuild → reveal
-    expect(find.textContaining('Begin Muh'), findsOneWidget,
+    expect(find.textContaining(step0Probe), findsOneWidget,
         reason: 'once the anchor is on screen the stale flag is ignored');
   });
 
@@ -306,7 +319,7 @@ void main() {
     // Before the settle delay elapses: hidden, even though the anchor exists.
     top.value += 20;
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.textContaining('Begin Muh'), findsNothing,
+    expect(find.textContaining(step0Probe), findsNothing,
         reason: 'must stay hidden until the fixed settle delay elapses');
 
     // Keep jittering across the settle window — motion must NOT block reveal.
@@ -314,7 +327,7 @@ void main() {
       top.value += 20;
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.textContaining('Begin Muh'), findsOneWidget,
+    expect(find.textContaining(step0Probe), findsOneWidget,
         reason: 'reveals after the fixed delay regardless of ongoing motion');
   });
 
@@ -326,7 +339,7 @@ void main() {
     await tester.pump();
     // Well under the 400ms floor — reduce-motion must not wait.
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('Begin Muh'), findsOneWidget,
+    expect(find.textContaining(step0Probe), findsOneWidget,
         reason: 'reduce-motion must bypass the reveal-settle gates');
   });
 

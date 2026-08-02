@@ -2,12 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../features/daily/providers/daily_loop_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
-import '../../../services/app_config_service.dart';
 import '../../../services/gating_service.dart';
-import '../../../services/onboarding_gate_service.dart';
 import '../models/onboarding_tour_step.dart';
 
 /// Tour state machine status.
@@ -78,114 +75,28 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
 
   final Ref _ref;
 
-  /// Attempts to start the tour. No-op when:
-  ///   - no auth user
-  ///   - tour already seen (per-user SharedPreferences flag)
-  ///   - daily loop never loaded (cold-offline) — does NOT mark seen, retries
-  ///   - user has already checked in today (would route step 1 to the gated
-  ///     25-token "Seek Another Name" CTA instead of "Begin Muḥāsabah").
-  ///     Marks seen so we don't retry every launch.
-  Future<void> start() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) {
-      _track(AnalyticsEvents.tourStartSkipped,
-          {'reason': AnalyticsEvents.tourSkipReasonNoAuth});
-      return;
-    }
-    if (state.status != TourStatus.idle) return;
+  // ---------------------------------------------------------------------------
+  // DELETED 2026-07-28 — One Ship W2, plan §F1a.
+  //
+  // `start()` (the opportunistic launch trigger, called from progress_screen)
+  // and `resumeForGate()` (the mandatory-gate trigger, resuming at the persisted
+  // step) both lived here. The guided tour cost ~48% of signups and has been
+  // removed for everyone, so there is no longer ANY path into
+  // `TourStatus.active` from a launch or from the router. `OnboardingStage` has
+  // no `tour` branch either, which is what makes the stranding bug class in §F0
+  // impossible by construction rather than by guard.
+  //
+  // `replay()` below survives as a NO-OP. Both of its callers were removed in
+  // the same wave (the Settings "Replay app tour" row, and the E5 win-back
+  // deep-link action), but the method itself must stay safe-when-called: E5
+  // pushes carrying `sakina://settings?action=replay_tour` may already be
+  // scheduled in OneSignal automations we cannot retract. See its doc comment.
+  // ---------------------------------------------------------------------------
 
-    final prefs = await SharedPreferences.getInstance();
-    final flag = onboardingTourSeenFlag(userId);
-    if (prefs.getBool(flag) ?? false) {
-      // Already-seen path: instrumented for completeness so the never-started
-      // gap is fully attributable. Fires at most once per launch (the next
-      // launch short-circuits on the same flag), so repeat-launch noise is
-      // bounded.
-      _track(AnalyticsEvents.tourStartSkipped,
-          {'reason': AnalyticsEvents.tourSkipReasonAlreadySeen});
-      return;
-    }
-
-    // Wait briefly for dailyLoopProvider to load. Avoids reading the initial
-    // empty state at cold launch (where checkinDone is falsely false and
-    // we'd fire the tour for a user who actually already checked in).
-    for (var i = 0; i < 20; i++) {
-      if (_ref.read(dailyLoopProvider).loaded) break;
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    final daily = _ref.read(dailyLoopProvider);
-    if (!daily.loaded) {
-      // Never loaded — cold-offline. Skip this launch, do NOT mark seen.
-      _track(AnalyticsEvents.tourStartSkipped,
-          {'reason': AnalyticsEvents.tourSkipReasonColdOffline});
-      return;
-    }
-
-    if (daily.checkinDone) {
-      await prefs.setBool(flag, true);
-      _track(AnalyticsEvents.tourStartSkipped,
-          {'reason': AnalyticsEvents.tourSkipReasonAlreadyCheckedIn});
-      return;
-    }
-
-    // Server kill switch. Read AFTER the daily-loop gate so a disabled tour
-    // never short-circuits the cold-offline retry. We do NOT mark the tour
-    // seen here — if the flag is flipped back on, the tour should still fire
-    // for users who never saw it. Falls back to enabled (fail-open) to match
-    // `onboarding_trim_enabled`'s posture in AppConfigService.
-    final tourEnabled = await _ref
-        .read(appConfigServiceProvider)
-        .getBool('guided_tour_enabled', fallback: true);
-    if (!tourEnabled) {
-      _track(AnalyticsEvents.tourStartSkipped,
-          {'reason': AnalyticsEvents.tourSkipReasonDisabled});
-      return;
-    }
-
-    final variant = await _resolveVariant();
-    state = OnboardingTourState(
-      index: 0,
-      status: TourStatus.active,
-      userName: await _resolveUserName(),
-      variant: variant,
-    );
-    _recordVariant(variant);
-    _track(AnalyticsEvents.tourStarted, {AnalyticsEvents.propVariant: variant.name});
-    _trackStepViewed();
-  }
-
-  /// Everyone gets the slim tour. The slim-vs-full A/B concluded and the
-  /// `tour_ab_enabled` app_config key was deleted 2026-07-25 (off in prod
-  /// since 06-15). The full-variant step list + the `tour_variant` recording
-  /// stay until the tour itself is removed post-keep (conversion-refactor
-  /// deletion ledger).
-  Future<TourVariant> _resolveVariant() async => TourVariant.slim;
-
-  void _recordVariant(TourVariant variant) {
-    // Set on BOTH the people profile (for user-level analysis) AND as a super
-    // property (so EVERY subsequent event — retention, paywall, conversion —
-    // is segmentable by the tour arm the user saw, not just tour events).
-    _setUserProperties({AnalyticsEvents.tourVariant: variant.name});
-    try {
-      _ref
-          .read(analyticsProvider)
-          .setSuperProperties({AnalyticsEvents.tourVariant: variant.name});
-    } catch (_) {
-      // Analytics is best-effort; a failure here must not break the tour.
-    }
-  }
-
-  /// Resolves the display name for personalized copy. `GatingService` already
-  /// falls back to "Friend" when no name is saved, so this is non-empty in
-  /// practice; null only on an unexpected failure.
-  Future<String?> _resolveUserName() async {
-    try {
-      final name = (await GatingService().displayName()).trim();
-      return name.isEmpty ? null : name;
-    } catch (_) {
-      return null;
-    }
-  }
+  // `_resolveVariant` / `_recordVariant` went with `start()` + `resumeForGate()`
+  // (§F1a): the slim-vs-full A/B concluded long before, and with no way to begin
+  // a tour there is no arm left to resolve or stamp onto the `tour_variant`
+  // super property. `OnboardingTourState` still defaults to `TourVariant.slim`.
 
   /// Advances to the next step, or marks the tour completed if at the last.
   /// `via` is recorded in analytics: 'target_tap' | 'continue' | 'back_gesture'
@@ -216,64 +127,14 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
         'final_step_id': finalStepId,
       });
       await _markSeen();
-      // Reset the resume cursor so a "Replay tour" or any future re-entry
-      // starts at the beginning, not at the (out-of-range) completed index.
-      await _persistResumeCursor(0);
       return;
     }
-    // State update is synchronous; persistence is fire-and-forget AFTER it so
-    // the resume cursor write can't delay the visible step advance.
+    // The resume cursor (`OnboardingGateService.tourStepIndex`) used to be
+    // persisted on every advance so a force-kill mid-tour reopened at the
+    // abandoned step. Nothing resumes a tour any more (§F1a deleted
+    // `resumeForGate`), so the write and the cursor itself are gone.
     state = state.copyWith(index: next, status: TourStatus.active);
     _trackStepViewed();
-    // Persist the resume cursor on every advance so a force-kill mid-tour
-    // reopens at the abandoned step (gate flow) instead of restarting at 0.
-    await _persistResumeCursor(next);
-  }
-
-  /// Starts (or resumes) the tour for the MANDATORY onboarding gate. Unlike
-  /// [start], this skips the daily-checkin opportunistic gate — the router has
-  /// already decided the user must take the tour. Resumes at the persisted step
-  /// so a force-kill mid-tour reopens where they left off (decision C3).
-  Future<void> resumeForGate() async {
-    if (state.status == TourStatus.active) return;
-    final variant = await _resolveVariant();
-    // The mandatory gate has decided the user is being offered the tour. Fire
-    // `tour_offered` exactly once here — before the start happens — so the
-    // never-started / offered→started funnel is measurable. (resumeForGate
-    // always proceeds to start, so this is one offer per gate entry.)
-    _track(AnalyticsEvents.tourOffered,
-        {AnalyticsEvents.propVariant: variant.name});
-    final variantSteps = tourStepsForVariant(variant);
-    final saved = await _safeResumeIndex();
-    final clamped = saved.clamp(0, variantSteps.length - 1);
-    state = OnboardingTourState(
-      index: clamped,
-      status: TourStatus.active,
-      userName: await _resolveUserName(),
-      variant: variant,
-    );
-    _recordVariant(variant);
-    _track(AnalyticsEvents.tourStarted, {
-      AnalyticsEvents.propVariant: variant.name,
-      if (clamped > 0) 'via': 'resume',
-    });
-    _trackStepViewed();
-  }
-
-  Future<int> _safeResumeIndex() async {
-    try {
-      return await OnboardingGateService().tourStepIndex();
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  Future<void> _persistResumeCursor(int index) async {
-    try {
-      await OnboardingGateService().setTourStepIndex(index);
-    } catch (_) {
-      // Best-effort; resume just falls back to 0 on next launch.
-    }
   }
 
   /// Ends the tour mid-flight. Marks seen so it doesn't re-fire.
@@ -294,25 +155,28 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     });
   }
 
-  /// Reset + restart at step 1. Called from Settings "Replay app tour".
-  /// Caller MUST clear the seen flag before calling this so a subsequent
-  /// natural launch doesn't re-fire on top of the replay.
+  /// **Deliberately inert since F1a (the tour was deleted).**
+  ///
+  /// This used to set [TourStatus.active] and restart at step 1. With
+  /// `OnboardingTourOverlayHost` unmounted there is nothing to render an active
+  /// tour — and an active-but-invisible tour is not merely useless, it is
+  /// harmful: `shouldDeferCelebrations` keys off `isActive`, and
+  /// `app_shell._maybeDrainDeferredCelebrations` bails while it is true. So a
+  /// replay would silently swallow every rank-up, quest, achievement and First
+  /// Steps celebration for the rest of the session, with no way to clear it
+  /// (nothing can advance, skip or complete a tour that has no overlay).
+  ///
+  /// The Settings row that called this is gone. **This method still cannot be
+  /// deleted**, because the E5 win-back deep link
+  /// `sakina://settings?action=replay_tour` may already be scheduled inside
+  /// OneSignal automations we cannot retract — so the entry point has to be
+  /// safe when it fires, not merely unreachable from our own UI.
+  ///
+  /// Pinned by `onboarding_tour_replay_inert_test.dart`.
   void replay() {
-    // Set active synchronously (callers don't await; tests assert immediately)
-    // reusing any name already resolved, then refresh the name in the
-    // background so the first banner can interpolate it.
-    state = OnboardingTourState(
-      index: 0,
-      status: TourStatus.active,
-      userName: state.userName,
-    );
-    _track(AnalyticsEvents.tourStarted, const {'via': 'replay'});
-    _trackStepViewed();
-    _resolveUserName().then((name) {
-      if (name != null && state.isActive && state.index == 0) {
-        state = state.copyWith(userName: name);
-      }
-    });
+    // Intentionally does nothing. Do not restore an `isActive` state here
+    // without first re-mounting an overlay AND re-checking the celebration
+    // drain path above.
   }
 
   Future<void> _markSeen() async {

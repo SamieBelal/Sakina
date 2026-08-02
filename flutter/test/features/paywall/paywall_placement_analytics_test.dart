@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +10,8 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
-import 'package:sakina/features/paywall/paywall_experiment.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
+import 'package:sakina/features/paywall/widgets/paywall_gate_page.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
@@ -80,6 +83,18 @@ class FakePurchaseService extends PurchaseService {
   @override
   Future<bool> isPremium() async {
     return purchaseResult?.entitlements.active.containsKey('premium') ?? false;
+  }
+
+  /// Per-product intro-offer eligibility. `null` leaves the real code path's
+  /// own fallback in place (an empty map, which on the test platform resolves
+  /// to eligible); set it to drive the previously-trialed user.
+  Map<String, IntroEligibilityStatus>? introEligibility;
+
+  @override
+  Future<Map<String, IntroEligibilityStatus>> getIntroEligibility(
+    List<String> productIds,
+  ) async {
+    return introEligibility ?? const {};
   }
 }
 
@@ -176,7 +191,7 @@ void main() {
   late RecordingAnalyticsService analytics;
 
   Widget buildSubject({
-    required String placement,
+    required PaywallPlacement placement,
     bool hardGate = false,
     bool inOnboardingFlow = true,
   }) {
@@ -242,7 +257,7 @@ void main() {
   testWidgets('initState emits paywall_viewed with placement + hard_gate',
       (tester) async {
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementHardWall, hardGate: true,
+      buildSubject(placement: PaywallPlacement.hardWall, hardGate: true,
           inOnboardingFlow: false),
     );
     await tester.pumpAndSettle();
@@ -257,7 +272,7 @@ void main() {
   testWidgets('paywall_viewed fires exactly once for the onboarding surface',
       (tester) async {
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementOnboarding),
+      buildSubject(placement: PaywallPlacement.onboarding),
     );
     await tester.pumpAndSettle();
 
@@ -283,11 +298,21 @@ void main() {
     // shimmer doesn't hang pumpAndSettle) and dismisses the reveal exactly like
     // paywall_screen_test.dart::dismissPremiumReveal.
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementOnboarding),
+      buildSubject(placement: PaywallPlacement.onboarding),
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    // The onboarding placement is the 3-page ceremony; the CTA lives on the
+    // last page. Walk there first.
+    for (var i = 0; i < 2; i++) {
+      await tapVisible(
+        tester,
+        find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pump();
     await tester.pump();
     // Drive + dismiss the premium-reveal overlay so no animation Timer is left
@@ -319,6 +344,74 @@ void main() {
     expect(trial.props['hard_gate'], false);
   });
 
+  testWidgets(
+      'a trial-INELIGIBLE user who pays immediately is NOT recorded as a '
+      'trial start', (tester) async {
+    // Apple grants one intro offer per Apple ID per subscription group, ever.
+    // A previously-trialed user is correctly shown "Subscribe" and is charged
+    // the moment they tap — no trial exists. Emitting `trial_started` anyway
+    // inflates trial-start rate, deflates trial-to-paid conversion, and
+    // mis-attributes the exit offer: precisely the measurements the W5 keep
+    // decision runs on.
+    purchaseService.introEligibility = {
+      'sakina_sub_annual':
+          IntroEligibilityStatus.introEligibilityStatusIneligible,
+      'sakina_sub_weekly':
+          IntroEligibilityStatus.introEligibilityStatusIneligible,
+    };
+
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.softInApp, inOnboardingFlow: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text(AppStrings.paywallCtaSubscribe));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 2));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNull,
+        reason: 'no trial was granted, so no trial started');
+
+    // The conversion itself must still be counted — the fix is to record it
+    // truthfully, not to drop it.
+    final paid =
+        analytics.firstOrNull(AnalyticsEvents.subscriptionStartedNoTrial);
+    expect(paid, isNotNull);
+    expect(paid!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementSoftInApp);
+  });
+
+  testWidgets('an ELIGIBLE user still emits trial_started, not the paid event',
+      (tester) async {
+    purchaseService.introEligibility = {
+      'sakina_sub_annual':
+          IntroEligibilityStatus.introEligibilityStatusEligible,
+      'sakina_sub_weekly':
+          IntroEligibilityStatus.introEligibilityStatusEligible,
+    };
+
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.softInApp, inOnboardingFlow: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text('Start my 3 days free'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 2));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNotNull);
+    expect(analytics.firstOrNull(AnalyticsEvents.subscriptionStartedNoTrial),
+        isNull);
+  });
+
   testWidgets('user cancel emits purchase_sheet_cancelled with placement',
       (tester) async {
     purchaseService.purchaseError = PlatformException(
@@ -327,11 +420,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementSoftInApp),
+      buildSubject(placement: PaywallPlacement.softInApp),
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pumpAndSettle();
 
     final cancelled =
@@ -351,11 +444,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementSoftInApp),
+      buildSubject(placement: PaywallPlacement.softInApp),
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pumpAndSettle();
 
     final failed = analytics.firstOrNull(AnalyticsEvents.purchaseSheetFailed);
@@ -366,12 +459,16 @@ void main() {
     expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNull);
   });
 
-  // --- Arm-aware soft gate (reverse-trial review fix #2) --------------------
+  // --- The post-onboarding soft gate ---------------------------------------
+  //
+  // These three tests were arm-parameterized until the reverse-trial close-out
+  // (W5 Wave A, 2026-08-01): they pinned `post_trial_soft` +
+  // `treatment_reverse_trial` for a lapsed treatment trialer against
+  // `post_tour_soft` + `control_no_trial` for control. Both inputs are gone —
+  // the session's placement and arm are frozen constants — so what is left to
+  // pin is that the ONE surviving surface still tags itself correctly.
 
-  AppSessionNotifier softGateSession({
-    required bool trialExpired,
-    required PaywallArm arm,
-  }) {
+  AppSessionNotifier softGateSession() {
     return AppSessionNotifier(
       initialOnboarded: true,
       authStateChanges: const Stream<AuthState>.empty(),
@@ -380,8 +477,6 @@ void main() {
       hydrateEconomyCache: () async {},
       hasCompletedOnboarding: () async => true,
       isPremiumReader: () async => false,
-      trialExpiredReader: () async => trialExpired,
-      paywallArmReader: () async => arm,
     );
   }
 
@@ -405,33 +500,9 @@ void main() {
   }
 
   testWidgets(
-      'treatment + expired trial → trial_paywall_surfaced{post_trial_soft, arm}',
+      'the soft gate is post_tour_soft{unassigned}, and surfaces no post-trial gate',
       (tester) async {
-    final session = softGateSession(
-      trialExpired: true,
-      arm: PaywallArm.treatmentReverseTrial,
-    );
-    await session.hydrateOnboardingGate();
-    addTearDown(session.dispose);
-
-    await tester.pumpWidget(buildSoftSubject(session));
-    await tester.pumpAndSettle();
-
-    final surfaced = analytics.firstOrNull(AnalyticsEvents.trialPaywallSurfaced);
-    expect(surfaced, isNotNull,
-        reason: 'the treatment Day-3 soft gate fires trial_paywall_surfaced');
-    expect(surfaced!.props[AnalyticsEvents.propPlacement],
-        AnalyticsEvents.placementPostTrialSoft);
-    expect(surfaced.props[AnalyticsEvents.propArm], 'treatment_reverse_trial');
-    expect(surfaced.props[AnalyticsEvents.propHardGate], false);
-  });
-
-  testWidgets('control arm → generic paywall_viewed{post_tour_soft}, no surfaced',
-      (tester) async {
-    final session = softGateSession(
-      trialExpired: false,
-      arm: PaywallArm.controlNoTrial,
-    );
+    final session = softGateSession();
     await session.hydrateOnboardingGate();
     addTearDown(session.dispose);
 
@@ -439,7 +510,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(analytics.firstOrNull(AnalyticsEvents.trialPaywallSurfaced), isNull,
-        reason: 'control never surfaces a post-trial gate');
+        reason: 'trial_paywall_surfaced was the app-granted Day-3 gate; retired '
+            'with the reverse trial, and nothing can reach post_trial_soft');
     final viewed = analytics.firstOrNull(AnalyticsEvents.paywallViewed);
     expect(viewed, isNotNull);
     expect(viewed!.props[AnalyticsEvents.propPlacement],
@@ -448,30 +520,112 @@ void main() {
 
   testWidgets('dismiss (X) of the soft gate → soft_gate_dismissed{placement,arm}',
       (tester) async {
-    final session = softGateSession(
-      trialExpired: true,
-      arm: PaywallArm.treatmentReverseTrial,
-    );
+    final session = softGateSession();
     await session.hydrateOnboardingGate();
     addTearDown(session.dispose);
 
     await tester.pumpWidget(buildSoftSubject(session));
     await tester.pumpAndSettle();
     // Select Weekly so the annual→weekly exit-offer sheet is NOT eligible and
-    // the X goes straight to _doClose (the dismiss path under test).
-    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
-    // The close X fades in (and becomes tappable) after 3s.
-    await tester.pump(const Duration(seconds: 4));
+    // the ✕ goes straight to _doClose (the dismiss path under test). The
+    // weekly plan is a de-emphasized text row now, not a peer card.
+    //
+    // The ✕ itself is tappable from frame zero — the 3-second reveal delay was
+    // deleted with W5 Wave C, so there is no timer to pump past.
+    await tapVisible(tester, find.textContaining('Weekly \u2014'));
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.tap(find.byType(PaywallCloseButton));
     await tester.pump();
 
     final dismissed = analytics.firstOrNull(AnalyticsEvents.softGateDismissed);
     expect(dismissed, isNotNull,
         reason: 'dismissing the soft gate emits soft_gate_dismissed');
     expect(dismissed!.props[AnalyticsEvents.propPlacement],
-        AnalyticsEvents.placementPostTrialSoft);
-    expect(dismissed.props[AnalyticsEvents.propArm], 'treatment_reverse_trial');
+        AnalyticsEvents.placementPostTourSoft);
+    expect(dismissed.props[AnalyticsEvents.propArm],
+        AnalyticsEvents.armUnassigned);
+
+    // W6 Wave C, D5 test table — `paywall_closed` fires from EVERY placement
+    // dismiss (see `_doClose`), including this one; `soft_gate_dismissed` is
+    // the surface-specific sibling, not a replacement.
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull);
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementPostTourSoft);
+  });
+
+  testWidgets(
+      'dismiss of a NON-soft-gate placement → paywall_closed{placement}',
+      (tester) async {
+    // `softInApp` is deliberately the subject: `soft_gate_dismissed` is gated
+    // on `_isPostTourSoftGate`, so on this surface `paywall_closed` is the ONLY
+    // record that anyone bailed. It shipped without `placement`, which collapsed
+    // onboarding / hard_wall / soft_inapp / post_trial_soft closes into one
+    // unattributable bucket — and Mixpanel cannot backfill a property, so the
+    // gap was permanent for every event already sent. This pins it shut.
+    await tester.pumpWidget(
+      buildSubject(
+        placement: PaywallPlacement.softInApp,
+        inOnboardingFlow: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Weekly, so the annual→weekly exit offer is ineligible and ✕ goes straight
+    // to `_doClose` — same reasoning as the soft-gate dismiss test above.
+    await tapVisible(tester, find.textContaining('Weekly —'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PaywallCloseButton));
+    await tester.pump();
+
+    expect(analytics.firstOrNull(AnalyticsEvents.softGateDismissed), isNull,
+        reason: 'soft_gate_dismissed must NOT fire off the post-tour gates — '
+            'that is exactly why paywall_closed has to carry placement itself');
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull, reason: 'the ✕ emits paywall_closed');
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementSoftInApp);
+  });
+
+  testWidgets(
+      'dismiss of the onboarding ceremony placement → '
+      'paywall_closed{placement: onboarding}', (tester) async {
+    // W6 Wave C, D5 test table — the ceremony is the one placement not
+    // already covered above (post_tour_soft, soft_in_app). `hard_wall` has
+    // no ✕ at all (hardGate removes it — see PaywallScreen.hardGate doc) so
+    // it cannot reach `_doClose` through the UI and is not exercised here.
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.onboarding),
+    );
+    await tester.pumpAndSettle();
+
+    // Walk the 3-page ceremony to the final plan-select page, where the ✕
+    // lives — same walk as the CTA-tap test above.
+    for (var i = 0; i < 2; i++) {
+      await tapVisible(
+        tester,
+        find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // Select Weekly first so the annual→weekly exit-offer sheet is NOT
+    // eligible and ✕ goes straight to `_doClose` — same reasoning as the
+    // softInApp dismiss test above (the default selection is annual).
+    await tapVisible(tester, find.textContaining('Weekly —'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PaywallCloseButton));
+    await tester.pump();
+
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull, reason: 'the ceremony ✕ emits paywall_closed');
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementOnboarding);
+    expect(analytics.firstOrNull(AnalyticsEvents.softGateDismissed), isNull,
+        reason: 'the ceremony is not a post-tour soft gate');
   });
 
   testWidgets('safety valve emits paywall_safety_valve_used with placement',
@@ -480,7 +634,7 @@ void main() {
 
     await tester.pumpWidget(
       buildSubject(
-        placement: AnalyticsEvents.placementHardWall,
+        placement: PaywallPlacement.hardWall,
         hardGate: true,
         inOnboardingFlow: false,
       ),
@@ -495,4 +649,49 @@ void main() {
     expect(valve!.props[AnalyticsEvents.propPlacement],
         AnalyticsEvents.placementHardWall);
   });
+
+  group('the purchase outcome reports the plan that was BILLED', () {
+    // The plan tiles carry no busy-gate (unlike the footer CTA), so a user can
+    // flick from Annual to Weekly after tapping Subscribe and before
+    // RevenueCat resolves. `_selectedPackage` was already captured before the
+    // await, so the CHARGE is correct — but the analytics read the live
+    // `_selectedPlan`, meaning the user is billed Annual and reported as
+    // Weekly, with `trial_started` flipped to `subscription_started_no_trial`.
+    //
+    // Nobody is mischarged. What breaks is the trial-vs-paid split and the plan
+    // attribution — which that emit's own comment calls "the three numbers the
+    // W5 keep decision reads".
+    //
+    // A source pin, not a behavioural one, and deliberately so: driving a
+    // mid-flight selection change through the real purchase harness costs more
+    // than it proves, and the defect is entirely visible in which identifier
+    // the emit reads. Stated plainly rather than dressed up as coverage it
+    // does not have.
+    //
+    // MUTATION: change either captured local back to its live getter
+    // (`_trialFor(_selectedPlan)` / `_planName`) → this fails.
+    test('the outcome emit reads captured locals, not live state', () {
+      final source =
+          File('lib/features/onboarding/screens/paywall_screen.dart')
+              .readAsStringSync();
+
+      final emitStart = source.indexOf('AnalyticsEvents.trialStarted');
+      expect(emitStart, greaterThan(0),
+          reason: 'the outcome emit moved — re-point this pin, do not delete it');
+      final emit = source.substring(emitStart - 400, emitStart + 400);
+
+      expect(emit.contains('purchasedGrantedTrial'), isTrue,
+          reason: 'the trial/no-trial split must come from the plan captured '
+              'BEFORE the RevenueCat await');
+      expect(emit.contains('purchasedPlanName'), isTrue,
+          reason: 'the plan property must come from the captured plan');
+      expect(
+        RegExp(r"'plan':\s*_planName").hasMatch(emit),
+        isFalse,
+        reason: '`_planName` is a getter over the LIVE `_selectedPlan`, which '
+            'the user can change while the purchase is in flight',
+      );
+    });
+  });
+
 }

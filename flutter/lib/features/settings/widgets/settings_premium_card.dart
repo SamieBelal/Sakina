@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
@@ -8,6 +7,8 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
@@ -96,7 +97,7 @@ class _SettingsPremiumCardState extends ConsumerState<SettingsPremiumCard>
 
   void _openPaywall(BuildContext context) {
     ref.read(analyticsProvider).track(AnalyticsEvents.settingsPremiumCtaTapped);
-    context.push('/paywall');
+    pushPaywall(context, placement: PaywallPlacement.softInApp);
   }
 
   /// Opens RevenueCat's Customer Center via `purchases_ui_flutter`, which

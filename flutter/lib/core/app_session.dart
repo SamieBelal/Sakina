@@ -7,17 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/onboarding/onboarding_stage.dart';
-import '../features/paywall/paywall_experiment.dart';
-import '../features/paywall/reverse_trial_onboarding.dart'
-    show paywallExperimentAssignedBaseKey;
-import '../features/tour/providers/onboarding_tour_controller.dart'
-    show onboardingTourSeenFlag;
+import '../features/paywall/paywall_placement.dart';
 import '../services/analytics_event_names.dart';
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
 import '../widgets/achievement_toast.dart';
+import '../services/name_queue_repair.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_gate_service.dart';
 import '../services/purchase_service.dart';
@@ -39,6 +36,40 @@ const String kPostTourPaywallModeFlag = 'post_tour_paywall_mode';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
+/// SharedPreferences key recording WHICH user the `onboarding_completed` flag
+/// belongs to. Unscoped like the flag itself, on purpose: it is the thing that
+/// makes the unscoped flag safe.
+const String onboardingCompletedUidPrefsKey = 'onboarding_completed_uid';
+
+/// Whether a persisted `onboarding_completed` can be trusted for the user who
+/// just authenticated.
+///
+/// The flag is unscoped and read at cold launch as `initialOnboarded`. Nothing
+/// recorded whose completion it described — so on a shared device, user A's
+/// completion silently vouched for user B, and because
+/// `_checkOnboardingStatus` only ever sets the flag TRUE, the mistake was never
+/// corrected. User B reached the app never onboarded: no Name, no queue, no
+/// starter card.
+///
+/// This is NOT solved by clearing the flag on sign-out. supabase_flutter emits
+/// a bare `signedOut` whenever a refresh token expires or is revoked, and the
+/// person who signs back in is usually the SAME one — clearing would make a
+/// routine token refresh cost them their onboarding, which is a far more
+/// frequent bug than the one being fixed. The flag has to know whose it is.
+///
+/// Pure and top-level so the shipping predicate and the tested one are the same
+/// code, matching [shouldEmitAbandonment] and friends.
+@visibleForTesting
+bool shouldRecheckOnboarding({
+  required String? currentUid,
+  required String? flagUid,
+  required bool hasOnboarded,
+}) {
+  if (currentUid == null || currentUid.isEmpty) return false;
+  if (!hasOnboarded) return false; // the ordinary path already checks
+  return flagUid != currentUid; // includes an unowned (pre-upgrade) flag
+}
+
 class AppSessionNotifier extends ChangeNotifier {
   /// Static hook to reset analytics identity on sign-out. This notifier has no
   /// Riverpod access, so main.dart wires this to `AnalyticsService.reset` the
@@ -47,6 +78,57 @@ class AppSessionNotifier extends ChangeNotifier {
   /// so the next user to sign in on a shared/QA device doesn't inherit the
   /// previous user's identity (cross-user contamination).
   static void Function()? onAnalyticsReset;
+
+  /// Establishes the Mixpanel identity for an authenticated session.
+  ///
+  /// **A hook here rather than a fourth call site on a screen.** `identify()`
+  /// was called from exactly three places, all onboarding/signup screens — so a
+  /// RETURNING user signing into an existing account never called it, and
+  /// neither did `initialSession` (relaunching with a live token), which is by
+  /// far the most common authenticated event there is.
+  ///
+  /// The consequence was not merely a missing identity: `names_met` is a PEOPLE
+  /// property written during authenticated hydration, so it attached to
+  /// whatever profile was current — after a sign-out `reset()`, the ANONYMOUS
+  /// one. The property was least reliable for exactly the users it describes
+  /// best, and polluted anonymous profiles on the way.
+  ///
+  /// Fires BEFORE hydration, so every People write that follows lands on the
+  /// right profile.
+  static void Function(String userId)? onIdentifyUser;
+
+  /// Fired whenever the resolved onboarding flow becomes known — from the local
+  /// latch or from server hydration — so it can be registered as the
+  /// `onboarding_flow` super property (W6 Wave A).
+  ///
+  /// A hook rather than a value read at boot, because the flow is genuinely not
+  /// known at boot: `AppSessionNotifier` is constructed well after
+  /// `registerBootstrapAnalytics`, and a returning user's flow arrives with the
+  /// first `sync_all_user_data`. Reading it at boot would register null on
+  /// every launch and call it a value.
+  ///
+  /// Fires only for NON-null flows. Null from the server means "the server
+  /// didn't say", never "not the reel flow" — see [mirrorServerOnboardingFlow]
+  /// — and registering that as a super property would be a lie that persists
+  /// on-device forever.
+  static void Function(String flow)? onOnboardingFlowResolved;
+
+  /// Static hook to clear the widget/push reveal-entry-source stamp
+  /// (`lib/services/reveal_entry_source.dart`) on sign-out. This notifier has
+  /// no Riverpod access, so main.dart wires this to `clearRevealEntrySource`
+  /// the same way the other service-layer telemetry hooks are bridged. Left
+  /// null in tests (best-effort — a null hook is a no-op).
+  ///
+  /// The stamp is process-global with a ~10-minute TTL and nothing previously
+  /// cleared it on sign-out, so on this project's shared QA device a
+  /// DIFFERENT user signing in within the TTL inherited the outgoing user's
+  /// stamp and had their `second_name_unsealed` misattributed to a push/
+  /// widget tap they never made. `signedOut` is the ONE place that runs for
+  /// EVERY sign-out, including an *implicit* one (an expired/revoked refresh
+  /// token emits a bare `signedOut` with no `signOut()` call, so caller-side
+  /// cleanup never runs) — the same reason [onAnalyticsReset] lives here
+  /// rather than in `AuthService.signOut()`.
+  static void Function()? onRevealEntrySourceReset;
 
   AppSessionNotifier({
     AuthService? authService,
@@ -60,8 +142,6 @@ class AppSessionNotifier extends ChangeNotifier {
     Future<bool> Function()? isPremiumReader,
     Future<bool> Function()? hardPaywallFlowReader,
     Future<PostTourPaywallMode> Function()? postTourPaywallModeReader,
-    Future<bool> Function()? trialExpiredReader,
-    Future<PaywallArm?> Function()? paywallArmReader,
     Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
         _notificationService = notificationService ?? NotificationService(),
@@ -75,8 +155,6 @@ class AppSessionNotifier extends ChangeNotifier {
         _isPremiumReader = isPremiumReader ?? _defaultIsPremium,
         _hardPaywallFlowReader =
             hardPaywallFlowReader ?? _defaultHardPaywallFlow,
-        _trialExpiredReader = trialExpiredReader ?? _defaultTrialExpired,
-        _paywallArmReader = paywallArmReader ?? _defaultPaywallArm,
         _hydrationTimeout = hydrationTimeout ?? const Duration(seconds: 30) {
     // The mode reader defaults to a derivation over THIS session's hard-flow
     // reader, so legacy `hardPaywallFlowReader`-only callers (incl. tests) keep
@@ -98,8 +176,6 @@ class AppSessionNotifier extends ChangeNotifier {
   final Future<bool> Function() _isPremiumReader;
   final Future<bool> Function() _hardPaywallFlowReader;
   late final Future<PostTourPaywallMode> Function() _postTourPaywallModeReader;
-  final Future<bool> Function() _trialExpiredReader;
-  final Future<PaywallArm?> Function() _paywallArmReader;
   final Duration _hydrationTimeout;
   bool _hasOnboarded;
 
@@ -109,12 +185,11 @@ class AppSessionNotifier extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // Onboarding gate flags — synchronously readable by the GoRouter redirect.
   //
-  // All default to the "ungated" value (tour done, wall cleared, flow off) so a
-  // returning/existing user is NEVER flashed into the tour or the wall before
+  // All default to the "ungated" value (wall cleared, flow off) so a
+  // returning/existing user is NEVER flashed into the wall before
   // [hydrateOnboardingGate] resolves real values. A brand-new user is put INTO
   // the gate explicitly by [enterOnboardingGate] from completeOnboarding.
   // ---------------------------------------------------------------------------
-  bool _tourCompleted = true;
   bool _paywallCleared = true;
   bool _isPremiumCached = false;
   bool _hardPaywallFlowEnabled = false;
@@ -123,10 +198,63 @@ class AppSessionNotifier extends ChangeNotifier {
   // before [hydrateOnboardingGate] resolves the real mode.
   PostTourPaywallMode _postTourPaywallMode = PostTourPaywallMode.off;
 
-  bool get tourCompleted => _tourCompleted;
+  /// VESTIGIAL — always `true`. The guided tour was deleted 2026-07-28 (One Ship
+  /// W2, plan §F1a): nothing starts it and [OnboardingStage] has no `tour`
+  /// branch, so "has this user finished the tour?" has exactly one answer for
+  /// every user, including the ones who were stranded mid-tour when it was
+  /// removed. Kept as a constant (rather than deleted outright) so the F1b
+  /// cleanup can retire the remaining call sites in one pass instead of
+  /// rippling through this file's callers now.
+  bool get tourCompleted => true;
+
   bool get paywallCleared => _paywallCleared;
   bool get isPremiumCached => _isPremiumCached;
   bool get hardPaywallFlowEnabled => _hardPaywallFlowEnabled;
+
+  /// Which onboarding EXPERIENCE this user ran (`reel_v1` | `legacy`), or null
+  /// when it is not known yet — a pre-W1 profile, or a session that has not
+  /// hydrated. Null is NOT "legacy": callers that gate on the reel flow must
+  /// test for [onboardingFlowReelV1] explicitly, so an unhydrated session can
+  /// never accidentally suppress the tour for a legacy user (Wave F reads it).
+  String? _onboardingFlow;
+  String? get onboardingFlow => _onboardingFlow;
+
+  /// The reel flow's wire value, mirroring
+  /// `user_profiles.onboarding_flow`.
+  static const String onboardingFlowReelV1 = 'reel_v1';
+
+  /// Mirrors the flow into the session. Synchronous on purpose: the router's
+  /// redirect reads it during a build, so a value that only lands after an
+  /// async hydrate would lose the day-0 race — the same reason
+  /// [enterOnboardingGate] flips its in-memory flags before it awaits the
+  /// persist.
+  void setOnboardingFlow(String? flow) {
+    if (_onboardingFlow == flow) return;
+    _onboardingFlow = flow;
+    // W6 Wave A. Both writers funnel through here (the local latch and
+    // `mirrorServerOnboardingFlow`), so one hook covers new and returning users
+    // without either call site needing to know about analytics.
+    // Best-effort and non-null only — a throwing reporter must never break the
+    // router redirect that reads this during a build.
+    if (flow != null && flow.isNotEmpty) {
+      try {
+        onOnboardingFlowResolved?.call(flow);
+      } catch (_) {/* analytics best-effort */}
+    }
+    notifyListeners();
+  }
+
+  /// [setOnboardingFlow] for SERVER hydration, which may legitimately arrive
+  /// with no value: a pre-W1 profile, a partial payload, or a row the sync
+  /// could not read. Null there means "the server didn't say", never "not the
+  /// reel flow" — passing it through would clobber the flow the local flow
+  /// latch already knows and un-suppress the tour for a reel user on their
+  /// second launch. Use [setOnboardingFlow] for the local latch, which is
+  /// allowed to clear.
+  void mirrorServerOnboardingFlow(String? flow) {
+    if (flow == null) return;
+    setOnboardingFlow(flow);
+  }
 
   /// The effective post-tour paywall mode (reverse-trial Phase A). Derived from
   /// the `post_tour_paywall_mode` app_config string, falling back to the legacy
@@ -136,39 +264,33 @@ class AppSessionNotifier extends ChangeNotifier {
   PostTourPaywallMode get postTourPaywallMode => _postTourPaywallMode;
 
   // ---------------------------------------------------------------------------
-  // Arm-aware soft-paywall placement (reverse-trial review fix #2).
+  // Soft-paywall placement + arm — both FROZEN by the reverse-trial close-out
+  // (W5 Wave A, 2026-08-01).
   //
-  // The post-tour soft `PaywallScreen` is shared by both experiment arms. To
-  // segment them, the router/PaywallScreen ask THIS session — which already
-  // holds the persisted arm + trial state — to resolve the `placement` and the
-  // `arm` event prop. Keeping the resolution here preserves the one-funnel /
-  // super-property model: the Riverpod-free services never gain experiment
-  // access; only the session (which has a user id + prefs) does.
+  // These two once resolved per-user: the session held the persisted experiment
+  // arm and the cached trial window, and tagged a lapsed treatment user's Day-3
+  // gate as `post_trial_soft` / `treatment_reverse_trial`. The experiment is
+  // retired and the app-granted trial is gone, so there is exactly one answer
+  // for every user and no state left to read. Kept as constants (rather than
+  // deleted outright) because the router and `PaywallScreen` still need a
+  // placement and the events still carry an `arm` prop whose Mixpanel history
+  // must not drift — same posture as [tourCompleted] above.
   //
-  // Both default to the control-shaped values (`post_tour_soft` / `unassigned`)
-  // so a returning user is never mis-tagged before [hydrateOnboardingGate]
-  // resolves the real state.
+  // `paywall_exp_arm` is FROZEN as history: historical events only, never
+  // re-added, never recycled for a future paywall experiment. The next
+  // experiment ships a NEW super property (`gate_exp_arm`). Precedent:
+  // `flag_tour_ab`, retired the same way 2026-07-25.
   // ---------------------------------------------------------------------------
-  bool _trialExpired = false;
-  PaywallArm? _paywallArm;
 
-  /// The `placement` for the post-tour soft paywall. `post_trial_soft` for a
-  /// treatment-arm user whose 3-day reverse trial has lapsed (the Day-3 soft
-  /// gate), else `post_tour_soft` (control / generic). Read by the router to
-  /// build the soft `PaywallScreen` and by the screen for its view/dismiss
-  /// events.
-  String get softPaywallPlacement => _trialExpired
-      ? AnalyticsEvents.placementPostTrialSoft
-      : AnalyticsEvents.placementPostTourSoft;
+  /// The `placement` for the post-onboarding soft paywall. Always
+  /// `post_tour_soft` — `post_trial_soft` was the Day-3 gate for a lapsed
+  /// app-granted reverse trial, and nothing grants one any more. The enum case
+  /// survives for Mixpanel history and for the RC store-trial lapse surface.
+  PaywallPlacement get softPaywallPlacement => PaywallPlacement.postTourSoft;
 
-  /// The experiment arm wire value for the soft-paywall events (`arm` prop).
-  /// Resolves to the persisted assignment (`control_no_trial` /
-  /// `treatment_reverse_trial`) for in-experiment users, or `unassigned` for
-  /// pre-experiment users (mirroring the `paywall_exp_arm` super-property
-  /// contract). The super-property still carries the arm on every event; this
-  /// is the explicit per-event copy the ADR specifies on the soft-gate events.
-  String get paywallArm =>
-      _paywallArm?.analyticsValue ?? AnalyticsEvents.armUnassigned;
+  /// The `arm` wire value on the soft-gate events. Always `unassigned` — see
+  /// the freeze note above.
+  String get paywallArm => AnalyticsEvents.armUnassigned;
 
   /// Session-only escape used by the offerings-load-failure safety valve. When
   /// the hard wall can't load plans (StoreKit/Apple outage) and the user taps
@@ -190,10 +312,10 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> hydrateOnboardingGate() async {
     final uid = _currentUserIdProvider();
     if (uid != null && uid.isNotEmpty) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        _tourCompleted = prefs.getBool(onboardingTourSeenFlag(uid)) ?? false;
-      } catch (_) {/* keep default */}
+      // The tour-seen flag is no longer read: with the tour deleted there is no
+      // stage that consumes it, and reading it was the mechanism that stranded
+      // mid-tour users (plan §F0). Their `onboarding_tour_v1_seen_*` prefs key
+      // is now inert and left in place.
       try {
         _paywallCleared = await OnboardingGateService().isPaywallCleared();
       } catch (_) {/* keep default */}
@@ -215,24 +337,7 @@ class AppSessionNotifier extends ChangeNotifier {
     try {
       _isPremiumCached = await _isPremiumReader();
     } catch (_) {/* keep default */}
-    // Resolve the arm-aware soft-paywall placement inputs (review fix #2). Both
-    // are independently guarded so a failure keeps the control-shaped default.
-    try {
-      _trialExpired = await _trialExpiredReader();
-    } catch (_) {/* keep default (false → post_tour_soft) */}
-    try {
-      _paywallArm = await _paywallArmReader();
-    } catch (_) {/* keep default (null → unassigned) */}
     notifyListeners();
-  }
-
-  /// Resets the arm-aware soft-paywall placement state to its control-shaped
-  /// defaults. Called on sign-out so the next user on a shared device isn't
-  /// tagged with the previous user's arm / trial-expiry.
-  @visibleForTesting
-  void resetSoftPaywallPlacementForSignOut() {
-    _trialExpired = false;
-    _paywallArm = null;
   }
 
   /// Back-compat derivation of the post-tour paywall MODE:
@@ -269,10 +374,13 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// New user just finished onboarding → put them INTO the gate so the router
-  /// routes them to the forced tour. Persists the latch=false so a force-kill
+  /// routes them to the entry paywall. Persists the latch=false so a force-kill
   /// before clearing the wall re-gates them on relaunch.
+  ///
+  /// Since the tour was deleted (§F1a) this sets exactly one latch; the user
+  /// lands directly on the paywall stage rather than on the tour that used to
+  /// precede it.
   Future<void> enterOnboardingGate() async {
-    _tourCompleted = false;
     _paywallCleared = false;
     try {
       await OnboardingGateService().setPaywallCleared(false);
@@ -280,12 +388,37 @@ class AppSessionNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The forced tour finished → router advances the user to the hard paywall.
-  void markTourCompleted() {
-    if (_tourCompleted) return;
-    _tourCompleted = true;
+  /// The reel flow's counterpart to [enterOnboardingGate] (One Ship W2-E1, per
+  /// plan §F1): a `reel_v1` user clears the entry gate outright — the reel flow
+  /// ends on its own paywall page, so a second wall right behind it would be a
+  /// double paywall.
+  ///
+  /// Historically this also latched `tourCompleted`, because skipping
+  /// [enterOnboardingGate] alone left the user in stage `tour` forever. That
+  /// stage no longer exists (§F1a), so the cleared latch is the whole job.
+  ///
+  /// In-memory FIRST, durable second, for the same reason [enterOnboardingGate]
+  /// flips its flag before awaiting the persist: the router's redirect runs
+  /// synchronously off `context.go('/')` at the end of completion, and a latch
+  /// that only lands after an await loses that race on day 0.
+  ///
+  /// The write is best-effort. The in-memory flip already routes THIS session
+  /// correctly; the prefs write is what keeps the next cold launch's
+  /// [hydrateOnboardingGate] from re-gating them.
+  Future<void> skipOnboardingGateForReelFlow() async {
+    setOnboardingFlow(onboardingFlowReelV1);
+    _paywallCleared = true;
     notifyListeners();
+
+    try {
+      await OnboardingGateService().setPaywallCleared(true);
+    } catch (_) {/* in-memory latch still holds for this session */}
   }
+
+  /// VESTIGIAL no-op — see [tourCompleted]. The tour that used to call this is
+  /// deleted; retained so the F1b cleanup can drop the remaining call sites
+  /// without a compile break here.
+  void markTourCompleted() {}
 
   /// The user cleared the entry wall (started a trial / restored premium).
   /// Persistence is the caller's responsibility; this updates the in-memory
@@ -330,10 +463,27 @@ class AppSessionNotifier extends ChangeNotifier {
       case AuthChangeEvent.initialSession:
       case AuthChangeEvent.tokenRefreshed:
         if (isAuthenticated) {
+          // BEFORE `_handleAuthenticatedChange`, which is what triggers
+          // hydration and therefore the `names_met` People write. Identity has
+          // to exist first or that write lands on the anonymous profile.
+          // Best-effort — a throwing reporter must never break auth handling.
+          final userId = _currentUserIdProvider();
+          if (userId != null && userId.isNotEmpty) {
+            try {
+              onIdentifyUser?.call(userId);
+            } catch (_) {/* analytics best-effort */}
+          }
           unawaited(_handleAuthenticatedChange(data));
         }
         if (isAuthenticated && !_hasOnboarded) {
           unawaited(_checkOnboardingStatus());
+        } else if (isAuthenticated) {
+          // A persisted `onboarding_completed` that belongs to a DIFFERENT user
+          // must not vouch for this one. Reached after an implicit sign-out (an
+          // expired or revoked refresh token emits a bare `signedOut`, so the
+          // caller-side cleanup never runs) followed by a cold launch and a
+          // second account signing in. Server truth wins.
+          unawaited(_recheckOnboardingOwnership());
         }
         notifyListeners();
         break;
@@ -346,16 +496,22 @@ class AppSessionNotifier extends ChangeNotifier {
         try {
           onAnalyticsReset?.call();
         } catch (_) {/* analytics best-effort; never block sign-out */}
+        // Clear the widget/push reveal-entry-source stamp so it can't
+        // misattribute the NEXT user's reveal on a shared device. Best-effort
+        // — a throwing hook (or a null one, in tests) must never block
+        // sign-out.
+        try {
+          onRevealEntrySourceReset?.call();
+        } catch (_) {/* best-effort; never block sign-out */}
         _hasOnboarded = false;
         _economyHydrated = false;
         _hydrationFailed = false;
         // Reset gate flags to the ungated defaults so the next user to sign in
         // on this device isn't gated by the previous user's in-memory state.
-        _tourCompleted = true;
         _paywallCleared = true;
         _isPremiumCached = false;
+        _onboardingFlow = null;
         _postTourPaywallMode = PostTourPaywallMode.off;
-        resetSoftPaywallPlacementForSignOut();
         _gateValveBypass = false;
         notifyListeners();
         break;
@@ -463,6 +619,15 @@ class AppSessionNotifier extends ChangeNotifier {
       unawaited(_notificationService.syncTimezone());
       if (_hasOnboarded) {
         unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
+        // Repair a queue seed that failed during onboarding. Almost always a
+        // single prefs read that finds nothing; when it finds something, it is
+        // the difference between a user receiving the second Name they were
+        // promised and never hearing about it again. See `name_queue_repair`.
+        //
+        // Here rather than at boot because it needs an authenticated session,
+        // and gated on `_hasOnboarded` because a user still IN onboarding has
+        // `completeOnboarding` itself ahead of them.
+        unawaited(retryPendingQueueSeed());
       }
     } catch (_) {
       _hydrationFailed = true;
@@ -478,12 +643,51 @@ class AppSessionNotifier extends ChangeNotifier {
     await _hydrateAndNotify();
   }
 
+  /// Clears a stale `_hasOnboarded` when the persisted flag belongs to another
+  /// user, then re-derives it from the server. Best-effort: on a failed read we
+  /// leave the session as-is rather than locking a legitimate user out of their
+  /// own app.
+  Future<void> _recheckOnboardingOwnership() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!shouldRecheckOnboarding(
+        currentUid: _currentUserIdProvider(),
+        flagUid: prefs.getString(onboardingCompletedUidPrefsKey),
+        hasOnboarded: _hasOnboarded,
+      )) {
+        return;
+      }
+      final onboarded = await _hasCompletedOnboarding();
+      if (onboarded) {
+        // Genuinely onboarded — adopt the flag for this user so the check does
+        // not repeat every launch.
+        final uid = _currentUserIdProvider();
+        if (uid != null && uid.isNotEmpty) {
+          await prefs.setString(onboardingCompletedUidPrefsKey, uid);
+        }
+        return;
+      }
+      _hasOnboarded = false;
+      await prefs.setBool('onboarding_completed', false);
+      await prefs.remove(onboardingCompletedUidPrefsKey);
+      notifyListeners();
+    } catch (_) {
+      // Never block a session on this.
+    }
+  }
+
   Future<void> _checkOnboardingStatus() async {
     final onboarded = await _hasCompletedOnboarding();
     if (onboarded && !_hasOnboarded) {
       _hasOnboarded = true;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
+      // Record WHOSE completion this is. Without it the flag vouches for
+      // whoever signs in next on this device — see [shouldRecheckOnboarding].
+      final uid = _currentUserIdProvider();
+      if (uid != null && uid.isNotEmpty) {
+        await prefs.setString(onboardingCompletedUidPrefsKey, uid);
+      }
       notifyListeners();
       // Reinstall recovery: a returning user starts the session with
       // `initialOnboarded = false` (fresh prefs after a fresh install), so
@@ -591,43 +795,3 @@ Future<bool> _defaultHardPaywallFlow() async {
   }
 }
 
-/// Default "treatment trial just expired" reader for the arm-aware soft
-/// placement. True iff the user is NOT premium AND the cached
-/// `trial_premium_until` timestamp exists and is in the past — i.e. a reverse
-/// trial was activated (only the treatment arm activates one) and has lapsed.
-/// Reads only the user-scoped SharedPrefs cache (same hot-path posture as
-/// `PurchaseService._isTimedPremium`); never round-trips Supabase here.
-Future<bool> _defaultTrialExpired() async {
-  try {
-    if (await PurchaseService().isPremium()) return false;
-    final prefs = await SharedPreferences.getInstance();
-    final iso = prefs.getString(supabaseSyncService
-        .scopedKey(PurchaseService.trialPremiumUntilPrefsBaseKey));
-    if (iso == null || iso.isEmpty) return false;
-    final until = DateTime.tryParse(iso);
-    if (until == null) return false;
-    return until.isBefore(DateTime.now().toUtc());
-  } catch (_) {
-    return false;
-  }
-}
-
-/// Default experiment-arm reader for the soft-paywall `arm` event prop. Resolves
-/// to the deterministic [assignPaywallArm] bucket ONLY for users who were
-/// actually assigned (the one-shot [paywallExperimentAssignedBaseKey] flag is
-/// set at onboarding-complete when the experiment was on). Pre-experiment users
-/// return null → `unassigned`, matching the `paywall_exp_arm` super-property.
-Future<PaywallArm?> _defaultPaywallArm() async {
-  try {
-    final uid = _defaultCurrentUserId();
-    if (uid == null || uid.isEmpty) return null;
-    final prefs = await SharedPreferences.getInstance();
-    final assigned = prefs.getBool(
-            supabaseSyncService.scopedKey(paywallExperimentAssignedBaseKey)) ??
-        false;
-    if (!assigned) return null;
-    return assignPaywallArm(uid);
-  } catch (_) {
-    return null;
-  }
-}

@@ -41,6 +41,10 @@ private struct NameDisplay {
     let streak: Int
     /// nil = don't show a streak (logged out); .done/.pending/.atRisk otherwise.
     let streakState: StreakState
+    /// True when today's Name has not been revealed yet, so there is no Name to
+    /// show. The Name fields are empty in this state and views MUST render the
+    /// invitation instead. See `resolve(at:phase:)`.
+    let awaitingReveal: Bool
 }
 
 private enum StreakState { case hidden, zero, done, pending, atRisk }
@@ -124,10 +128,38 @@ private func resolve(at date: Date, phase: RenderPhase) -> NameDisplay {
             isSameLocalDay($0.updated_at, date, cal)
     } ?? false
 
+    // `awaiting` = signed in, but today's Name has not been revealed yet, so
+    // there is no Name to show (W4 Wave 6). The app used to send a day-of-year
+    // rotation here and this extension ignored it and computed its own — either
+    // way the widget was naming a Name that had nothing to do with the reveal,
+    // which comes from the queue planner or `pickNextCard`. Harmless while the
+    // reveal was a blind gacha; a broken promise now that it is the answer to a
+    // question the user was asked.
+    //
+    // Nothing is guessed to replace it. Showing the queue's next Name cannot be
+    // made correct offline: this provider pre-bakes a next-midnight entry and
+    // then sleeps on `.after(nextMidnight)`, so it would have to know the
+    // server-side unseal and its 20-hour floor, and would still be wrong
+    // whenever the plan holds or the queue is exhausted and the reveal falls
+    // through to an ordinary pull.
+    //
+    // Also date-guarded: a payload from a previous day says nothing about
+    // today, so it decays back to the catalog rotation rather than freezing the
+    // widget in an invitation forever if the app is never opened again.
+    let awaiting = payload.map {
+        $0.mode == "awaiting" && isSameLocalDay($0.updated_at, date, cal)
+    } ?? false
+
     let base: (key: String, arabic: String, translit: String, english: String, anchor: String)
     if personalized, let p = payload {
         base = (p.name_key, p.arabic, p.transliteration, p.name_english, p.anchor)
+    } else if awaiting {
+        // Deliberately empty: the awaiting views render none of these, and
+        // leaving a Name here is a Name some future reader will show.
+        base = ("", "", "", "", "")
     } else if let catalog = catalog, !catalog.names.isEmpty {
+        // Logged out, or a stale payload — the catalog rotation is honest here
+        // because it is content, not a promise about the user's own day.
         let row = dailyRow(for: date, catalog: catalog, cal: cal)
         base = (row.name_key, row.arabic, row.transliteration, row.english, row.anchor)
     } else {
@@ -151,7 +183,8 @@ private func resolve(at date: Date, phase: RenderPhase) -> NameDisplay {
 
     return NameDisplay(nameKey: base.key, arabic: base.arabic,
                        transliteration: base.translit, english: base.english,
-                       anchor: base.anchor, streak: streak, streakState: state)
+                       anchor: base.anchor, streak: streak, streakState: state,
+                       awaitingReveal: awaiting)
 }
 
 private enum RenderPhase { case current, eveningAtRisk, nextDay }
@@ -198,13 +231,57 @@ private struct Provider: TimelineProvider {
 private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
     // build-a-dua is need-based (free text), not tied to a Name, so no name_key.
     let path = build ? "build-dua" : "muhasabah"
-    return URL(string: "sakina://widget/\(path)?homeWidget")
+    return URL(string: "sakina://widget/\(path)?homeWidget&source=home_widget")
+}
+
+/// The pre-reveal hero: what stands where the Name stands, before there is a
+/// Name. Says exactly what the home CTA and the question screen say, so the
+/// widget, the button and the prompt are one sentence rather than three.
+///
+/// Valence-neutral on purpose (spec M4) — a widget that asks what is *weighing*
+/// on you has no slot for the honest answer on a good day, and this one is on
+/// the Home Screen where it is read dozens of times.
+private struct AwaitingHero: View {
+    /// Arabic-hero point size of the family this replaces, so the invitation
+    /// occupies the same optical weight as the Name it stands in for.
+    let heroSize: CGFloat
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "sparkles")
+                .font(.system(size: heroSize * 0.42))
+                .foregroundColor(Palette.gold)
+            Text("What's on your heart today?")
+                .font(.custom("Outfit", size: heroSize * 0.36)).fontWeight(.semibold)
+                .foregroundColor(Palette.emerald)
+                .multilineTextAlignment(.center)
+                .lineLimit(3).minimumScaleFactor(0.6)
+        }
+    }
 }
 
 /// A capsule pill that visually matches the Dua pill (same padding/shape), so
 /// the footer reads as a matched pair. Uses Outfit (the app's Latin UI font).
 private struct StreakChip: View {
     let display: NameDisplay
+
+    /// Drops the `.atRisk` loss copy back to the neutral count.
+    ///
+    /// Set in the **awaiting** state only (W4 Wave 6 review, F2). The 8 PM
+    /// timeline entry resolves `.atRisk` whenever the user has not revealed
+    /// yet — which IS the awaiting state — so the widget read "What's on your
+    /// heart today?" directly above "Don't lose your 5". That is a guilt
+    /// mechanic underneath an invitation, on a Home Screen surface seen dozens
+    /// of times a day, and plan §2 rule 6 forbids it. The wave made the hero
+    /// valence-neutral for exactly that reason; this carries the same rule one
+    /// line down.
+    ///
+    /// The streak still shows — the count, the flame, the gold. Only the
+    /// framing changes, and only here: outside awaiting the chip is untouched,
+    /// because a user who HAS reflected is being told about a streak they are
+    /// keeping rather than one they are about to lose.
+    var suppressLossFraming: Bool = false
+
     var body: some View {
         switch display.streakState {
         case .hidden:
@@ -219,8 +296,13 @@ private struct StreakChip: View {
             pill("\(display.streak)", icon: "flame.fill",
                  fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
         case .atRisk:
-            pill("Don't lose your \(display.streak)", icon: "flame.fill",
-                 fg: Palette.amber, bg: Palette.amber.opacity(0.18))
+            if suppressLossFraming {
+                pill("\(display.streak)", icon: "flame.fill",
+                     fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
+            } else {
+                pill("Don't lose your \(display.streak)", icon: "flame.fill",
+                     fg: Palette.amber, bg: Palette.amber.opacity(0.18))
+            }
         }
     }
 
@@ -241,41 +323,69 @@ private struct MediumView: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(spacing: 6) {
-                Text(display.arabic)
-                    .font(.custom("ArefRuqaa-Regular", size: 44))
-                    .foregroundColor(Palette.emerald)
-                    .environment(\.layoutDirection, .rightToLeft)
-                    .minimumScaleFactor(0.45).lineLimit(1)
-                Text(display.transliteration)
-                    .font(.custom("Outfit", size: 16)).fontWeight(.bold)
-                    .foregroundColor(Palette.ink)
-                    .lineLimit(1).minimumScaleFactor(0.5)
+                if display.awaitingReveal {
+                    AwaitingHero(heroSize: 44)
+                } else {
+                    Text(display.arabic)
+                        .font(.custom("ArefRuqaa-Regular", size: 44))
+                        .foregroundColor(Palette.emerald)
+                        .environment(\.layoutDirection, .rightToLeft)
+                        .minimumScaleFactor(0.45).lineLimit(1)
+                    Text(display.transliteration)
+                        .font(.custom("Outfit", size: 16)).fontWeight(.bold)
+                        .foregroundColor(Palette.ink)
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                }
             }
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 4) {
                 // Anchor is the hook — no redundant "A NAME FOR YOU" label.
                 // Shrink-to-fit: the full anchor ALWAYS shows (up to 3 lines).
-                Text(display.anchor)
+                // Pre-reveal there is no anchor (it is the Name's teaching line),
+                // so the slot carries the invitation's second half instead.
+                Text(display.awaitingReveal
+                     ? "Answer today's question to meet your Name."
+                     : display.anchor)
                     .font(.custom("Outfit", size: 15)).fontWeight(.medium)
                     .foregroundColor(Palette.ink)
                     .lineLimit(3).minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
-                Text(display.english)
-                    .font(.custom("Outfit", size: 12))
-                    .foregroundColor(Palette.ink.opacity(0.65))
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                // The Name's meaning. Omitted entirely pre-reveal rather than
+                // rendered empty — an empty Text still reserves a line and would
+                // leave a visible gap where a meaning used to be.
+                if !display.awaitingReveal {
+                    Text(display.english)
+                        .font(.custom("Outfit", size: 12))
+                        .foregroundColor(Palette.ink.opacity(0.65))
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                }
                 // Matched capsule pills, vertically centered: streak (status) and
                 // Dua (action) read as a proper pair.
+                //
+                // The Spacer belongs to the PAIR, not to the row. `StreakChip`
+                // renders `EmptyView()` when the streak state is `.hidden`
+                // (logged out — see the payload check in `makeDisplay`), and an
+                // unconditional Spacer then shoved a lone Dua pill against the
+                // right edge with a hand-span of dead space beside it. With no
+                // chip there is no pair to separate, so the pill simply starts
+                // at the leading edge the way the lantern widget's Reflect pill
+                // already does. Founder, 2026-07-29.
                 HStack(alignment: .center, spacing: 6) {
-                    StreakChip(display: display)
-                    Spacer(minLength: 4)
+                    if display.streakState != .hidden {
+                        StreakChip(display: display,
+                                   suppressLossFraming: display.awaitingReveal)
+                        Spacer(minLength: 4)
+                    }
                     Link(destination: widgetDeepLinkURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
                         Label("Dua", systemImage: "hands.sparkles.fill")
                             .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(Palette.gold).clipShape(Capsule())
+                    }
+                    if display.streakState == .hidden {
+                        Spacer(minLength: 0)
                     }
                 }
                 .padding(.top, 2)
@@ -295,15 +405,19 @@ private struct SmallView: View {
     var body: some View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
-            Text(display.arabic)
-                .font(.custom("ArefRuqaa-Regular", size: 40))
-                .foregroundColor(Palette.emerald)
-                .environment(\.layoutDirection, .rightToLeft)
-                .minimumScaleFactor(0.45).lineLimit(1)
-            Text(display.transliteration)
-                .font(.custom("Outfit", size: 17)).fontWeight(.bold)
-                .foregroundColor(Palette.ink)
-                .lineLimit(1).minimumScaleFactor(0.5)
+            if display.awaitingReveal {
+                AwaitingHero(heroSize: 40)
+            } else {
+                Text(display.arabic)
+                    .font(.custom("ArefRuqaa-Regular", size: 40))
+                    .foregroundColor(Palette.emerald)
+                    .environment(\.layoutDirection, .rightToLeft)
+                    .minimumScaleFactor(0.45).lineLimit(1)
+                Text(display.transliteration)
+                    .font(.custom("Outfit", size: 17)).fontWeight(.bold)
+                    .foregroundColor(Palette.ink)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+            }
             Spacer(minLength: 0)
             footer
         }
@@ -312,6 +426,19 @@ private struct SmallView: View {
     }
 
     @ViewBuilder private var footer: some View {
+        // Pre-reveal the hero already asks the question, so the footer carries
+        // the streak rather than repeating the CTA underneath it. This is the
+        // "lantern + streak, no Name" state plan §8 asks for: status, not a
+        // second prompt. (`.hidden` is unreachable here — awaiting requires a
+        // payload, and `.done` requires personalized, which awaiting is not.)
+        if display.awaitingReveal {
+            StreakChip(display: display, suppressLossFraming: true)
+        } else {
+            nameFooter
+        }
+    }
+
+    @ViewBuilder private var nameFooter: some View {
         switch display.streakState {
         case .done:
             // Reward: the streak chip (they've reflected today).
@@ -343,7 +470,28 @@ private struct SmallView: View {
 private struct AccessoryView: View {
     let display: NameDisplay
 
+    /// The awaiting state is neutral here too (W4 Wave 6 review, F2).
+    ///
+    /// The small and medium families already suppress loss framing while the
+    /// user has not answered yet — `AwaitingHero` plus
+    /// `StreakChip(suppressLossFraming: true)`. This view was missed, and it is
+    /// the WORST place to miss it: the Lock Screen is the highest-frequency
+    /// surface in the app, ~80–100 glances a day.
+    ///
+    /// The 8 PM timeline entry resolves `.atRisk` whenever the reveal has not
+    /// happened, which IS the awaiting state — so an evening glance read
+    /// "Don't lose your 5" / "Reflect before midnight" about a question the app
+    /// had not yet asked. Plan §2 rule 6 forbids exactly that: no guilt
+    /// mechanic under an invitation, and no clock near the reveal.
+    ///
+    /// `.pending`'s "Keep your 5" goes the same way while awaiting. It is
+    /// softer than the `.atRisk` copy but it is the same move, and `StreakChip`
+    /// resolves both to the bare count. The streak still shows; only the
+    /// framing changes, and only here — outside awaiting every branch below is
+    /// untouched, because a user who HAS reflected is being told about a streak
+    /// they are keeping rather than one they are about to lose.
     private var title: String {
+        if display.awaitingReveal { return "What's on your heart today?" }
         switch display.streakState {
         case .done:    return display.transliteration        // reward: the Name you received
         case .pending: return "Reflect today"                // gentle nudge
@@ -354,19 +502,30 @@ private struct AccessoryView: View {
     }
 
     @ViewBuilder private var subtitle: some View {
-        switch display.streakState {
-        case .done:
-            Label("\(display.streak) · \(display.english)", systemImage: "flame.fill")
-                .labelStyle(.titleAndIcon)
-        case .pending:
-            Label("Keep your \(display.streak)", systemImage: "flame.fill")
-                .labelStyle(.titleAndIcon)
-        case .atRisk:
-            Text("Reflect before midnight")
-        case .zero:
-            Text("Start your streak")
-        case .hidden:
-            Text(display.english)
+        if display.awaitingReveal {
+            // The count, the flame — never the loss. Mirrors
+            // `StreakChip(suppressLossFraming: true)` exactly.
+            if display.streak > 0 {
+                Label("\(display.streak)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            } else {
+                Text("Start your streak")
+            }
+        } else {
+            switch display.streakState {
+            case .done:
+                Label("\(display.streak) · \(display.english)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            case .pending:
+                Label("Keep your \(display.streak)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            case .atRisk:
+                Text("Reflect before midnight")
+            case .zero:
+                Text("Start your streak")
+            case .hidden:
+                Text(display.english)
+            }
         }
     }
 

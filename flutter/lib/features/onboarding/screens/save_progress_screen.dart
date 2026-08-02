@@ -23,11 +23,19 @@ class SaveProgressScreen extends ConsumerStatefulWidget {
     required this.onNext,
     required this.onBack,
     required this.onSocialAuthComplete,
+    this.progressSegment = 20,
+    this.totalSegments,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
+
+  /// Segment this screen lights on the progress bar, and the bar's length.
+  /// Defaulted to the kill-switch flows' values; the reel flow reuses this
+  /// screen at a different position on a shorter bar (W2-E1).
+  final int progressSegment;
+  final int? totalSegments;
   final VoidCallback onSocialAuthComplete;
 
   @override
@@ -442,7 +450,8 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     );
 
     return OnboardingPageWrapper(
-      progressSegment: 20,
+      progressSegment: widget.progressSegment,
+      totalSegments: widget.totalSegments,
       onBack: widget.onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

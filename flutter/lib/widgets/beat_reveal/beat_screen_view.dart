@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
@@ -82,7 +84,9 @@ class BeatScreenView extends StatelessWidget {
           animate: playNameEntrance && !reduce,
         );
 
+      // The deck's opening `recognition` beat reads as a key line.
       case BeatKind.keyLine:
+      case BeatKind.recognition:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -137,7 +141,9 @@ class BeatScreenView extends StatelessWidget {
           ],
         );
 
+      // Deck comfort verses render exactly like catalog verses.
       case BeatKind.verse:
+      case BeatKind.comfortVerse:
         final arabic = SizedBox(
           width: double.infinity,
           child: Text(
@@ -152,14 +158,18 @@ class BeatScreenView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // The Arabic soft-settles in (fade + gentle scale) — a calmer,
-            // scripture-appropriate entrance than the pull-quote sweep.
-            reduce
-                ? arabic
-                : arabic
-                    .animate()
-                    .fadeIn(duration: 420.ms)
-                    .scaleXY(begin: 0.96, end: 1, duration: 460.ms, curve: Curves.easeOut),
-            const SizedBox(height: AppSpacing.lg),
+            // scripture-appropriate entrance than the pull-quote sweep. Deck
+            // verses may carry translation only; then the block is omitted
+            // rather than leaving an empty gap above the translation.
+            if (screen.primary.isNotEmpty) ...[
+              reduce
+                  ? arabic
+                  : arabic
+                      .animate()
+                      .fadeIn(duration: 420.ms)
+                      .scaleXY(begin: 0.96, end: 1, duration: 460.ms, curve: Curves.easeOut),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             Text(
               screen.label, // translation
               style: AppTypography.bodyLarge.copyWith(
@@ -196,13 +206,19 @@ class BeatScreenView extends StatelessWidget {
         );
 
       case BeatKind.dua:
-        final d = screen.dua;
-        if (d == null) return const SizedBox.shrink();
+        // Standalone fields (deck path) win over the legacy response; the
+        // getters resolve both, so a deck duʿa never renders blank.
+        final arabic = screen.duaArabicText;
+        final transliteration = screen.duaTransliterationText;
+        final translation = screen.duaTranslationText;
+        if (arabic.isEmpty && transliteration.isEmpty && translation.isEmpty) {
+          return const SizedBox.shrink();
+        }
         return DuaTextBlock(
-          arabic: d.duaArabic,
-          transliteration: d.duaTransliteration,
-          translation: d.duaTranslation,
-          source: d.duaSource,
+          arabic: arabic,
+          transliteration: transliteration,
+          translation: translation,
+          source: screen.duaSourceText,
           onSacredCanvas: true,
         );
     }
@@ -272,9 +288,31 @@ class _NameHero extends StatelessWidget {
             .scaleXY(begin: 0.6, end: 1, delay: 480.ms, duration: 460.ms, curve: Curves.easeOutBack)
         : const MihrabCrestOrnament(size: 26);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 360),
-      child: MihrabArchFrame(
+    // The arch is a CONSTANT vessel: same width for every Name, whatever the
+    // meaning line happens to be.
+    //
+    // This used to be `maxWidth`, a ceiling rather than a width, over a
+    // `MainAxisSize.min` column — so the frame shrink-wrapped its content. The
+    // meanings run 9 to 51 characters ("The Guide" against "The Trustee — the
+    // Guardian you hand your affairs to"), and 12 of the 14 shipped decks are
+    // short, so short Names collapsed the arch to roughly the width of their
+    // Arabic while the two long ones pushed it to the full 360. Consecutive
+    // reveals changed the frame's PROPORTION, which reads as inconsistency
+    // rather than as responsiveness — the Name is what should vary, not the
+    // vessel around it.
+    //
+    // Measured against the width this widget is ACTUALLY laid out in, not the
+    // window. An earlier version subtracted a margin from `MediaQuery.sizeOf`,
+    // which was dead arithmetic: the content already sits inside the screen's
+    // 30px horizontal padding, so the incoming maxWidth is window-60 and
+    // `SizedBox` clamps to its parent regardless — the subtracted term could
+    // never win. Reading the real constraint says what it means and drops the
+    // MediaQuery dependency. 360 is the cap on roomy devices; narrower ones
+    // simply get their available width, so the arch stays constant per device.
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: math.min(360.0, constraints.maxWidth),
+        child: MihrabArchFrame(
         animate: animate,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -306,29 +344,72 @@ class _NameHero extends StatelessWidget {
                 ),
                 760,
               ),
+            // The whole meaning block — gap, reserve and text — is skipped when
+            // there is no meaning, which makes the daily arch shorter than the
+            // onboarding one. **That is intended (founder, 2026-07-30), not an
+            // oversight.** Two reviews have now flagged it as the reserve
+            // failing to do its job, so: hoisting the reserve out of this guard
+            // would buy a constant height across both surfaces at the cost of a
+            // permanent blank two-line band under every daily reveal. A rare
+            // difference between surfaces was judged cheaper than a visible gap
+            // on the common path. Please do not "fix" it without re-deciding
+            // that trade.
             if (meaning.isNotEmpty) ...[
               const SizedBox(height: 6),
+              // Within a surface that DOES show a meaning, two lines are
+              // reserved whether or not the meaning fills them, so the arch
+              // keeps its height as well as its width. Without this the frame
+              // grew by a line between "The Guide" and "The Trustee — the
+              // Guardian you hand your affairs to". The slack under a short
+              // meaning sits above the diamond rule and reads as composure; a
+              // frame that changes size between two consecutive reveals does
+              // not.
+              //
+              //
+              // Scaled, not a raw constant: the font it reserves for is
+              // text-scaled, so an unscaled reserve silently stops reserving
+              // anything. At textScaler 2.0 one line is already 45.9 — the whole
+              // unscaled two-line budget — so the stabilisation would lapse for
+              // exactly the users who most need a predictable layout, in a file
+              // whose own contract is that text scale is honoured and never
+              // capped.
               _in(
-                Text(
-                  meaning,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.sacredInk,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 17,
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        MediaQuery.textScalerOf(context).scale(_meaningLineHeight) *
+                            2,
+                  ),
+                  child: Text(
+                    meaning,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: AppColors.sacredInk,
+                      fontStyle: FontStyle.italic,
+                      fontSize: _meaningFontSize,
+                      height: _meaningLineHeightFactor,
+                    ),
                   ),
                 ),
                 860,
               ),
             ],
-            const SizedBox(height: 20),
-            _in(_DividerDiamond(), 960),
-          ],
+              const SizedBox(height: 20),
+              _in(_DividerDiamond(), 960),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+/// The Name's meaning line, pinned so the two-line reserve in the arch can be
+/// computed rather than eyeballed. Changing either value changes the reserved
+/// height with it, which is the point — they must not drift apart.
+const double _meaningFontSize = 17;
+const double _meaningLineHeightFactor = 1.35;
+const double _meaningLineHeight = _meaningFontSize * _meaningLineHeightFactor;
 
 /// Small centered gold diamond flanked by hairlines — the reference mockup's
 /// mid-card separator.

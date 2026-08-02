@@ -11,7 +11,11 @@ void main() {
 
   // Trimmed-flow refactor (2026-05-25, Option α): version bumped 6→7;
   // quranConnection / commonEmotions / aspirations removed.
-  group('OnboardingState v7', () {
+  // One Ship W2-B3 (2026-07-26): bumped 7→8 with the reel-flow hook fields —
+  // the reel page order redefines what a stored currentPage means, so v7 blobs
+  // are discarded. The v8 fields themselves are covered by
+  // onboarding_state_v8_test.dart.
+  group('OnboardingState v8', () {
     test('defaults all new fields to null/empty', () {
       const s = OnboardingState();
       expect(s.ageRange, isNull);
@@ -36,7 +40,7 @@ void main() {
         commitmentAccepted: true,
       );
       final json = original.toJson();
-      expect(json['version'], 7);
+      expect(json['version'], 8);
       final decoded = OnboardingState.fromJson(json);
       expect(decoded.ageRange, '25_34');
       expect(decoded.prayerFrequency, 'someDaily');
@@ -48,12 +52,13 @@ void main() {
       expect(decoded.commitmentAccepted, isTrue);
     });
 
-    test('fromJson with version < 7 discards stored state and starts fresh',
+    test('fromJson with version < 8 discards stored state and starts fresh',
         () {
-      // Pre-trim (v6 or older) blob — discarded so the user starts on the
-      // trimmed flow with no stale references to removed fields.
+      // Pre-reel (v7 or older) blob — discarded so the user starts on the
+      // current flow with no stale references to removed fields or page
+      // indices that meant something else.
       final legacy = {
-        'version': 6,
+        'version': 7,
         'currentPage': 5,
         'intention': 'legacy',
         'commonEmotions': ['anxious'],
@@ -65,15 +70,15 @@ void main() {
       expect(decoded.starterNameId, isNull);
     });
 
-    test('fromJson accepts v7 blob as authoritative', () {
-      final v7 = {
-        'version': 7,
+    test('fromJson accepts a v8 blob as authoritative', () {
+      final v8 = {
+        'version': 8,
         'currentPage': 5,
         'intention': 'spiritualGrowth',
         'ageRange': '25_34',
         'starterNameId': 28,
       };
-      final decoded = OnboardingState.fromJson(v7);
+      final decoded = OnboardingState.fromJson(v8);
       expect(decoded.currentPage, 5);
       expect(decoded.intention, 'spiritualGrowth');
       expect(decoded.ageRange, '25_34');

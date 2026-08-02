@@ -4,12 +4,19 @@ import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart'
     show GatedFeature;
 import 'package:sakina/services/analytics_events.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
 }
 
 void main() {
+  // See daily_cap_sheet_test.dart: `show` awaits a SharedPreferences-backed
+  // cohort read that never completes under flutter_test without a mock store.
+  // An empty store also means "no cached cohort", which resolves to the legacy
+  // tier — exactly the cohort every assertion in this file is written for.
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
   group('DailyCapSheet — bypass CTA states (plan 2026-05-23)', () {
     testWidgets('STATE A: balance >= 25 + bypasses < 2 → enabled "Use 25 tokens"',
         (tester) async {
@@ -125,12 +132,16 @@ void main() {
       );
 
       // Premium users should not see the outlined bypass button at all.
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
 
-      // Primary + tertiary CTAs still render normally.
-      expect(find.text('Unlock unlimited'), findsOneWidget);
-      expect(find.text('Maybe later'), findsOneWidget);
+      // Nor an upgrade CTA. Founder decision 2026-07-31: a subscriber is
+      // never sold the thing they already own, so the premium sheet has NO
+      // primary button — not a disabled one, not a no-op one.
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text('Unlock unlimited'), findsNothing);
+      expect(find.text('Close'), findsOneWidget);
     });
 
     testWidgets(
@@ -164,9 +175,13 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, hasLength(1));
-      expect(events.first.$1, AnalyticsEvents.aiBypassOffered);
-      expect(events.first.$2, {
+      // W6 Wave C: `cap_sheet_shown` now fires through the same hook as the
+      // impression ahead of the bypass offer — assert on the LAST event
+      // rather than the sole one so this test still pins `ai_bypass_offered`
+      // specifically without re-litigating the impression event's shape.
+      expect(events, hasLength(2));
+      expect(events.last.$1, AnalyticsEvents.aiBypassOffered);
+      expect(events.last.$2, {
         'feature': 'built_dua',
         'token_balance': 87,
         'bypasses_used_today': 0,
@@ -202,6 +217,9 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
+      // Premium is vetoed ahead of `cap_sheet_shown` too (W6 Wave C) — a
+      // subscriber is never part of the free-tier funnel this event
+      // measures, so nothing at all fires for them.
       expect(events, isEmpty,
           reason: 'Premium sheets never render the bypass slot');
     });
@@ -232,7 +250,15 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, isEmpty);
+      // `cap_sheet_shown` still fires (a sheet WAS shown) — only the
+      // bypass-specific offer event is absent, because no bypass slot
+      // rendered without the callback.
+      expect(events, hasLength(1));
+      expect(events.first.$1, AnalyticsEvents.capSheetShown);
+      expect(
+        events.where((e) => e.$1 == AnalyticsEvents.aiBypassOffered),
+        isEmpty,
+      );
     });
 
     testWidgets(
@@ -299,7 +325,7 @@ void main() {
       expect(find.text('One more on us'), findsOneWidget,
           reason: 'No awkward greeting when name == default placeholder');
       expect(find.text('One more on us, Friend'), findsNothing);
-      expect(find.text('Build one more dua, free'), findsOneWidget);
+      expect(find.text('Build one more duʿā, free'), findsOneWidget);
     });
 
     testWidgets(
@@ -340,8 +366,10 @@ void main() {
       // even if shown with firstBypassAvailable=true + isPremium=true,
       // STATE D must NOT render (no freebie for premium).
       expect(find.text('One more on us, Aisha'), findsNothing);
-      expect(find.text("You've reflected today"), findsOneWidget);
-      expect(find.text('Unlock unlimited'), findsOneWidget);
+      // The premium variant wins over STATE D too — it is ordered first in
+      // build() precisely so no later branch can hand a subscriber a CTA.
+      expect(find.text("You've done a lot today"), findsOneWidget);
+      expect(find.text('Unlock unlimited'), findsNothing);
     });
 
     testWidgets(
@@ -379,9 +407,11 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, hasLength(1));
-      expect(events.first.$1, 'first_bypass_offered');
-      expect(events.first.$2, {'feature': 'reflect'});
+      // Same shared-hook adjustment as the STATE A/B/C bypass-offered test
+      // above: `cap_sheet_shown` precedes the state-specific offer event.
+      expect(events, hasLength(2));
+      expect(events.last.$1, 'first_bypass_offered');
+      expect(events.last.$2, {'feature': 'reflect'});
     });
 
     testWidgets('onBypassRequested null → legacy 2-CTA layout (no regression)',
@@ -396,7 +426,8 @@ void main() {
         ),
       );
       // No outlined button; only primary + tertiary.
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.text('Unlock unlimited'), findsOneWidget);
       expect(find.text('Maybe later'), findsOneWidget);
     });

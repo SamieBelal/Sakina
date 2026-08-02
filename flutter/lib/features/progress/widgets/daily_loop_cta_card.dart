@@ -1,0 +1,222 @@
+import 'package:flutter/material.dart';
+
+import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/theme/app_typography.dart';
+
+/// The CTA's user-facing labels, in one place.
+///
+/// Not premature tidying — it is the fix for a bug that already shipped. The
+/// guided tour hard-coded the old label ("Tap Begin Muhāsabah to start"), the
+/// label changed twice in one day, and the tour kept instructing users to tap a
+/// control that no longer went by that name. An instruction naming a control the
+/// user cannot find reads as the app being broken.
+///
+/// The rule that follows from it: **nothing outside this file may quote these
+/// strings.** Anything pointing at the CTA refers to it by position — the tour
+/// spotlights the anchor, so "tap here" is both truer and undriftable.
+/// `tour_cta_copy_drift_test.dart` enforces both halves.
+abstract final class DailyLoopCtaCopy {
+  /// Deliberately valence-neutral, and deliberately the question the next
+  /// screen asks (spec M4). See the note at the `title:` site below.
+  static const String notStarted = 'What\'s on your heart today?';
+  static const String notStartedGloss =
+      'Your daily muḥāsabah — a moment to check in with your heart.';
+  static const String inProgress = 'Pick up where you left off';
+  static const String inProgressGloss = 'Your muḥāsabah is still open.';
+}
+
+/// Which face the home CTA is wearing.
+enum DailyLoopCtaState {
+  /// Nothing done today. Also the state a user lands in after Wave 2's
+  /// "Not right now" defer — the loop is still live and this card is the only
+  /// way back into it, so it has to read as an invitation, not a leftover.
+  notStarted,
+
+  /// Started but not finished (mid-reflection, app backgrounded, etc).
+  inProgress,
+
+  /// Today's muḥāsabah is done. **Renders nothing** (2026-08-01, founder): the
+  /// card used to swap to a light-green "Today's muḥāsabah is complete" panel
+  /// that held the same footprint, and the home screen now simply closes the
+  /// slot instead of reporting on finished work.
+  ///
+  /// The state is kept rather than removed because the host still has to
+  /// distinguish it — an unfinished loop and a finished one are different
+  /// things, and collapsing them would make `notStarted` the fallback for a
+  /// completed day, i.e. re-invite a user into a loop they already closed.
+  completed,
+}
+
+/// The home screen's primary daily CTA.
+///
+/// **Why this is a card and not a row (W4 Wave 5).** It used to live inside the
+/// dashboard card as one 20px icon + 13px label row between two 1px dividers —
+/// the identical rhythm to Quests, Anchor Names and Daily Rewards. Saturation
+/// was never the problem: it was already the only filled control on the page.
+/// Rhythm was. Sharing a divider stack with three navigation rows makes the
+/// purpose of the app read as the fourth item in a settings list, and pushed its
+/// top edge ~800px down a ~700-760px viewport. So it leaves the stack entirely,
+/// sits directly under the greeting, and is sized by type scale and area rather
+/// than by more green.
+///
+/// **Naming.** "Begin Muḥāsabah" made the user learn a word before they could
+/// find the button. The label is now the job; muḥāsabah is taught as a gloss
+/// underneath it (Hallow's Examen treatment — jargon names the content, never
+/// the primary daily CTA, and every unfamiliar term earns one plain line
+/// stating the benefit).
+///
+/// Pure presentation: navigation stays on the host screen. Nothing here is
+/// gated any more — the one gated action this card used to host (the re-roll)
+/// left with the completed state on 2026-08-01.
+class DailyLoopCtaCard extends StatelessWidget {
+  const DailyLoopCtaCard({
+    super.key,
+    required this.state,
+    required this.onStart,
+  });
+
+  final DailyLoopCtaState state;
+
+  /// Enter the loop — used by [DailyLoopCtaState.notStarted] and
+  /// [DailyLoopCtaState.inProgress].
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    // Finished for today: the slot closes. The host short-circuits before
+    // building this at all (so the tour anchor and the fade-in are skipped
+    // too) — this is the second guard, and it is what the widget test drives.
+    //
+    // What left with the old completed panel was "Meet another Name", the
+    // metered re-roll. It is NOT lost: the identical action is the primary CTA
+    // of the muḥāsabah completion screen ("Seek Another Name",
+    // muhasabah_screen.dart), which is the screen the user is standing on the
+    // moment the loop completes, carrying the same `canUse` gate, the same cap
+    // sheet and the same `rerollPremium` wall. The home copy was the second of
+    // two entry points into one gated action, not the only one.
+    if (state == DailyLoopCtaState.completed) {
+      return const SizedBox.shrink();
+    }
+    final resuming = state == DailyLoopCtaState.inProgress;
+    return _Invitation(
+      // The not-started label is the question itself, verbatim. Two reasons,
+      // and the first is a constraint rather than a preference:
+      //
+      //  * It has to be VALENCE-NEUTRAL (spec M4). An earlier draft read "Name
+      //    what you're carrying" — warmer writing, and quietly wrong: it
+      //    presupposes weight, and a prompt that presupposes weight leaves no
+      //    slot for the honest answer on a good day ("nothing, alhamdulillah").
+      //    Users learn within a couple of weeks to either invent a problem or
+      //    stop opening the app. The question was made neutral deliberately, so
+      //    putting the burden framing back one tap upstream of it undoes that,
+      //    and someone having a fine day may simply not tap.
+      //  * Saying exactly what the next screen says makes the tap read as
+      //    continuing rather than switching.
+      title: resuming
+          ? DailyLoopCtaCopy.inProgress
+          : DailyLoopCtaCopy.notStarted,
+      gloss: resuming
+          ? DailyLoopCtaCopy.inProgressGloss
+          : DailyLoopCtaCopy.notStartedGloss,
+      icon: resuming
+          ? Icons.play_circle_outline_rounded
+          : Icons.favorite_outline_rounded,
+      onTap: onStart,
+    );
+  }
+}
+
+/// The unfinished states. Emerald fill, because this is the one thing on the
+/// screen the user came to do.
+class _Invitation extends StatelessWidget {
+  const _Invitation({
+    required this.title,
+    required this.gloss,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String gloss;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '$title. $gloss',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Padding(
+              // Generous by intent (DESIGN.md whitespace bias): the area is
+              // half of what separates this from a list row.
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md + 2,
+                vertical: AppSpacing.md + 4,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: AppTypography.headlineMedium.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          gloss,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

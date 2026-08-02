@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/auth_service.dart';
+import 'package:sakina/services/card_collection_service.dart' show CardTier;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// End-to-end persistence integration test for the trimmed (v7) onboarding
@@ -28,6 +29,9 @@ class _FakeAuthService extends AuthService {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
+    Map<String, dynamic>? acquisitionPromise,
+    String? firstProblemText,
+    String? onboardingFlow,
   }) async {
     callCount += 1;
     captured = {
@@ -43,15 +47,23 @@ class _FakeAuthService extends AuthService {
       'dailyCommitmentMinutes': dailyCommitmentMinutes,
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
+      'acquisitionPromise': acquisitionPromise,
+      'firstProblemText': firstProblemText,
+      'onboardingFlow': onboardingFlow,
     };
   }
 
   int seedCallCount = 0;
   int? seededNameId;
+  CardTier? seededTier;
   @override
-  Future<void> seedStarterCard(int nameId) async {
+  Future<void> seedStarterCard(
+    int nameId, {
+    CardTier tier = CardTier.bronze,
+  }) async {
     seedCallCount += 1;
     seededNameId = nameId;
+    seededTier = tier;
   }
 }
 

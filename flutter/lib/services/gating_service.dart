@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/app_config_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart' as tokens;
+import 'package:sakina/services/user_local_day.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -29,6 +31,43 @@ enum GateReason {
   warmupRemaining,
   dailyCap,
   hadTrialNoBudget,
+
+  /// `reel_v1` only. The combined Reflect + Build-a-Duʿā weekly pool is spent
+  /// for this local week. Distinct from [dailyCap] because the reset story the
+  /// UI must tell is different — "next Monday", not "tomorrow" (D10③).
+  weeklyPool,
+
+  /// `reel_v1` only. `discoverName` re-rolls have no free allowance once the
+  /// lifetime warmup is spent — a second Name the same day is premium (D10②).
+  /// The day-open reveal is unaffected: it consults no gate at all.
+  rerollPremium,
+}
+
+/// The `daily_cap_hit` / `cap_sheet_shown` wire value for a blocking
+/// [GateReason] (W6 Wave C, D5). Returns null for [GateReason.ok],
+/// [GateReason.warmupRemaining] and [GateReason.premiumFairUse] — none of
+/// which represent a block either event exists to explain: `ok` and
+/// `warmupRemaining` never reach [GatingService._emitCapHit], and a premium
+/// fair-use ceiling is a silent "take a breath", never a sold surface.
+///
+/// Shared between [GatingService._emitCapHit] and `DailyCapSheet.show` so the
+/// two events agree on one spelling per reason rather than each hand-rolling
+/// its own switch.
+String? gateReasonWireValue(GateReason reason) {
+  switch (reason) {
+    case GateReason.dailyCap:
+      return AnalyticsEvents.gateReasonDailyCap;
+    case GateReason.weeklyPool:
+      return AnalyticsEvents.gateReasonWeeklyPool;
+    case GateReason.rerollPremium:
+      return AnalyticsEvents.gateReasonRerollPremium;
+    case GateReason.hadTrialNoBudget:
+      return AnalyticsEvents.gateReasonHadTrialNoBudget;
+    case GateReason.ok:
+    case GateReason.warmupRemaining:
+    case GateReason.premiumFairUse:
+      return null;
+  }
 }
 
 /// Outcome of a successful [GatingService.markUsed] call. Most calls return
@@ -117,24 +156,345 @@ class GatingService {
   /// paying).
   static const int premiumDailyFairUseCap = 30;
 
-  /// Token cost to bypass the daily cap for one extra AI use. Mirrors the
-  /// server's `app_config.bypass_token_cost` seed value (PR 1 migration
-  /// `20260523000000_ai_bypass_reservations_and_rpcs.sql`). Server is the
-  /// source of truth — the constant here is a defensive fallback used by
-  /// the DailyCapSheet copy when the server value hasn't been hydrated yet.
+  /// Token cost to bypass the daily cap for one extra AI use. Seeded server-side
+  /// by `20260523000000_ai_bypass_reservations_and_rpcs.sql`.
+  ///
+  /// **Correction 2026-07-31: this constant is NOT a fallback — it is the only
+  /// value the client ever uses.** The docstring here previously claimed the
+  /// server was the source of truth and this was "a defensive fallback used by
+  /// the DailyCapSheet copy when the server value hasn't been hydrated yet".
+  /// There is no hydration: these two comments are the *only* references to
+  /// `bypass_token_cost` / `max_bypasses_per_day` anywhere in `lib/`.
+  ///
+  /// That made the prod dial an operational trap — tuning
+  /// `app_config.bypass_token_cost` changes what the RPC charges while the
+  /// sheet keeps quoting 25, so the user is told one price and charged another.
+  /// Deliberately left unwired rather than fixed: W5 removes the bypass for the
+  /// `reel_v1` cohort and the whole subsystem is deleted after the softener wave
+  /// (§V6.10), so this is code with a scheduled death. See
+  /// [warmupSizeConfigKey] for how a dial that *is* read looks.
   static const int bypassTokenCost = 25;
 
-  /// Maximum number of bypass spends per feature per day. Matches the
-  /// server's `app_config.max_bypasses_per_day` seed value. Same fallback
-  /// rationale as [bypassTokenCost].
+  /// Maximum number of bypass spends per feature per day. Same story as
+  /// [bypassTokenCost] — `app_config.max_bypasses_per_day` exists server-side
+  /// and nothing client-side reads it.
   static const int maxBypassesPerDayPerFeature = 2;
 
-  /// Lifetime warmup budgets per feature.
+  /// Lifetime warmup budgets per feature — **offline fallbacks only**.
+  ///
+  /// The live numbers are server dials ([warmupSizeConfigKey]); read them
+  /// through [warmupBudgetFor], never this map. These constants answer only
+  /// when the dial has never been cached AND the fetch fails — an offline
+  /// first launch. They are deliberately the MORE GENEROUS legacy values: a
+  /// config read that cannot complete must let the user through, never harden
+  /// the gate.
   static const Map<GatedFeature, int> warmupBudget = {
     GatedFeature.reflect: 10,
     GatedFeature.builtDua: 10,
     GatedFeature.discoverName: 5,
   };
+
+  /// `app_config` key carrying the live lifetime warmup size for each feature.
+  /// Seeded server-side by `20260727100200_free_tier_cohort_weekly_pool.sql`
+  /// (reflect / built_dua) and `20260731090000_warmup_discover_name_size.sql`
+  /// (discover_name). Permanent tuning knobs, not flags — no deletion date.
+  static const Map<GatedFeature, String> warmupSizeConfigKey = {
+    GatedFeature.reflect: 'warmup_reflect_size',
+    GatedFeature.builtDua: 'warmup_built_dua_size',
+    GatedFeature.discoverName: 'warmup_discover_name_size',
+  };
+
+  /// The live lifetime warmup budget for [feature], read from `app_config`
+  /// with [warmupBudget] as the offline fallback.
+  ///
+  /// Cheap on the hot path by construction: [AppConfigService.getInt] answers
+  /// from a SharedPreferences cache (6h stale-while-revalidate) and never
+  /// awaits the network — a stale entry is returned immediately while a
+  /// refresh runs detached. And the gate only reaches here when the user's
+  /// per-feature warmup counter has no cached value at all (see
+  /// [_readWarmupRemaining]'s `??`), so the steady-state gate check does not
+  /// touch config at all.
+  ///
+  /// A dial of `0` is legitimate ("no warmup for this feature"); a negative
+  /// one is corruption and falls back rather than inverting the gate.
+  Future<int> warmupBudgetFor(GatedFeature feature) async {
+    final fallback = warmupBudget[feature]!;
+    final value = await AppConfigService.resolve().getInt(
+      warmupSizeConfigKey[feature]!,
+      fallback: fallback,
+    );
+    return value < 0 ? fallback : value;
+  }
+
+  // ---- free-tier cohort ---------------------------------------------------
+
+  /// `user_profiles.free_tier_cohort` value meaning "the tightened W5 tier".
+  static const String cohortReelV1 = 'reel_v1';
+
+  /// True when this account is on the tightened `reel_v1` free tier.
+  ///
+  /// Reads the cached `free_tier_cohort` written by [hydrateFromProfile] from
+  /// the `sync_all_user_data` payload. NULL, `'legacy'`, an unrecognised
+  /// string, or no cache at all → **false**.
+  ///
+  /// **Fails to `false` by construction, and that direction is the point.**
+  /// `false` selects the LEGACY tier, which is the more generous of the two:
+  /// 10/10 warmups, a daily cap rather than a weekly pool, the bypass
+  /// available. An account whose cohort cannot be determined — a fresh
+  /// install before the first batch sync, a sync that timed out, a signed-out
+  /// read — must never be handed the tighter rules on a guess. The cost of
+  /// being wrong is a handful of extra free uses until the next sync lands;
+  /// the cost of the opposite default is silently tightening a paying-adjacent
+  /// user's allowance because the network blinked.
+  ///
+  /// Deliberately cache-only — no network read, no fetch-on-miss. The value is
+  /// server-assigned once in `handle_new_user` and never changes for the life
+  /// of the account (the softener wave migrates cohorts server-side, and that
+  /// arrives through the same sync), so there is nothing a round-trip could
+  /// learn that the next `hydrateFromProfile` will not. It also keeps this
+  /// callable from the gate hot path without an await on the wire.
+  ///
+  /// ---
+  /// **⚠️ THIS IS NOT A "USER IS ON THE FREE TIER" PREDICATE. Do not use it as
+  /// one.** `free_tier_cohort` is stamped at signup and is never cleared when
+  /// the account subscribes, so **every payer created after the T0 flip reports
+  /// `true` here forever.** It answers only "which free-tier RULES would apply
+  /// to this account", not "are those rules currently in force".
+  ///
+  /// It is safe everywhere in this file because every caller sits behind a
+  /// premium short-circuit that returns first — [canUse], [markUsed],
+  /// [reserveBypass], [claimFirstBypass], [firstBypassEligible] and
+  /// [iapToSubBannerEligible] all resolve `PurchaseService().isPremium()` and
+  /// return before reading the cohort. **That ordering is a load-bearing
+  /// invariant maintained by inspection, not by the type system: a seventh
+  /// call site added without a premium check ahead of it silently applies
+  /// free-tier logic to a paying customer.** If you add one, put the premium
+  /// check first.
+  ///
+  /// It has already caused this bug once, outside this file: the W5 cap-sheet
+  /// copy keyed off the cohort alone and told paying users *"your free
+  /// reflections return on Monday"*. The fix there was an entitlement veto
+  /// (`DailyCapSheet.describesNewTier`, which returns false for premium
+  /// regardless of cohort), not a more careful cohort read. UI that a premium
+  /// user can reach should prefer the [GateReason] — `weeklyPool` /
+  /// `rerollPremium` can only be produced by an actual free-tier block — or
+  /// veto on premium explicitly.
+  Future<bool> isNewCohort() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(
+      supabaseSyncService.scopedKey(_freeTierCohortBaseKey),
+    );
+    return cached == cohortReelV1;
+  }
+
+  static const String _freeTierCohortBaseKey = 'free_tier_cohort';
+
+  // ---- weekly pool (reel_v1) ----------------------------------------------
+
+  /// `app_config` key carrying the size of the combined Reflect +
+  /// Build-a-Duʿā weekly pool. Seeded by
+  /// `20260727100200_free_tier_cohort_weekly_pool.sql` at `3`, and read by
+  /// `consume_weekly_allowance` itself — so client and server share one dial.
+  static const String weeklyPoolSizeConfigKey = 'weekly_pool_size';
+
+  /// Offline fallback for [weeklyPoolSizeConfigKey]. Matches both the seeded
+  /// dial and the RPC's own `coalesce(..., 3)`, so a client that cannot reach
+  /// config still agrees with the server.
+  static const int weeklyPoolSizeFallback = 3;
+
+  /// The live weekly pool size. Same posture as [warmupBudgetFor]: cheap
+  /// (SharedPreferences-backed, never awaits the network), and a negative dial
+  /// is corruption and falls back rather than inverting the gate. A dial of
+  /// `0` is legitimate.
+  Future<int> weeklyPoolSize() async {
+    final value = await AppConfigService.resolve().getInt(
+      weeklyPoolSizeConfigKey,
+      fallback: weeklyPoolSizeFallback,
+    );
+    return value < 0 ? weeklyPoolSizeFallback : value;
+  }
+
+  /// Cached uses remaining in this local week's pool.
+  ///
+  /// **Advisory only — the server is the authority.** This answers the gate
+  /// check (`canUse`) so a capped user meets the sheet without a round-trip;
+  /// the actual spend goes through `consume_weekly_allowance`, and its verdict
+  /// overwrites this cache. When the two disagree the error is one extra AI
+  /// call, never a denial.
+  ///
+  /// **The stale-week rule is not an optimisation, it prevents a permanent
+  /// lockout.** `weekly_pool_used` only resets INSIDE the RPC. A user who
+  /// spent their pool last week syncs `used = 3` with LAST Monday's
+  /// `week_start` on launch — so a cache that trusted `used` alone would deny
+  /// forever: the gate refuses, the RPC is therefore never called, and the
+  /// reset that only the RPC performs never happens. Treating a `week_start`
+  /// strictly before the current local ISO Monday as "unspent" lets the call
+  /// through so the server can reset. If the server's 6-day wall-clock anchor
+  /// declines that reset it returns `allowed:false`, and
+  /// [_consumeWeeklyPool] writes the cache back to full — self-correcting.
+  ///
+  /// Local-only by construction. `weekly_pool_used` is guarded RPC-only
+  /// server-side, so nothing here is ever pushed to `user_profiles`; the
+  /// destructive-guess-into-a-ratcheted-column failure mode does not apply.
+  Future<int> weeklyPoolRemaining() async {
+    final pool = await weeklyPoolSize();
+    final prefs = await SharedPreferences.getInstance();
+    final storedWeek = prefs.getString(
+      supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
+    );
+    if (storedWeek == null) return pool;
+    if (storedWeek.compareTo(await _localWeekStart()) < 0 &&
+        !await _staleWeekProbeSpentToday()) {
+      return pool;
+    }
+    final used =
+        prefs.getInt(supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey)) ?? 0;
+    return (pool - used).clamp(0, pool);
+  }
+
+  /// True when the stale-week optimism above has already been cashed in today
+  /// and the server answered for a week it had NOT rolled over.
+  ///
+  /// **The optimism has to be a probe, not a standing permission.** The marker
+  /// [weeklyPoolRemaining] compares against is the SERVER's week, so when the
+  /// two sides disagree about which week it is, "stale" never clears on its
+  /// own: the client waves a call through, the server declines, the client
+  /// writes the decline into a cache the stale branch then ignores, and the
+  /// loop runs forever — an unlimited pool of real AI calls, each one already
+  /// refused by the server.
+  ///
+  /// That disagreement is ordinary rather than adversarial. `handle_new_user`
+  /// creates `user_notification_preferences` with no timezone and
+  /// `safe_user_tz` answers `'UTC'` for a blank one, so until the device syncs
+  /// its zone the server computes the week in UTC while
+  /// [userLocalDay] computes it in the device zone — for the opening hours of
+  /// a user east of UTC's local Monday the client is in the new week and the
+  /// server is not. A device clock set forward has the same shape and never
+  /// expires at all.
+  ///
+  /// Bounded to ONE probe per local day rather than refused outright, because
+  /// the client cannot learn that the server has rolled over without asking:
+  /// a permanent refusal here would restore exactly the lockout the stale-week
+  /// rule exists to prevent. The residual cost is one extra AI call per day of
+  /// skew, against the unbounded one it replaces.
+  Future<bool> _staleWeekProbeSpentToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final probed = prefs.getString(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
+    );
+    if (probed == null) return false;
+    return probed == await userLocalDayString();
+  }
+
+  /// The current local ISO week's Monday as `YYYY-MM-DD` — the same shape and
+  /// the same boundary `consume_weekly_allowance` computes with
+  /// `date_trunc('week', now() at time zone safe_user_tz(uid))`. Resolved
+  /// through [userLocalDay] so both sides read the one timezone source
+  /// (`user_notification_preferences.timezone`), exactly as the daily-cap key
+  /// does.
+  Future<String> _localWeekStart() async {
+    final day = await userLocalDay();
+    // `day` is a date-only DateTime.utc, so day arithmetic has no DST to trip
+    // over. ISO weekday: Monday = 1 … Sunday = 7.
+    final monday = day.subtract(Duration(days: day.weekday - 1));
+    return '${monday.year}-${monday.month.toString().padLeft(2, '0')}'
+        '-${monday.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Spends one weekly-pool use via the SECURITY DEFINER RPC and mirrors the
+  /// server's answer into the local cache.
+  ///
+  /// **Fails OPEN, and writes nothing when it does.** A null result covers
+  /// both "the server refused" and "we never reached the server"; in either
+  /// case the client does not know what happened, so it must neither charge
+  /// the user locally (the RPC may not have run — that would be a double
+  /// charge on the next successful call) nor lock them out (the RPC may have
+  /// run — but a network blip is not a reason to withhold the app). Leaving
+  /// the cache untouched means the user keeps whatever the last authoritative
+  /// sync said, and the next `hydrateFromProfile` reconciles.
+  ///
+  /// Every number written here has server provenance: `remaining` comes from
+  /// the RPC, `week_start` comes from the RPC. `pool - remaining` uses the
+  /// shared [weeklyPoolSizeConfigKey] dial the RPC itself read, so a stale
+  /// client dial can skew the cached `used` by the dial delta — bounded, local
+  /// only, and healed by the next sync, which writes the server's own
+  /// `weekly_pool_used`.
+  Future<void> _consumeWeeklyPool(GatedFeature feature) async {
+    Map<String, dynamic>? result;
+    try {
+      result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'consume_weekly_allowance',
+        {'p_feature': _bypassFeatureKey(feature)},
+      );
+    } catch (_) {
+      // Belt and braces. Production's `callRpc` already swallows into null,
+      // but "fails open" is a property of this function, not of its callee —
+      // a throw escaping here would propagate out of `markUsed` and, for the
+      // discover path, flip a reveal that HAPPENED into `state.error`.
+      return;
+    }
+    if (result == null) return;
+
+    final remaining = (result['remaining'] as num?)?.toInt();
+    if (remaining == null) return;
+
+    // Emitted here, not before the RPC: this is the point the client actually
+    // KNOWS a spend happened and what remains. A network failure or a null
+    // response above answers neither question, so it fires nothing rather
+    // than guess — consistent with this function's fail-open, write-nothing
+    // posture (see the doc comment above).
+    _emitTasteConsumed(feature, AnalyticsEvents.allowanceWeeklyPool, remaining);
+
+    final prefs = await SharedPreferences.getInstance();
+    final pool = await weeklyPoolSize();
+    await prefs.setInt(
+      supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey),
+      (pool - remaining).clamp(0, pool),
+    );
+
+    // Stamped LAST and only alongside a usable `remaining`: the week marker is
+    // what makes the cached `used` readable at all, so a marker without a
+    // count would make a fresh week look spent.
+    final weekStartRaw = result['week_start'];
+    final serverWeek =
+        weekStartRaw is String && weekStartRaw.isNotEmpty ? weekStartRaw : null;
+    if (serverWeek != null) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
+        serverWeek,
+      );
+    }
+    await _recordStaleWeekProbe(serverWeek);
+  }
+
+  /// Records whether the server, having just been asked, agreed that the week
+  /// has rolled over — the expiry for [_staleWeekProbeSpentToday].
+  ///
+  /// The server's `week_start` is the only evidence available: if it comes
+  /// back still behind the client's local Monday, the server did NOT reset,
+  /// and asking again today buys nothing but a free AI call. If it has caught
+  /// up, the disagreement is over and the marker is dropped so the next
+  /// genuine week boundary gets its probe immediately.
+  ///
+  /// A null [serverWeekStart] — a usable `remaining` with no week alongside it
+  /// — counts as "did not roll over", and must. That response leaves the
+  /// cached marker at whatever stale value it already held, so treating the
+  /// silence as agreement would reopen the same unbounded loop through the
+  /// malformed path.
+  Future<void> _recordStaleWeekProbe(String? serverWeekStart) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey);
+    if (serverWeekStart == null ||
+        serverWeekStart.compareTo(await _localWeekStart()) < 0) {
+      await prefs.setString(key, await userLocalDayString());
+    } else {
+      await prefs.remove(key);
+    }
+  }
+
+  static const String _weeklyPoolUsedBaseKey = 'weekly_pool_used';
+  static const String _weeklyPoolWeekStartBaseKey = 'weekly_pool_week_start';
+  static const String _weeklyPoolProbeDayBaseKey = 'weekly_pool_probe_day';
 
   /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
   /// when premium status was already resolved upstream. Pair with
@@ -157,10 +517,12 @@ class GatingService {
     }
 
     // Free user.
+    final newCohort = await isNewCohort();
+
     final hadTrial = await _readHadTrial();
     if (hadTrial) {
-      // Skip warmup; apply daily cap immediately.
-      return _applyDailyCap(feature, hadTrial: true);
+      // Skip warmup; apply the post-warmup allowance immediately.
+      return _applyPostWarmupCap(feature, hadTrial: true, newCohort: newCohort);
     }
 
     final warmup = await _readWarmupRemaining(feature);
@@ -172,7 +534,7 @@ class GatingService {
       );
     }
 
-    return _applyDailyCap(feature, hadTrial: false);
+    return _applyPostWarmupCap(feature, hadTrial: false, newCohort: newCohort);
   }
 
   /// Records a successful AI call. Increments the daily counter when the
@@ -198,39 +560,214 @@ class GatingService {
       return UsageOutcome.ok;
     }
 
+    final newCohort = await isNewCohort();
+
     final hadTrial = await _readHadTrial();
     if (hadTrial) {
-      await _incrementDaily(feature);
+      await _consumePostWarmup(feature, newCohort: newCohort);
       return UsageOutcome.ok;
     }
 
-    final warmup = await _readWarmupRemaining(feature);
-    if (warmup > 0) {
-      await _decrementWarmup(feature, warmup);
+    final warmup = await _readWarmup(feature);
+    if (warmup.remaining > 0) {
+      await _decrementWarmup(
+        feature,
+        warmup.remaining,
+        pushToServer: warmup.fromStore,
+      );
+      // The denominator `daily_cap_hit` has always been missing (W6 Wave C).
+      // One emit per spend regardless of whether this is also the 1→0
+      // transition below — that's a second, distinct signal
+      // (`UsageOutcome.warmupJustExhausted`), not a reason to skip this one.
+      _emitTasteConsumed(
+        feature,
+        AnalyticsEvents.allowanceWarmup,
+        warmup.remaining - 1,
+      );
       // The "1 → 0" transition is the one-shot moment the WarmupExhaustedSheet
       // fires on. Subsequent decrements are clamped to 0 in _decrementWarmup
       // and never re-trigger this signal because warmup will already be 0
       // before this branch runs.
       //
-      // Critically, we ALSO increment the daily counter on this transition.
-      // Without it, canUse() falls through to _applyDailyCap on the very next
-      // attempt and — since the daily counter is still 0 — allows ONE MORE
-      // same-day use. The user would get N+1 free uses instead of N. By
-      // recording today's exhaust call against the daily cap, the next attempt
-      // sees `used >= cap` and is blocked. Tomorrow rolls over via the per-day
-      // key in daily_usage_service, restoring the normal 1/day allowance.
-      if (warmup == 1) {
-        await _incrementDaily(feature);
+      // Critically, we ALSO charge the DAILY counter on this transition.
+      // Without it, canUse() falls through to the cap on the very next attempt
+      // and — since the counter is still 0 — allows ONE MORE use TODAY. The
+      // user would get N+1 free uses instead of N. By recording today's
+      // exhaust call, the next attempt is blocked, and tomorrow rolls over via
+      // the per-day key in daily_usage_service.
+      //
+      // The weekly pool is deliberately NOT charged here, and the daily
+      // reasoning above is exactly why it must not be. That rule buys back a
+      // use inside the SAME DAY on a PER-FEATURE counter. The pool is neither:
+      // it is one shared Reflect + Build-a-Duʿā budget that only refills on
+      // Monday, and the warmup is a separate lifetime grant that has already
+      // paid for this call. Charging it would take a use for a call the user
+      // has already earned — and, because the pool is shared, exhausting
+      // `reflect`'s warmup would quietly spend `builtDua`'s allowance. A
+      // reel_v1 user finishing both 3-use warmups in one week would arrive at
+      // the post-warmup tier with 1 of 3 uses left having made no post-warmup
+      // call at all, while WarmupExhaustedSheet promised them three.
+      //
+      // Nothing is bought back by skipping it: past warmup, canUse() reads the
+      // pool, and the pool is the whole post-warmup allowance for the week —
+      // there is no same-day double-grant to prevent. `discoverName` stays on
+      // the daily counter (it is exempt from the pool), so it keeps the rule.
+      if (warmup.remaining == 1) {
+        if (!newCohort || feature == GatedFeature.discoverName) {
+          await _incrementDaily(feature);
+        }
         return UsageOutcome.warmupJustExhausted;
       }
       return UsageOutcome.ok;
     }
 
-    await _incrementDaily(feature);
+    await _consumePostWarmup(feature, newCohort: newCohort);
     return UsageOutcome.ok;
   }
 
+  /// Charges one post-warmup use against whichever allowance this cohort is on.
+  ///
+  /// `legacy` — and `reel_v1`'s `discoverName`, which is exempt from the pool —
+  /// increment the local daily counter, which also mirrors to
+  /// `user_daily_usage` server-side. For `reel_v1` `discoverName` that counter
+  /// no longer gates anything (`_applyPostWarmupCap` refuses re-rolls outright)
+  /// but is still written, because `user_daily_usage.discover_name_uses` is the
+  /// row the analytics and multi-device reconciliation read.
+  ///
+  /// `reel_v1` `reflect` / `builtDua` spend the weekly pool instead — server
+  /// authoritative, and never both. Charging both would take two uses for one.
+  Future<void> _consumePostWarmup(
+    GatedFeature feature, {
+    required bool newCohort,
+  }) async {
+    if (!newCohort || feature == GatedFeature.discoverName) {
+      final used = await _incrementDaily(feature);
+      final cap = _dailyCap(feature);
+      _emitTasteConsumed(
+        feature,
+        AnalyticsEvents.allowanceDaily,
+        (cap - used).clamp(0, cap),
+      );
+      return;
+    }
+    await _consumeWeeklyPool(feature);
+  }
+
+  /// `ai_taste_consumed` (W6 Wave C) — the SPEND analytics `daily_cap_hit`
+  /// has always been the numerator of nothing today. Fired only from
+  /// [markUsed]'s three consume paths (the warmup decrement,
+  /// [_consumePostWarmup]'s daily branch, [_consumeWeeklyPool]), all of which
+  /// sit after [markUsed]'s premium short-circuit — so a payer's unlimited
+  /// use is never counted as a "taste", and this helper needs no premium
+  /// check of its own.
+  void _emitTasteConsumed(
+    GatedFeature feature,
+    String allowance,
+    int remaining,
+  ) {
+    // GUARDED, and this is a correctness concern rather than a telemetry one.
+    //
+    // Every live caller reaches `markUsed` AFTER the AI response has arrived
+    // and been shown: `duas_provider.dart` calls it once `buildDua` has
+    // succeeded, and `reflect_provider.dart` calls it with `screenState`
+    // already set to `result`. A throw escaping here lands in those providers'
+    // outer `catch (e)` — which shows "Something went wrong. Please try again."
+    // and calls `cancelActiveBypassIfAny()`. So a telemetry hiccup would
+    // DISCARD a real generation the user was happy with and refund a bypass
+    // they had already spent well.
+    //
+    // This file says as much twenty lines up, about the RPC path: "a throw
+    // escaping here would propagate out of `markUsed` and, for the discover
+    // path, flip a reveal that HAPPENED into `state.error`." The same reasoning
+    // applies to the emit; it simply arrived later.
+    //
+    // The guard lives HERE rather than at the three call sites so a fourth one
+    // added later inherits it instead of depending on someone remembering. It
+    // swallows the telemetry only — the consume itself has already happened and
+    // must stand, or a Mixpanel outage would hand out free uses.
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiTasteConsumed, {
+        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+        AnalyticsEvents.propAllowance: allowance,
+        AnalyticsEvents.propRemaining: remaining,
+      });
+    } catch (_) {/* best-effort: never let telemetry undo real work */}
+  }
+
   // ---- helpers ------------------------------------------------------------
+
+  /// The post-warmup allowance, which is where the two cohorts diverge.
+  ///
+  /// `legacy` keeps today's behaviour byte for byte — the local 1/day cap, and
+  /// `discoverName` at an effective 2/day (one free day-open reveal that
+  /// consults no gate, plus one metered re-roll). Nothing about the existing
+  /// base changes here; the softener wave owns migrating them.
+  ///
+  /// `reel_v1` gets the tightened tier:
+  ///  * `reflect` / `builtDua` share a **weekly pool** ([weeklyPoolRemaining]),
+  ///    not a per-feature daily cap.
+  ///  * `discoverName` is **exempt from the pool and has no free allowance at
+  ///    all** past its warmup — a second Name the same day is premium (D10②).
+  ///    The day-open reveal is untouched and stays free forever: it never
+  ///    reaches this function, because it never asks the gate.
+  Future<GateResult> _applyPostWarmupCap(
+    GatedFeature feature, {
+    required bool hadTrial,
+    required bool newCohort,
+  }) async {
+    if (!newCohort) return _applyDailyCap(feature, hadTrial: hadTrial);
+
+    if (feature == GatedFeature.discoverName) {
+      _emitCapHit(feature, GateReason.rerollPremium);
+      return const GateResult(
+        allowed: false,
+        reason: GateReason.rerollPremium,
+        remaining: 0,
+      );
+    }
+
+    final remaining = await weeklyPoolRemaining();
+    if (remaining <= 0) {
+      _emitCapHit(feature, GateReason.weeklyPool);
+      return const GateResult(
+        allowed: false,
+        reason: GateReason.weeklyPool,
+        remaining: 0,
+      );
+    }
+    return GateResult(
+      allowed: true,
+      reason: GateReason.ok,
+      remaining: remaining,
+    );
+  }
+
+  /// The free/lapsed user just ran out of allowance — the numerator for the
+  /// "cap-hit → upgrade" loop in the funnel. Kept as one event across both
+  /// cohorts on purpose: renaming it for the weekly pool would fork the funnel
+  /// that already exists. Segmentation by cohort belongs to W6's
+  /// instrumentation pass, not here.
+  ///
+  /// Premium fair-use blocks NEVER reach this — they short-circuit in [canUse]
+  /// with [GateReason.premiumFairUse], a silent "take a breath", not a paywall.
+  ///
+  /// [reason] is one of the four blocking [GateReason]s that can reach this
+  /// function; [gateReasonWireValue] always resolves one of them to a wire
+  /// value (W6 Wave C, D5) — segmentation by cohort is a super property
+  /// (`free_tier_cohort`), not a second event, so the cap-hit→upgrade funnel
+  /// stays continuous across the T0 boundary.
+  void _emitCapHit(GatedFeature feature, GateReason reason) {
+    final reasonWire = gateReasonWireValue(reason);
+    // Guarded for the same reason as [_emitTasteConsumed]: this fires from
+    // inside `canUse`, whose result decides whether a feature runs at all. An
+    // escaping throw would turn a routine cap into an app-level failure.
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
+        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+        if (reasonWire != null) AnalyticsEvents.propReason: reasonWire,
+      });
+    } catch (_) {/* best-effort: never let telemetry undo real work */}
+  }
 
   Future<GateResult> _applyDailyCap(
     GatedFeature feature, {
@@ -239,20 +776,14 @@ class GatingService {
     final used = await _getUsageToday(feature);
     final cap = _dailyCap(feature);
     if (used >= cap) {
-      // The free/lapsed user just hit the daily cap — the numerator for the
-      // "cap-hit → upgrade" loop in the reverse-trial experiment funnel. Emit
-      // `daily_cap_hit{feature}` (the `arm` rides as the `paywall_exp_arm`
-      // Mixpanel super-property set at assignment, so the event segments by arm
-      // without this Riverpod-free service needing the experiment flag). Premium
-      // fair-use blocks NEVER reach here — they short-circuit in `canUse` with
-      // `GateReason.premiumFairUse` (a silent "take a breath", not a paywall).
-      onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
-        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
-      });
-      return GateResult(
-        allowed: false,
-        reason: hadTrial ? GateReason.hadTrialNoBudget : GateReason.dailyCap,
-      );
+      // `daily_cap_hit{feature, reason}` — the `arm` rides as the
+      // `paywall_exp_arm` Mixpanel super-property set at assignment, so the
+      // event segments by arm without this Riverpod-free service needing the
+      // experiment flag.
+      final reason =
+          hadTrial ? GateReason.hadTrialNoBudget : GateReason.dailyCap;
+      _emitCapHit(feature, reason);
+      return GateResult(allowed: false, reason: reason);
     }
     return const GateResult(allowed: true, reason: GateReason.ok);
   }
@@ -296,38 +827,139 @@ class GatingService {
     );
   }
 
-  String _warmupColumn(GatedFeature feature) {
-    switch (feature) {
-      case GatedFeature.reflect:
-        return 'warmup_reflect_remaining';
-      case GatedFeature.builtDua:
-        return 'warmup_built_dua_remaining';
-      case GatedFeature.discoverName:
-        return 'warmup_discover_name_remaining';
+  /// Marks the local warmup counter for [feature] as **provisional** — derived
+  /// from the config dial rather than from the user's own server row.
+  ///
+  /// Provenance has to be PERSISTED, not re-derived. `_readWarmup` used to
+  /// infer it from "does the local key exist", but `_decrementWarmup` writes
+  /// that key on the no-push path too, so a synthesized guess laundered itself
+  /// into server-authored state on the very next call: use 1 stored `2`
+  /// without pushing, use 2 read `2` as authoritative and pushed `1` over a
+  /// server row holding `10`. The decrement-only freemium guard then made
+  /// those eight uses unrecoverable.
+  ///
+  /// Cleared only by [hydrateFromProfile] — the one place a real server number
+  /// arrives. Never cleared by a local write, or the laundering returns.
+  String _warmupProvisionalKey(GatedFeature feature) {
+    return supabaseSyncService.scopedKey(
+      'warmup_${feature.name}_provisional',
+    );
+  }
+
+  /// The per-feature warmup counter, plus where it came from.
+  ///
+  /// `fromStore` is false when no local counter exists yet and the value was
+  /// SYNTHESIZED from the [warmupBudgetFor] dial. That distinction is load-
+  /// bearing: a synthesized number is a guess about a user whose server row
+  /// already holds the truth, and [_decrementWarmup] must not write a guess
+  /// back to `user_profiles` (see its `pushToServer` doc).
+  Future<({int remaining, bool fromStore})> _readWarmup(
+    GatedFeature feature,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getInt(_warmupPrefsKey(feature));
+    // Short-circuits: once the counter has been written locally (first use, or
+    // `hydrateFromProfile` on any sync) the config read never runs.
+    //
+    // `fromStore` is NOT "a local key exists" — see [_warmupProvisionalKey].
+    // A counter descended from the dial stays provisional across every local
+    // write until a real server value hydrates over it.
+    if (stored != null) {
+      final provisional = prefs.getBool(_warmupProvisionalKey(feature)) ?? false;
+      return (remaining: stored, fromStore: !provisional);
     }
+    return (remaining: await warmupBudgetFor(feature), fromStore: false);
   }
 
   Future<int> _readWarmupRemaining(GatedFeature feature) async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getInt(_warmupPrefsKey(feature));
-    return stored ?? warmupBudget[feature]!;
+    return (await _readWarmup(feature)).remaining;
   }
 
-  Future<void> _decrementWarmup(GatedFeature feature, int current) async {
+  /// [pushToServer] false means [current] was synthesized from the config dial
+  /// rather than read from a local counter — so the server's own value is the
+  /// only real one and MUST NOT be spent against.
+  ///
+  /// Why this matters: the dial (3) is the `reel_v1` number, while every
+  /// `legacy`-cohort row still carries the column default 10. A user who
+  /// reinstalls, switches accounts, or launches with a batch sync that times
+  /// out reaches the gate with no local counter and reads 3 from the dial —
+  /// spending that guess against the RPC would decrement the SERVER's real
+  /// row (10) down from a number the server never reported. Skipping the RPC
+  /// leaves the server authoritative; the next `hydrateFromProfile` restores
+  /// the real number. The local counter still decrements, so the gate stays
+  /// consistent for the rest of the session, and the error direction is one
+  /// extra free use — the same fail-OPEN posture as the offline fallback.
+  ///
+  /// [pushToServer] true means [current] came from the user's own local
+  /// counter (itself either hydrated from the server or already
+  /// server-confirmed by a prior call). This is the branch that used to read
+  /// the counter, compute `current - 1` on the device, and push that literal
+  /// absolute via `upsertRawRow` — the bug `consume_warmup_allowance`
+  /// (`supabase/migrations/20260802020000_consume_warmup_allowance.sql`)
+  /// exists to close: two devices holding the same stale counter would both
+  /// compute and push the same value, leaking one real AI use per race, and
+  /// the write sailed through because the decrement-only freemium guard only
+  /// blocks an INCREASE. The RPC is `SELECT … FOR UPDATE`, so it serialises
+  /// exactly that race; this function mirrors ONLY the server's own returned
+  /// `remaining` into the cache, never a number computed here.
+  ///
+  /// Fails OPEN and writes NOTHING when the RPC is unreachable, refused
+  /// (`allowed:false` — the server itself makes no write on that path, so
+  /// neither does the client), or malformed — same posture as
+  /// [_consumeWeeklyPool], for the same reason: a network hiccup must never
+  /// block or double-charge a use the AI call has already delivered.
+  Future<void> _decrementWarmup(
+    GatedFeature feature,
+    int current, {
+    bool pushToServer = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final next = (current - 1).clamp(0, warmupBudget[feature]!);
-    await prefs.setInt(_warmupPrefsKey(feature), next);
 
-    final userId = supabaseSyncService.currentUserId;
-    if (userId == null) return;
-    // user_profiles uses `id` (matching auth.uid()) as its primary key,
-    // NOT `user_id`. Use upsertRawRow so `user_id` isn't auto-injected,
-    // and pass `id` in the payload so the upsert matches the existing row.
-    await supabaseSyncService.upsertRawRow(
-      'user_profiles',
-      {'id': userId, _warmupColumn(feature): next},
-      onConflict: 'id',
-    );
+    if (!pushToServer) {
+      // Clamp at zero only. The old upper clamp was the budget constant, which
+      // was harmless while the budget was fixed — but once the budget is a
+      // server dial, clamping to it would SILENTLY CONFISCATE uses: a user
+      // holding 10 remaining (the legacy server default) would drop to 3 on
+      // their next use the moment the dial reads 3. Decrement means decrement.
+      final next = current > 0 ? current - 1 : 0;
+      await prefs.setInt(_warmupPrefsKey(feature), next);
+      // Carry the taint forward with the value. Without this the counter we
+      // just wrote would read back as server-authored on the next call and be
+      // pushed — the exact laundering [_warmupProvisionalKey] documents.
+      await prefs.setBool(_warmupProvisionalKey(feature), true);
+      return;
+    }
+
+    Map<String, dynamic>? result;
+    try {
+      result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'consume_warmup_allowance',
+        {'p_feature': _bypassFeatureKey(feature)},
+      );
+    } catch (_) {
+      // Belt and braces, mirroring [_consumeWeeklyPool]: production's
+      // `callRpc` already swallows into null, but "fails open" is a property
+      // of this function, not of its callee — a throw escaping here would
+      // propagate out of `markUsed` and, for the discover path, flip a reveal
+      // that HAPPENED into `state.error`.
+      return;
+    }
+    if (result == null) return; // Unreachable server — write nothing.
+
+    if (result['allowed'] != true) {
+      // Refused server-side (a lost race, or the local cache was already
+      // stale). The RPC makes NO WRITE on this path — see its own doc
+      // comment — so mirroring it here must not either: stamping the
+      // server's reported `0` would be indistinguishable from this function
+      // computing its own decrement, which is exactly what must never happen
+      // again.
+      return;
+    }
+
+    final remaining = (result['remaining'] as num?)?.toInt();
+    if (remaining == null) return; // Malformed response — write nothing.
+
+    await prefs.setInt(_warmupPrefsKey(feature), remaining);
   }
 
   // ---- AI bypass (reserve / commit / cancel) ------------------------------
@@ -367,6 +999,16 @@ class GatingService {
   /// accidentally debit their tokens.
   Future<BypassReservation?> reserveBypass(GatedFeature feature) async {
     if (await PurchaseService().isPremium()) return null;
+
+    // W5 D.4: the bypass does not exist for `reel_v1`. The cap sheet's middle
+    // slot is gone for them, so nothing should be calling this — refusing here
+    // as well means a stray surface cannot debit a new-cohort user's tokens.
+    //
+    // Ordered strictly AFTER the premium short-circuit above, which stays the
+    // first statement in this function (CLAUDE.md; pinned by TEST-C). Premium
+    // must never reach the RPC regardless of cohort, so its check cannot sit
+    // behind a cohort read that could answer differently.
+    if (await isNewCohort()) return null;
 
     final featureKey = _bypassFeatureKey(feature);
     final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
@@ -522,6 +1164,10 @@ class GatingService {
   Future<bool> firstBypassEligible() async {
     if (await PurchaseService().isPremium()) return false;
 
+    // W5 D.4: no bypass for `reel_v1`, so no Day-1 freebie either — STATE D
+    // would offer a door that [claimFirstBypass] now refuses to open.
+    if (await isNewCohort()) return false;
+
     final prefs = await SharedPreferences.getInstance();
     final consumed = prefs.getBool(
           supabaseSyncService.scopedKey(_firstBypassConsumedBaseKey),
@@ -566,6 +1212,11 @@ class GatingService {
   /// reason for funnel attribution.
   Future<bool> claimFirstBypass(GatedFeature feature) async {
     if (await PurchaseService().isPremium()) return false;
+
+    // W5 D.4: removed for `reel_v1`, `claimFirstBypass` included. Refused
+    // before the RPC so the one-shot server latch is never burned by a caller
+    // that should not have been offered it.
+    if (await isNewCohort()) return false;
 
     final featureKey = _bypassFeatureKey(feature);
     final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
@@ -654,6 +1305,14 @@ class GatingService {
   /// silently qualify for the upsell.
   Future<bool> iapToSubBannerEligible() async {
     if (await PurchaseService().isPremium()) return false;
+
+    // W5 D.4: retire the trigger for `reel_v1`. The banner's whole premise is
+    // "you have bought 6+ bypasses, buy the subscription instead" — a cohort
+    // that can never buy a bypass can never mean it, and their
+    // `lifetime_bypasses_purchased` is frozen at 0 anyway. Checked explicitly
+    // rather than left to the threshold so the intent survives a data import
+    // or a cohort migration that carries a non-zero count across.
+    if (await isNewCohort()) return false;
 
     final lifetime = await lifetimeBypassesPurchased();
     if (lifetime < iapToSubBannerLifetimeBypassesThreshold) return false;
@@ -763,8 +1422,8 @@ class GatingService {
   /// `user_data_batch_sync_service` on app launch and any subsequent re-sync.
   ///
   /// Without this, fresh installs (or re-installs / multi-device users) would
-  /// show their local default values (warmup=10/10/5, had_trial=false) even
-  /// when the server says otherwise — letting a lapsed trialer get a fresh
+  /// show their local default values (the [warmupBudgetFor] dial,
+  /// had_trial=false) even when the server says otherwise — letting a lapsed trialer get a fresh
   /// warmup budget by reinstalling the app.
   Future<void> hydrateFromProfile(Map<String, dynamic> profile) async {
     final prefs = await SharedPreferences.getInstance();
@@ -778,7 +1437,61 @@ class GatingService {
       final raw = profile[entry.value];
       if (raw is num) {
         await prefs.setInt(_warmupPrefsKey(entry.key), raw.toInt());
+        // This is the ONLY place a real server number arrives, so it is the
+        // only place allowed to clear the provisional mark. Writes resume from
+        // here; without this the taint would be permanent and the server row
+        // would drift stale forever.
+        await prefs.remove(_warmupProvisionalKey(entry.key));
       }
+    }
+
+    // Free-tier cohort (W5 D.2/D.3/D.4). Server-assigned in `handle_new_user`,
+    // never client-writable, returned by `sync_all_user_data` since
+    // `20260727100300`. Only ever WRITTEN from the server's own value — this
+    // is the whole provenance rule: the cohort selects which economy applies,
+    // so a locally-guessed one would silently move a user between tiers.
+    //
+    // An absent / null / unrecognised value CLEARS the cache rather than
+    // leaving a stale one. A pre-`20260727100300` backend and a genuine
+    // legacy account both land on "not reel_v1", which is the generous
+    // default `isNewCohort` documents.
+    final cohortRaw = profile['free_tier_cohort'];
+    if (cohortRaw == cohortReelV1) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_freeTierCohortBaseKey),
+        cohortReelV1,
+      );
+    } else {
+      await prefs.remove(
+        supabaseSyncService.scopedKey(_freeTierCohortBaseKey),
+      );
+    }
+
+    // Weekly pool (reel_v1). Both values are the server's own columns — no
+    // derivation, no guess — and the pair is written together so the count is
+    // never readable without the week marker that dates it. `week_start`
+    // arrives as `YYYY-MM-DD` (a Postgres `date`), the same shape
+    // [_localWeekStart] produces and [weeklyPoolRemaining] compares against.
+    final poolUsedRaw = profile['weekly_pool_used'];
+    if (poolUsedRaw is num) {
+      await prefs.setInt(
+        supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey),
+        poolUsedRaw.toInt(),
+      );
+    }
+    final poolWeekRaw = profile['weekly_pool_week_start'];
+    if (poolWeekRaw is String && poolWeekRaw.isNotEmpty) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
+        // Tolerate a full timestamp if the column shape ever widens.
+        poolWeekRaw.length >= 10 ? poolWeekRaw.substring(0, 10) : poolWeekRaw,
+      );
+    } else if (poolWeekRaw == null) {
+      // Never consumed (or a pre-`20260727100300` backend): drop the marker so
+      // the pool reads full rather than inheriting another week's count.
+      await prefs.remove(
+        supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
+      );
     }
 
     final hadTrialRaw = profile['had_trial'];
@@ -872,13 +1585,67 @@ class GatingService {
     await prefs.remove(
       supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
     );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_freeTierCohortBaseKey),
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey),
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
+    );
+  }
+
+  /// Force the cached weekly-pool state for tests. `weekStart` is `YYYY-MM-DD`;
+  /// null clears the marker (the never-consumed case). Also clears the
+  /// stale-week probe marker, so a test that pins a week starts from "the
+  /// server has not been asked yet".
+  @visibleForTesting
+  Future<void> debugSetWeeklyPool({
+    required int used,
+    String? weekStart,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey),
+      used,
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
+    );
+    final key = supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey);
+    if (weekStart == null) {
+      await prefs.remove(key);
+    } else {
+      await prefs.setString(key, weekStart);
+    }
+  }
+
+  /// Force the free-tier cohort for tests. `null` clears it (the
+  /// unknown-cohort case [isNewCohort] must answer `false` for).
+  @visibleForTesting
+  Future<void> debugSetCohort(String? cohort) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_freeTierCohortBaseKey);
+    if (cohort == null) {
+      await prefs.remove(key);
+    } else {
+      await prefs.setString(key, cohort);
+    }
   }
 
   /// Force a specific warmup remaining count for tests.
   @visibleForTesting
+  /// Stands in for a hydrated server value, so it clears the provisional mark
+  /// exactly as [hydrateFromProfile] does. A test that seeded a counter and
+  /// then found it treated as a guess would be testing the wrong thing.
   Future<void> debugSetWarmupRemaining(GatedFeature feature, int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_warmupPrefsKey(feature), value);
+    await prefs.remove(_warmupProvisionalKey(feature));
   }
 
   /// Force the had_trial latch on (test-only).

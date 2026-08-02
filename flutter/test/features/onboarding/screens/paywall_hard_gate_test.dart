@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -49,6 +50,9 @@ void main() {
       child: MaterialApp(
         home: PaywallScreen(
           onComplete: onComplete,
+          placement: hardGate
+              ? PaywallPlacement.hardWall
+              : PaywallPlacement.softInApp,
           inOnboardingFlow: false,
           hardGate: hardGate,
         ),

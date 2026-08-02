@@ -1,5 +1,13 @@
 -- Softener wave step 2 — flip expired-notice users to the reel_v1 tier (§V6.10)
 -- STAGED: run >=30 days after softener_1_notice. See README.md.
+--
+-- ⚠️ SUPERSEDED for the free-tier migration by `t0_flip_all_to_reel_v1.sql`
+-- (D12, 2026-08-01). Two reasons this script cannot do the job any more:
+--   1. Its `softener_notice_ends_at` gate is never stamped under D12, so it
+--      matches ZERO rows.
+--   2. It clamps only reflect and built_dua — `warmup_discover_name_remaining`
+--      is missing, and would stay on the legacy default of 5.
+-- Kept for the currency-merge wave. Fix (2) before reviving it.
 
 do $$
 begin

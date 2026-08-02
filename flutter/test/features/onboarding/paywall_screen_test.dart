@@ -8,6 +8,8 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -16,6 +18,25 @@ import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
+
+/// Records every tracked event so the restore-purchases analytics (W6 Wave C
+/// #5) can be asserted without a live Mixpanel.
+class RecordingAnalyticsService extends AnalyticsService {
+  final List<({String event, Map<String, dynamic> props})> events = [];
+
+  @override
+  void track(String event, {Map<String, dynamic>? properties}) {
+    events.add((event: event, props: properties ?? const {}));
+  }
+
+  @override
+  void timeEvent(String event) {}
+
+  Iterable<({String event, Map<String, dynamic> props})> withName(
+    String name,
+  ) =>
+      events.where((e) => e.event == name);
+}
 
 class FakePurchaseService extends PurchaseService {
   FakePurchaseService() : super.test();
@@ -168,16 +189,18 @@ void main() {
   late FakeOnboardingNotifier onboardingNotifier;
   late AppSessionNotifier appSession;
   late bool completed;
+  late RecordingAnalyticsService analytics;
 
   Widget buildSubject() {
     return ProviderScope(
       overrides: [
         appSessionProvider.overrideWithValue(appSession),
         onboardingProvider.overrideWith((ref) => onboardingNotifier),
-        analyticsProvider.overrideWithValue(AnalyticsService()),
+        analyticsProvider.overrideWithValue(analytics),
       ],
       child: MaterialApp(
         home: PaywallScreen(
+          placement: PaywallPlacement.softInApp,
           onComplete: () {
             completed = true;
           },
@@ -185,6 +208,16 @@ void main() {
       ),
     );
   }
+
+  // The CTA's duration is DERIVED from the fixture package's introductory
+  // offer (P3D above), so the label follows the store rather than a constant.
+  // Change `buildStoreProduct`'s IntroductoryPrice and this string must change
+  // with it — that is the property Wave B.4 exists to guarantee.
+  const ctaTrial = 'Start my 3 days free';
+
+  // The weekly plan is a de-emphasized text row now, not a peer card, so it is
+  // matched by its price line rather than by a bare "Weekly" label.
+  final weeklyRow = find.textContaining('Weekly \u2014');
 
   Future<void> tapVisible(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
@@ -214,6 +247,7 @@ void main() {
     SupabaseSyncService.debugSetInstance(fakeSync);
     purchaseService = FakePurchaseService();
     onboardingNotifier = FakeOnboardingNotifier();
+    analytics = RecordingAnalyticsService();
     // Repeating breathing-CTA + SAVE-badge shimmer animations introduced
     // by the 2026-05-14 paywall rebuild would make pumpAndSettle hang
     // forever. The seam flips them off for tests; the compile-time Env
@@ -252,7 +286,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -269,9 +303,9 @@ void main() {
     // Weekly card sits below the fold on the 800x600 test viewport once the
     // honest-trial timeline and richer social-proof block are in place. Real
     // users scroll; mirror that here.
-    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
+    await tapVisible(tester, weeklyRow);
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -290,14 +324,14 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pumpAndSettle();
 
     expect(completed, isFalse);
     // Headline is dynamic (personalized from quiz answers), so assert the
     // still-on-paywall signal via the CTA and a static benefit row — both
     // remain visible only while the PaywallScreen is mounted.
-    expect(find.text(AppStrings.paywallCtaTrial), findsOneWidget);
+    expect(find.text(ctaTrial), findsOneWidget);
     expect(find.text(AppStrings.paywallPremiumBenefit1), findsOneWidget);
   });
 
@@ -312,6 +346,13 @@ void main() {
 
     expect(completed, isTrue);
     expect(onboardingNotifier.completeCalls, 1);
+
+    // W6 Wave C #5 — this surface had ZERO analytics before.
+    expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+    final restored = analytics.withName(AnalyticsEvents.restoreCompleted);
+    expect(restored, hasLength(1));
+    expect(restored.single.props[AnalyticsEvents.propPremiumActive], true);
+    expect(analytics.withName(AnalyticsEvents.restoreFailed), isEmpty);
   });
 
   testWidgets('Premium reveal overlay blocks onComplete until dismissed',
@@ -319,7 +360,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
 
@@ -355,6 +396,37 @@ void main() {
       find.text('No active premium subscription was found to restore.'),
       findsOneWidget,
     );
+
+    // A restore that succeeds and finds NO entitlement is a genuinely
+    // different outcome from one that finds a subscription — it completes,
+    // it does not fail.
+    expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+    final restored = analytics.withName(AnalyticsEvents.restoreCompleted);
+    expect(restored, hasLength(1));
+    expect(restored.single.props[AnalyticsEvents.propPremiumActive], false);
+    expect(analytics.withName(AnalyticsEvents.restoreFailed), isEmpty);
+  });
+
+  testWidgets(
+      'Restore that throws emits restore_failed{reason: unknown} — mutation: '
+      'dropping the catch-block emit would break this', (tester) async {
+    purchaseService.restoreError = StateError('boom');
+
+    await tester.pumpWidget(buildSubject());
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text(AppStrings.paywallRestore));
+    await tester.pumpAndSettle();
+
+    expect(completed, isFalse);
+    expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+    final failed = analytics.withName(AnalyticsEvents.restoreFailed);
+    expect(failed, hasLength(1));
+    expect(
+      failed.single.props[AnalyticsEvents.propReason],
+      AnalyticsEvents.storePurchaseFailedReasonUnknown,
+    );
+    expect(analytics.withName(AnalyticsEvents.restoreCompleted), isEmpty);
   });
 
   testWidgets('Failed offerings load shows error', (tester) async {
@@ -363,10 +435,10 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    // CTA text varies (Start Free Trial vs Subscribe) based on whether the
-    // selected plan has an introductory offer. Offerings failed to load in
-    // this test, so `_planHasTrial` is false and the CTA reads "Subscribe".
-    // Tap by widget type to stay decoupled from copy.
+    // CTA text varies (trial vs Subscribe) based on whether this USER gets an
+    // introductory offer. Offerings failed to load here, so there is no trial
+    // and the CTA reads "Subscribe". Tap by widget type to stay decoupled from
+    // copy.
     await tapVisible(tester, find.byType(ElevatedButton));
     await tester.pumpAndSettle();
 

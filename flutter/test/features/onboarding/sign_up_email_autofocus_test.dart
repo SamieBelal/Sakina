@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/sign_up_email_screen.dart';
@@ -10,62 +11,89 @@ import 'package:sakina/services/app_config_service.dart';
 
 import 'screens/_test_utils.dart';
 
-// Trimmed-flow refactor (2026-05-25, Option α): page indices renumbered.
-// New trimmed indices: email=14, password=15, post-signup=16.
-class _StubAppConfig extends AppConfigService {
-  _StubAppConfig() : trimmed = true, super.forTest();
-  final bool trimmed;
-  @override
-  Future<bool> getBool(String key, {required bool fallback}) async => trimmed;
-  @override
-  Future<void> primeCache(List<String> keys) async {}
-}
-
+/// The signup trio's autofocus is gated on "am I the page on display", which
+/// is a different index in each of the three flows (One Ship W2-E1):
+/// reel email=16/password=17, trimmed 14/15, legacy 19/20. Before W2 the check
+/// read a module constant, so the screen could only ever autofocus in one flow.
 void main() {
-  testWidgets(
-    'Sign-up email screen autofocus fires when currentPage == '
-    'onboardingEmailPageIndex (14)',
-    (tester) async {
-      useOnboardingViewport(tester);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            appConfigServiceProvider.overrideWithValue(_StubAppConfig()),
-            cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: onboardingEmailPageIndex),
-            ),
-          ],
-          child: const MaterialApp(home: OnboardingScreen()),
+  Future<void> pumpAt(
+    WidgetTester tester,
+    FlowStubAppConfig config,
+    int page,
+  ) async {
+    useOnboardingViewport(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigServiceProvider.overrideWithValue(config),
+          appSessionProvider.overrideWithValue(buildTestAppSession()),
+          cachedOnboardingStateProvider
+              .overrideWithValue(OnboardingState(currentPage: page)),
+        ],
+        // Keyed on flow AND page: `_flowFuture` and `_pageController` are both
+        // `late final` per State, so re-pumping an unkeyed screen in the same
+        // test silently reuses the first flow and the first start page.
+        child: MaterialApp(
+          home: OnboardingScreen(key: ValueKey('${config.flow}-$page')),
         ),
-      );
-      await tester.pump();
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+  }
 
-      final field = tester.widget<OnboardingAutofocusTextField>(
+  bool emailAutofocus(WidgetTester tester) => tester
+      .widget<OnboardingAutofocusTextField>(
         find.descendant(
           of: find.byType(SignUpEmailScreen),
           matching: find.byType(OnboardingAutofocusTextField),
         ),
-      );
+      )
+      .shouldRequestFocus;
 
-      expect(
-        field.shouldRequestFocus,
-        isTrue,
-        reason:
-            'On the email screen the text field must autofocus.',
-      );
-      expect(onboardingEmailPageIndex, 14);
+  testWidgets('reel: the email screen autofocuses on page 16', (tester) async {
+    await pumpAt(
+      tester,
+      FlowStubAppConfig.reel(),
+      onboardingReelEmailPageIndex,
+    );
+    expect(emailAutofocus(tester), isTrue);
+    expect(onboardingReelEmailPageIndex, 16);
+    await tester.pump(const Duration(seconds: 2));
+  });
 
-      await tester.pump(const Duration(seconds: 2));
-    },
-  );
+  testWidgets('trimmed: the email screen autofocuses on page 14',
+      (tester) async {
+    await pumpAt(
+      tester,
+      FlowStubAppConfig.trimmed(),
+      onboardingEmailPageIndex,
+    );
+    expect(emailAutofocus(tester), isTrue);
+    expect(onboardingEmailPageIndex, 14);
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('legacy: the email screen autofocuses on page 19',
+      (tester) async {
+    // Latent bug the reel flow's `pageIndex` param exposed: the legacy list
+    // left these screens comparing against the TRIMMED constants, so the field
+    // never autofocused for a kill-switch-to-legacy user.
+    await pumpAt(
+      tester,
+      FlowStubAppConfig.legacy(),
+      onboardingLegacyEmailPageIndex,
+    );
+    expect(emailAutofocus(tester), isTrue);
+    expect(onboardingLegacyEmailPageIndex, 19);
+    await tester.pump(const Duration(seconds: 2));
+  });
 
   testWidgets(
-    'Sign-up email screen does NOT autofocus when shown off its own page',
+    'the email screen does NOT autofocus when shown off its own page',
     (tester) async {
       useOnboardingViewport(tester);
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -80,62 +108,67 @@ void main() {
       );
       await tester.pump();
 
-      final field = tester.widget<OnboardingAutofocusTextField>(
-        find.descendant(
-          of: find.byType(SignUpEmailScreen),
-          matching: find.byType(OnboardingAutofocusTextField),
-        ),
-      );
-
       expect(
-        field.shouldRequestFocus,
+        emailAutofocus(tester),
         isFalse,
-        reason:
-            'Autofocus must be gated to the email page; otherwise the keyboard '
-            'would steal focus on adjacent pages built lazily by PageView.',
+        reason: 'Autofocus must be gated to the email page; otherwise the '
+            'keyboard would steal focus on adjacent pages built lazily by '
+            'PageView.',
       );
 
       await tester.pump(const Duration(seconds: 2));
     },
   );
 
-  group('Sign-up PageView index structural pin', () {
-    Future<void> pumpOnboardingAtPage(WidgetTester tester, int page) async {
-      useOnboardingViewport(tester);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            appConfigServiceProvider.overrideWithValue(_StubAppConfig()),
-            cachedOnboardingStateProvider.overrideWithValue(
-              OnboardingState(currentPage: page),
-            ),
-          ],
-          child: const MaterialApp(home: OnboardingScreen()),
-        ),
+  // One pump per test on purpose: `onboardingProvider` reads
+  // `cachedOnboardingStateProvider` ONCE at creation, so a second pumpWidget in
+  // the same test keeps the first start page no matter what the override says.
+  group('signup-trio PageView index structural pin', () {
+    testWidgets('reel: page 16 is the email screen', (tester) async {
+      await pumpAt(
+        tester,
+        FlowStubAppConfig.reel(),
+        onboardingReelEmailPageIndex,
       );
-      await tester.pump();
-      await tester.pump();
-    }
+      expect(find.byType(SignUpEmailScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
 
-    testWidgets(
-      'PageView index 14 (onboardingEmailPageIndex) is SignUpEmailScreen',
-      (tester) async {
-        await pumpOnboardingAtPage(tester, onboardingEmailPageIndex);
-        expect(find.byType(SignUpEmailScreen), findsOneWidget);
-        await tester.pump(const Duration(seconds: 2));
-      },
-    );
+    testWidgets('reel: page 17 is the password screen', (tester) async {
+      await pumpAt(
+        tester,
+        FlowStubAppConfig.reel(),
+        onboardingReelPasswordPageIndex,
+      );
+      expect(find.byType(SignUpPasswordScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
 
-    testWidgets(
-      'PageView index 15 (onboardingPasswordPageIndex) is SignUpPasswordScreen',
-      (tester) async {
-        await pumpOnboardingAtPage(tester, onboardingPasswordPageIndex);
-        expect(find.byType(SignUpPasswordScreen), findsOneWidget);
-        await tester.pump(const Duration(seconds: 2));
-      },
-    );
+    testWidgets('trimmed: page 14 is the email screen', (tester) async {
+      await pumpAt(
+        tester,
+        FlowStubAppConfig.trimmed(),
+        onboardingEmailPageIndex,
+      );
+      expect(find.byType(SignUpEmailScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
 
-    test('constant values match expected PageView indices', () {
+    testWidgets('trimmed: page 15 is the password screen', (tester) async {
+      await pumpAt(
+        tester,
+        FlowStubAppConfig.trimmed(),
+        onboardingPasswordPageIndex,
+      );
+      expect(find.byType(SignUpPasswordScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    test('constant values match the expected PageView indices', () {
+      expect(onboardingReelEmailPageIndex, 16);
+      expect(onboardingReelPasswordPageIndex, 17);
+      expect(onboardingReelPostSignupPageIndex, 18);
+
       expect(onboardingEmailPageIndex, 14);
       expect(onboardingPasswordPageIndex, 15);
       expect(onboardingPostSignupPageIndex, 16);

@@ -28,6 +28,14 @@ jobs:
       # that pre-date this PR. Errors and warnings remain fatal so new
       # code can't introduce real problems.
       - run: flutter analyze --no-fatal-infos
+      # The copy firewall. cb9251f called this "a tripwire, not a convention",
+      # but nothing ever invoked it outside a developer's own shell — so it
+      # only fired for someone who already remembered to run it, which is the
+      # definition of a convention. It guards the rules that cannot be caught
+      # by review at merge time: no countdown UI, no fabricated savings claim,
+      # no tier word beside a Name, nothing attributing waiting to Allah.
+      - name: Copy firewall on the purchase surfaces
+        run: ./scripts/check_no_fake_strings.sh
       # TZ=America/New_York forces the runner off UTC so date-bucketing
       # regressions (e.g. ._today() calling .toLocal() instead of .toUtc())
       # actually surface in CI. GitHub Actions defaults to UTC, which
