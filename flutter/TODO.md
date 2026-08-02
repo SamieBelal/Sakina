@@ -831,3 +831,18 @@ excluded) → one plain sentence in the softener notice → drop the table one
 release later, inside the legacy-deletion sweep already scheduled for then.
 
 ## Journal refactor to follow couples app UI
+
+**Superseded by a plan of record, 2026-08-02.** This stub is now covered end-to-end by
+[`docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md`](./docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md),
+with the research and closed decisions in
+[`docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md`](./docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md).
+
+**The one-line diagnosis, so nobody re-derives it:** the muhasabah leaves **no artifact** —
+`user_checkin_history` has no column for the answer text and the AI reflection is never
+persisted at all, so "the Journal doesn't show the muhasabah" is a data problem, not a UI
+one. Wave B fixes it and unblocks everything else.
+
+**Also folded in here (was not obviously part of a "journal refactor"):** the free
+5-entry save cap (`reflect_provider.dart:887`) is a May-era gate that W5 never revisited.
+It now fires *after* the weekly allowance is spent, so a free user burns one of three
+weekly uses and loses the output — from roughly day 8. Wave A removes it.
