@@ -78,7 +78,21 @@ void main() {
     // The `.text` sweep above only sees a controller. Once free text lands on
     // state it looks like any other field, so those are named explicitly —
     // honest and maintainable beats clever and wrong.
-    const freeTextFields = ['duaTopicsOther', 'intakeNote', 'firstProblemText'];
+    //
+    // Wave C (journaling) put four more on state. `tonightEntry` and
+    // `timeMachineEntry` are whole `SavedReflection`s — the user's answer, their
+    // appends and their resolve — and `lastNightAzm` / `azm` are the resolve on
+    // its own. Storing them on the user's own RLS row is permitted (design D2);
+    // putting any of them, or anything derived from them, into telemetry is not.
+    const freeTextFields = [
+      'duaTopicsOther',
+      'intakeNote',
+      'firstProblemText',
+      'tonightEntry',
+      'timeMachineEntry',
+      'lastNightAzm',
+      'azm',
+    ];
     final offenders = <String>[];
 
     for (final file in Directory('lib')

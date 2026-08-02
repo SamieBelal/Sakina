@@ -11,7 +11,12 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
+import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
+import 'package:sakina/features/daily/widgets/azm_field.dart';
+import 'package:sakina/features/daily/widgets/time_machine_card.dart';
+import 'package:sakina/features/daily/widgets/tonight_entry_summary.dart';
 import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
@@ -336,6 +341,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   ? state.checkinAnswers.firstOrNull
                   : null,
               isReAsk: state.awaitingReAnswer,
+              // ʿazm, come back round (Wave C, C4). The resolve the user wrote
+              // at the end of their last night opens this one. Null when they
+              // have not written one lately, and suppressed on a re-ask — a
+              // rephrase is mid-night, not the opening of one.
+              openingLine:
+                  state.awaitingReAnswer ? null : state.lastNightAzm,
               // Without this the question surface is a dead end on any
               // transient failure: `discoverName()` catches into `state.error`
               // and returns normally, so this widget rebuilds with its commit
@@ -945,7 +956,31 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // COMPLETED
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// The night's landing (Wave C, C2).
+  ///
+  /// It used to be a receipt: an illustration, the words "Muhāsabah Complete",
+  /// a premium-gated card re-roll and a way home. Nothing on it was the thing
+  /// the user had just written, because nothing was saved. Now that Wave B
+  /// persists the night, this screen's job is to show it back, keep it open, and
+  /// resurface one night from the archive.
+  ///
+  /// Four additions, in the order the night reads:
+  ///   * what was saved — the words, the Name, the duʿā ([TonightEntrySummary])
+  ///   * the same-prompt time machine ([TimeMachineCard]), which renders nothing
+  ///     when no anchor exists — correct for a new user
+  ///   * the ʿazm ([AzmField]), resurfaced as tomorrow night's opening line
+  ///   * "add to tonight" ([AddToTonightCard]) — appends only; see
+  ///     [DailyLoopNotifier.appendToTonight] for why that is load-bearing
+  ///
+  /// **`Seek Another Name` is untouched.** It is a card re-roll, premium-gated
+  /// for `reel_v1`, and conflating it with the journaling path is precisely the
+  /// confusion this rework exists to remove — so it keeps its own behaviour, its
+  /// own gate and its own in-flight guard, and the journaling affordances sit
+  /// above it rather than replacing it. The single forward action out of the
+  /// night remains "Return to Home".
   Widget _buildCompleted(DailyLoopState state) {
+    final entry = state.tonightEntry;
+    final anchor = state.timeMachineEntry;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
       child: Column(
@@ -976,7 +1011,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Muhāsabah Complete',
+                  MuhasabahCompletionCopy.header,
                   style: AppTypography.headlineMedium.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
@@ -984,7 +1019,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "You've reflected, gone deeper, and connected with Allah today.",
+                  entry == null
+                      // No row on the day: an offline night, a refused write, or
+                      // a legacy completion restored from a blob. Never claim to
+                      // have saved something that is not there.
+                      ? "You've reflected, gone deeper, and connected with Allah today."
+                      : MuhasabahCompletionCopy.subheader,
                   style: AppTypography.bodyMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -998,8 +1038,54 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   DailyRewardCeremony(result: state.rewardClaimResult),
                 ],
+                if (entry != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  const Divider(color: AppColors.dividerLight, height: 1),
+                  const SizedBox(height: AppSpacing.lg),
+                  TonightEntrySummary(entry: entry),
+                  if (anchor != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    TimeMachineCard(
+                      anchor: anchor,
+                      tonightLocalDay: entry.entryLocalDay,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  AzmField(
+                    // Keyed on the entry so a re-roll (which rebuilds this
+                    // screen against a possibly different row) rebuilds the
+                    // field with the right stored value instead of keeping the
+                    // previous State's controller text.
+                    key: ValueKey('azm-${entry.id}'),
+                    initialValue: entry.azm,
+                    onSave: (azm) => ref
+                        .read(dailyLoopProvider.notifier)
+                        .setTonightAzm(azm),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const Divider(color: AppColors.dividerLight, height: 1),
+                  const SizedBox(height: AppSpacing.lg),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      MuhasabahCompletionCopy.addToTonight,
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AddToTonightCard(
+                    thread: entry.thread,
+                    onAppend: (text) => ref
+                        .read(dailyLoopProvider.notifier)
+                        .appendToTonight(text),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xl),
-                // Seek Another Name — primary CTA
+                // Seek Another Name — the card re-roll, NOT the journaling path
+                // (see this method's doc). Behaviour, gating and the
+                // `_discoverInFlight` guard are untouched by Wave C.
                 GestureDetector(
                   onTap: () async {
                     // Synchronous re-entry guard — see field doc. Set BEFORE
@@ -1102,7 +1188,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       context.go('/');
                     },
                     child: Text(
-                      'Return to Home',
+                      MuhasabahCompletionCopy.returnHome,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textTertiaryLight,
                       ),
