@@ -87,8 +87,10 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   /// W6 Wave D: `names_browse_viewed`.
   ///
-  /// It lives HERE, not on `NamesScreen`, because `NamesScreen` is dead code —
-  /// zero references anywhere in `lib/`, not the router, not a tab, not a push.
+  /// It lives HERE because the screen it was originally wired to,
+  /// `NamesScreen`, was dead code — zero references anywhere in `lib/`, not the
+  /// router, not a tab, not a push — and has since been deleted outright
+  /// (workspace cleanup, 2026-08-02).
   /// The event was originally wired there because the plan audited the FILE
   /// ("zero analytics references, and is a StatelessWidget") without asking
   /// whether anything reaches it, and an event that cannot fire is
