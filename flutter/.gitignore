@@ -61,3 +61,6 @@ docs/superpowers/specs/skin-previews/*_view.*
 
 # Flutter golden-test failure artifacts (regenerated on every failing run)
 test/widgets/goldens/failures/
+
+# Supabase CLI scratch (version probe, linked-project ref). Machine-local.
+supabase/.temp/

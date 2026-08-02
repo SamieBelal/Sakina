@@ -43,3 +43,9 @@ yarn-error.*
 
 # Git worktrees (superpowers)
 .worktrees/
+
+# Project-scoped MCP server config — carries live Supabase / Mixpanel /
+# OneSignal credentials, so it is per-machine and must never be committed.
+# It was previously neither tracked nor ignored, i.e. one `git add -A` away
+# from being pushed.
+.mcp.json
