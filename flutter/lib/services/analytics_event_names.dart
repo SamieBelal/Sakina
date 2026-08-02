@@ -789,6 +789,45 @@ abstract final class AnalyticsEvents {
   static const String entryTypeSavedDua = 'saved_dua';
   static const String entryTypeReflection = 'reflection';
 
+  // Gift-a-Dua funnel (2026-08-02). The gift affordance shipped with NO
+  // instrumentation at all, so its discoverability — the thing we actually
+  // doubt — was unmeasurable. Three steps, so a drop can be located:
+  //
+  //   gift_cta_shown     the Ameen screen rendered a gift affordance (once per
+  //                      result, NOT per rebuild — a scroll must not inflate it)
+  //   gift_preview_opened the user tapped through to the gift preview
+  //   gift_sent          the share sheet was invoked with the rendered pages
+  //
+  // shown → opened is the DISCOVERABILITY rate (does anyone find it?);
+  // opened → sent is the INTENT rate (having seen it, do they send it?).
+  // Conflating them would hide which half is broken.
+  //
+  // gift_cta_shown fires ONCE per result and carries NO placement: both the
+  // corner icon and the labeled CTA render together, so emitting one per
+  // affordance would double the impression count and halve every rate below it.
+  // gift_preview_opened and gift_sent DO carry [propPlacement], which is what
+  // actually answers "did the labeled CTA beat the corner icon" — the question
+  // the labeled CTA was added to settle.
+  //
+  // gift_sent carries [propPageCount] since a multi-page gift can be truncated
+  // by a share target that only accepts one image, and [propShareStatus]
+  // because `shareXFiles` completes when the sheet CLOSES however it closed:
+  // a dismissed sheet is not a sent gift and is never reported, while
+  // `unavailable` (platform can't tell) IS reported but stays separable from a
+  // confirmed `success` so the send rate can be read with the right caveat.
+  static const String giftCtaShown = 'gift_cta_shown';
+  static const String giftPreviewOpened = 'gift_preview_opened';
+  static const String giftSent = 'gift_sent';
+
+  // Values for [propPlacement] on the gift funnel.
+  static const String giftPlacementCornerIcon = 'ameen_corner_icon';
+  static const String giftPlacementPrimaryCta = 'ameen_labeled_cta';
+
+  static const String propPageCount = 'page_count';
+
+  /// `success` | `unavailable` — the platform's own verdict on the share.
+  static const String propShareStatus = 'share_status';
+
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
   // quest events are emitted directly from AppShell (has Riverpod ref).
