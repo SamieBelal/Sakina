@@ -147,7 +147,7 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 
 ### 4 — After READY_FOR_SALE (**not** at submission)
 
-The two items here are independent of each other — order between them doesn't matter. Both
+The items here are independent of each other — order between them doesn't matter. All
 are wrong before the build is live.
 
 - [ ] **[Run `t0_flip_all_to_reel_v1.sql`](#server-sql--the-130--t0-runbook)** — this is
@@ -158,6 +158,16 @@ are wrong before the build is live.
   — must wait until 1.3.0 is actually live. Doing it at submission means the store still
   serves 1.2.0, whose paywall hardcodes "3 days", for the whole review window: every new
   subscriber would get four extra free days that nothing advertises.
+- [ ] **Retire the `win_back_tour_replay` OneSignal automation** (see
+  [`docs/runbooks/onesignal-segments.md`](./docs/runbooks/onesignal-segments.md)). Exactly
+  the same timing logic as the trial item: it deep-links to
+  `sakina://settings?action=replay_tour`, which **works on 1.2.0** and becomes a **no-op on
+  1.3.0**, because Wave F deleted the tour it replays (`b05c174`). Kill it before the
+  rollout and you break a working re-engagement push for the entire install base; leave it
+  after and every tap lands on nothing.
+  **First check whether it exists at all** — the runbook records it as manual PM setup with
+  no confirmation, so it may never have been created. If it was not, tick this and drop the
+  i18n item that references it.
 
 ### 5 — After release
 
