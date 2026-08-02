@@ -1,45 +1,25 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Root ignores. The app is Flutter and lives in flutter/, which has its own
+# .gitignore for everything Dart/Flutter-specific. Keep this file about the
+# repo root only.
 
 # dependencies
 node_modules/
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
+# Signing material and keys — never commit, regardless of which toolchain.
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+*.pem
+*.orig.*
 
 # macOS
 .DS_Store
-*.pem
 
 # local env files
-.env*.local
 .env
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+.env*.local
 
 # Git worktrees (superpowers)
 .worktrees/
