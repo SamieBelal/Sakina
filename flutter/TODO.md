@@ -278,7 +278,7 @@ Nothing is missing from the schema. What follows is data/config operations only.
 | 2 | Before you press Release | `reverse_trial_close.sql` **step 2a** — the gate, read-only | ☐ |
 | 3 | Launch day, after the build is live | `t0_flip_all_to_reel_v1.sql` | ☐ |
 | 4 | Any time after rollout | `reverse_trial_close.sql` **step 2b** — delete the key | ☐ |
-| 5 | Any time — **prod serves broken text until this runs** | `fix_catalog_duas_51_85.sql` — repairs the Al-Barr (id 85) duʿā | ☐ |
+| 5 | ~~Any time~~ | `fix_catalog_duas_51_85.sql` — repairs the Al-Barr (id 85) duʿā | ✅ **APPLIED** 2026-08-02 via MCP; verified id 85 repaired, id 51 untouched |
 | — | **Never** (for the free tier) | `softener_1_notice.sql`, `softener_2_flip.sql` | superseded by D12 |
 
 **Why the softener scripts are dead here:** D12 replaced the 30-day-notice migration with
