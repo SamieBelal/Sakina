@@ -837,6 +837,11 @@ release later, inside the legacy-deletion sweep already scheduled for then.
 [`docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md`](./docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md),
 with the research and closed decisions in
 [`docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md`](./docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md).
+Name-story deck **content** is a separate plan —
+[`docs/superpowers/plans/2026-08-02-name-story-decks.md`](./docs/superpowers/plans/2026-08-02-name-story-decks.md) —
+because a deck is daily-loop content today, not pack content: `deckForName()` short-circuits
+the AI reflection on the muhasabah reveal, so a transcribed deck ships value with no packs
+and no flag.
 
 **The one-line diagnosis, so nobody re-derives it:** the muhasabah leaves **no artifact** —
 `user_checkin_history` has no column for the answer text and the AI reflection is never
