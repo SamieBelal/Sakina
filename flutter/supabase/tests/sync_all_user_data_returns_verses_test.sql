@@ -8,7 +8,7 @@
 -- Quran verses. This test asserts the field is present and round-trips the
 -- exact value inserted into user_reflections.
 --
--- Pattern mirrors backend_rls_test.sql: one transaction, DO block collecting
+-- Pattern mirrors backend_rls_audit.sql: one transaction, DO block collecting
 -- failures via pg_temp.expect, raise on failures, rollback. No state persists.
 --
 -- Run via:
@@ -29,7 +29,7 @@ begin
 end
 $$;
 
--- Local helper: same shape as the one in backend_rls_test.sql.
+-- Local helper: same shape as the one in backend_rls_audit.sql.
 create or replace function pg_temp.test_insert_auth_user(
   p_id uuid,
   p_email text

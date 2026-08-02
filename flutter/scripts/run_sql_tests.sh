@@ -29,7 +29,7 @@ set -euo pipefail
 #   * pgTAP suites: `select plan(N); ... select * from finish();`. Failures are
 #     result ROWS, so rules 1-3 above are what gate them.
 #   * raise-on-failure suites: a local `pg_temp.expect(cond, name)` helper that
-#     `raise exception`s (activate_trial_test.sql, backend_rls_test.sql, the
+#     `raise exception`s (activate_trial_test.sql, backend_rls_audit.sql, the
 #     ai_bypass_* and freemium_guard_* families, …). These emit no TAP at all;
 #     psql's exit status is the whole signal.
 # The style is detected from the file source (`select plan(`/`no_plan(`), so a
@@ -49,7 +49,7 @@ set -euo pipefail
 # PRE-EXISTING / UNTRACKED SUITES
 # -------------------------------
 # Some files in supabase/tests/ are UNTRACKED working-copy files that never
-# reach CI (as of 2026-07-26: backend_rls_test.sql,
+# reach CI (as of 2026-07-26: backend_rls_audit.sql,
 # freemium_gating_lockdown_test.sql, sync_all_user_data_returns_verses_test.sql).
 # They are still executed here — an untested file is worse than a noisy one —
 # but any file listed in $SQL_TESTS_KNOWN_FAILING (space-separated basenames)

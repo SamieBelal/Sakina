@@ -116,7 +116,7 @@ has_active_premium_entitlement(userA): false
 **Verified post-fix:**
 1. SQL-level direct upsert sequence (INITIAL → CANCEL → EXPIRE) — `canceled_at` preserved through expiration ✓
 2. End-to-end via deployed `revenuecat-webhook` (forged events through real edge function → `upsert_user_subscription_if_newer`) — final state `last_event_type=EXPIRATION, canceled_at_preserved=true, expired=true, has_active=false` ✓
-3. `flutter/supabase/tests/backend_rls_test.sql` — added 4 new assertions covering this sequence; full suite now **51/51 PASS** via MCP ✓
+3. `flutter/supabase/checks/backend_rls_audit.sql` — added 4 new assertions covering this sequence; full suite now **51/51 PASS** via MCP ✓
 4. `flutter/supabase/functions/revenuecat-webhook/index.test.ts` — 14 Deno tests still green; the regression-guard test is updated to pin the handler's "omit on EXPIRATION" contract that the SQL fix relies on ✓
 
 ---
@@ -218,7 +218,7 @@ Verified: 0 users left, 0 `user_subscriptions` left, 0 `user_reflections` left f
 ## Regression tests added
 
 - **`flutter/supabase/functions/revenuecat-webhook/index.test.ts`** — added 5 cases (GET 405, invalid JSON 400, missing event 400, non-premium entitlement skip, REGRESSION GUARD for the EXPIRATION→`canceled_at` clobber). Total 14 Deno tests, all green: `cd flutter/supabase/functions/revenuecat-webhook && deno test --no-check index.test.ts`.
-- **`flutter/supabase/tests/backend_rls_test.sql`** — plain-SQL test file, **47 assertions** covering §16.1, §16.2, §16.3, §17.1, §17.2, §17.3. Single-transaction script that BEGIN/ROLLBACKs (no state persists). Designed to run via `mcp__supabase__execute_sql` against the live project — **no supabase CLI, no pgTAP needed**. Re-verified against prod on 2026-04-26: `ALL PASS (47 tests)`.
+- **`flutter/supabase/checks/backend_rls_audit.sql`** — plain-SQL test file, **47 assertions** covering §16.1, §16.2, §16.3, §17.1, §17.2, §17.3. Single-transaction script that BEGIN/ROLLBACKs (no state persists). Designed to run via `mcp__supabase__execute_sql` against the live project — **no supabase CLI, no pgTAP needed**. Re-verified against prod on 2026-04-26: `ALL PASS (47 tests)`.
   - Uses the JWT-impersonation pattern (`set local role authenticated; set_config('request.jwt.claims', ...)`) verified live during the runbook.
   - Helpers (`pg_temp.expect`, `pg_temp.test_insert_auth_user`) are session-scoped, vanish on rollback.
   - To re-run: paste the full file contents into `mcp__supabase__execute_sql query=...`. Pass = single row `ALL PASS, tests=47`. Failures show as `ERROR: FAILED (N tests): | <name1> | <name2> ...`.

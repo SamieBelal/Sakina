@@ -473,7 +473,7 @@ Use `mcp__supabase__apply_migration` with the SQL above. Then run `mcp__supabase
 
 - [ ] **Step 3: Write pgtap tests** — `supabase/tests/referrals_test.sql`
 
-Follow the pattern in `supabase/tests/backend_rls_test.sql` and
+Follow the pattern in `supabase/checks/backend_rls_audit.sql` and
 `supabase/tests/freemium_gating_lockdown_test.sql`. Cover:
 
 - `ensure_referral_code` populates `referral_code` and returns it; second call returns the same code.

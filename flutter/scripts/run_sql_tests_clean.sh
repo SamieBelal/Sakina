@@ -57,22 +57,28 @@ API_PORT="${CLEAN_API_PORT:-55433}"
 SHADOW_PORT="${CLEAN_SHADOW_PORT:-55430}"
 DB_URL="postgresql://postgres:postgres@127.0.0.1:${DB_PORT}/postgres"
 
-# Suites that are red for reasons that PRE-DATE this work and are NOT
-# environment artifacts — each was verified to fail identically against the
-# clean DB and the shared contaminated one on 2026-07-26:
+# EMPTY BY DEFAULT, AND IT SHOULD STAY THAT WAY — this now matches the CI
+# workflow exactly (`SQL_TESTS_KNOWN_FAILING: ''`), so a green run here means a
+# green run there. That is the entire point of this script.
 #
-#   backend_rls_test.sql              §17.3: reflect_classifier_log has neither
-#                                     RLS enabled nor any policy. UNTRACKED file,
-#                                     so CI has never run it.
-#   streak_freeze_premium_cap_test.sql line 211 insert into user_subscriptions
-#                                     violates that table's RLS policy.
-#   push_on_referral_confirm_test.sql `not ok 5` — the on-referral-confirm
-#                                     trigger DDL no longer matches the S4-fix
-#                                     shape the test pins.
+# It used to default to three tolerated failures, all recorded 2026-07-26. All
+# three are gone as of 2026-08-02, verified by a clean run at 51 files /
+# 348 assertions / 0 failures:
 #
-# They are reported under "PRE-EXISTING FAILURES" so a NEW regression can't hide
-# behind them. Everything else, including untracked suites, gates strictly.
-export SQL_TESTS_KNOWN_FAILING="${SQL_TESTS_KNOWN_FAILING-backend_rls_test.sql streak_freeze_premium_cap_test.sql push_on_referral_confirm_test.sql}"
+#   backend_rls_test.sql              Was never a pgTAP suite — an MCP-run audit
+#                                     against a POPULATED database that this
+#                                     comment already noted CI had never run,
+#                                     because it was untracked. Moved out of the
+#                                     glob to supabase/checks/backend_rls_audit.sql;
+#                                     see the README there.
+#   streak_freeze_premium_cap_test.sql Passes. Fixed sometime after 2026-07-26.
+#   push_on_referral_confirm_test.sql  Passes. Same.
+#
+# The lesson worth keeping: a default allowlist rots silently in the permissive
+# direction. Two of these three had been fixed for weeks and the tolerance stayed,
+# so this script would have swallowed a genuine regression in either file. If you
+# must add an entry, date it and delete it as soon as it passes.
+export SQL_TESTS_KNOWN_FAILING="${SQL_TESTS_KNOWN_FAILING-}"
 
 WORKDIR="$(mktemp -d -t sakina-cleandb)"
 

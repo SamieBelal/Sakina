@@ -21,7 +21,7 @@ The CLAUDE.md rule "`saveOnboardingData` writes exact column names — one misma
 - [ ] Read `supabase/migrations/20260509000000_revoke_anon_rpc_execute.sql` — the current `sync_all_user_data()` body + the return-shape it builds. Note the exact section keys and how existing sections (tokens, streak, card_collection) are assembled.
 - [ ] Read `supabase/migrations/20260719000000_streaks_defense.sql:201-230` — the current `claim_streak_milestone(p_day int)` body, and the streak table/columns it reads (for the "reached" check).
 - [ ] Read `supabase/migrations/20260412170000_economy_atomic_hardening_wave6.sql` — the established atomic-RPC + guard-trigger pattern to mirror (locking, error style).
-- [ ] Read one pgTAP file e.g. `supabase/tests/ai_bypass_rpc_test.sql` and `supabase/tests/backend_rls_test.sql` — the test harness style (plan(), `results_eq`, `throws_ok`, auth simulation via `set local role` / `request.jwt.claims`).
+- [ ] Read one pgTAP file e.g. `supabase/tests/ai_bypass_rpc_test.sql` and `supabase/checks/backend_rls_audit.sql` — the test harness style (plan(), `results_eq`, `throws_ok`, auth simulation via `set local role` / `request.jwt.claims`).
 
 Record the real names you find (streak table, current-streak column, the auth-uid helper used, e.g. `auth.uid()`), and substitute them wherever this plan writes `<streak_table>` / `<current_streak_col>`.
 
@@ -151,7 +151,7 @@ git commit -m "feat(cosmetics): economy schema — inventory, catalog, Noor ledg
 
 **Files:**
 - Modify: `supabase/migrations/20260726000000_cosmetics_economy.sql` (append)
-- Test: `supabase/tests/backend_rls_test.sql` conventions → add a focused test file `supabase/tests/cosmetics_guard_test.sql`
+- Test: `supabase/checks/backend_rls_audit.sql` conventions → add a focused test file `supabase/tests/cosmetics_guard_test.sql`
 
 - [ ] **Step 1: Write the failing test** (an authenticated user CANNOT raise their own balance or insert inventory directly)
 
@@ -159,7 +159,7 @@ git commit -m "feat(cosmetics): economy schema — inventory, catalog, Noor ledg
 -- supabase/tests/cosmetics_guard_test.sql
 begin;
 select plan(3);
--- simulate an authenticated user (match the pattern in backend_rls_test.sql)
+-- simulate an authenticated user (match the pattern in backend_rls_audit.sql)
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub','00000000-0000-0000-0000-000000000001')::text, true);
 
@@ -252,7 +252,7 @@ git commit -m "feat(cosmetics): guard trigger + RLS lock economy columns to RPCs
 begin;
 select plan(4);
 -- seed a user row in user_profiles for id ...0001 (match existing test fixtures)
--- ... (insert fixture as backend_rls_test.sql does) ...
+-- ... (insert fixture as backend_rls_audit.sql does) ...
 
 -- happy: a recognized reason grants the SERVER amount (not a client amount)
 select is(
@@ -617,7 +617,7 @@ end $$;
 
 - [ ] **Step 4: Run, verify pass** — Expected: 3/3 PASS. Also re-run the existing sync test suite to prove no existing section regressed:
 
-Run: `psql "$SUPABASE_DB_URL" -f supabase/tests/backend_rls_test.sql` (and any existing sync test) — Expected: still PASS.
+Run: `psql "$SUPABASE_DB_URL" -f supabase/checks/backend_rls_audit.sql` (and any existing sync test) — Expected: still PASS.
 
 - [ ] **Step 5: Commit**
 

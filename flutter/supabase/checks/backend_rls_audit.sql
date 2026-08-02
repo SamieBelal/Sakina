@@ -16,7 +16,7 @@
 --   §17.3 RLS audit — every scoped table has RLS on with at least one policy
 --
 -- Run via:
---   mcp__supabase__execute_sql query=$(cat backend_rls_test.sql)
+--   mcp__supabase__execute_sql query=$(cat supabase/checks/backend_rls_audit.sql)
 -- or paste inline. The whole script is one statement-level batch.
 
 begin;

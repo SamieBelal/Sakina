@@ -5,7 +5,7 @@
 -- Verifies freemium gating fields cannot be tampered with by direct client
 -- UPDATE or DELETE, while legitimate app/backend paths still work.
 --
--- Pattern matches backend_rls_test.sql: one transaction, assertions inside a
+-- Pattern matches backend_rls_audit.sql: one transaction, assertions inside a
 -- DO block, rollback at end. Run via:
 --   mcp__supabase__execute_sql query=$(cat freemium_gating_lockdown_test.sql)
 --

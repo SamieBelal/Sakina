@@ -23,7 +23,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/analytics_events.dart';
-import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/install_id_service.dart' show installIdPropertyName;
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState;
 

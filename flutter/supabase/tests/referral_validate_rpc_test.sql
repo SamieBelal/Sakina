@@ -13,7 +13,7 @@
 --   * returns true for an anon caller (auth.uid() is null) with a valid
 --     foreign code — pins the pre-signup onboarding-field code path
 --
--- Pattern matches referrals_test.sql / backend_rls_test.sql: one
+-- Pattern matches referrals_test.sql / backend_rls_audit.sql: one
 -- transaction, assertions inside a DO block, rollback at end. Run via:
 --   mcp__supabase__execute_sql query=$(cat referral_validate_rpc_test.sql)
 

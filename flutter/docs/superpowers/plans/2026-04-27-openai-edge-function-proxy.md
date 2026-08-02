@@ -561,7 +561,7 @@ select public.consume_openai_quota('00000000-0000-0000-0000-000000000003'::uuid,
 -- See test/sql/openai_proxy_race_test.sql for the harness.
 ```
 
-Add `supabase/tests/openai_proxy_rpc_test.sql` mirroring the structure of the existing `backend_rls_test.sql`.
+Add `supabase/tests/openai_proxy_rpc_test.sql` mirroring the structure of the existing `backend_rls_audit.sql`.
 
 ### 2. Integration test against deployed staging function
 
