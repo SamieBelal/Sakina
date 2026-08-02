@@ -42,6 +42,7 @@ import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
+import 'package:sakina/services/reveal_entry_source.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1370,8 +1371,29 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           'is_duplicate': engageResult.isDuplicate,
           AnalyticsEvents.propProblemCategory: state.checkinProblemCategory,
           AnalyticsEvents.propInputMode: state.checkinInputMode,
+          // W6 Wave B / W3 §9: EXTENDS, does not fork. `path` stays 'discover'
+          // — the binding rule above applies here too. Answers "did the
+          // 7-day queue actually run" off the DAU event already trusted for
+          // D1/D7/D30, rather than a new, unproven event.
+          AnalyticsEvents.propNameSource: state.revealSource,
+          if (state.revealQueuePosition != null)
+            AnalyticsEvents.propQueuePosition: state.revealQueuePosition,
         });
       } catch (_) {}
+
+      // Second-Name lifecycle analytics (W6 Wave B / W3 §9) — the only
+      // measurement of whether the seven-day queue's own promise (a second
+      // Name, on a schedule) actually happens. Best-effort for the same
+      // reason as `check_in_completed` above: a throwing hook must never flip
+      // a completed reveal into `state.error`, which the bypass wrappers read
+      // to decide commit-versus-refund.
+      await _emitSecondNameLifecycle(
+        preCallQueueRows: queueRows,
+        plan: plan,
+        queueDriven: queueDriven,
+        queueRow: queueRow,
+        localDateString: localDay.dateString,
+      );
 
       // ---- Consume the daily allowance (W4 Wave 1) --------------------------
       //
@@ -1446,6 +1468,81 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       state = state.copyWith(
           checkinLoading: false, error: 'Something went wrong. Try again.');
     }
+  }
+
+  /// `second_name_teased` fires from the onboarding reveal screen's own static
+  /// hook (it isn't reachable from here at all); the other two fire from
+  /// [discoverName], called at the end of its `try` block, ONE STATEMENT so
+  /// neither can be forgotten if the other is edited later.
+  ///
+  /// Every emit inside is wrapped in its own `catch (_)`, mirroring
+  /// `GatingService._emitTasteConsumed`'s reasoning verbatim: a throw escaping
+  /// into `discoverName`'s outer `catch` would flip a reveal that ALREADY
+  /// HAPPENED into `state.error`, which the bypass wrappers read to decide
+  /// commit-versus-refund — discarding a real reveal and refunding a bypass
+  /// that was already well spent, over a telemetry hiccup.
+  ///
+  /// [preCallQueueRows] is the advisory read from BEFORE this call's unseal —
+  /// position 1's `unsealedAt` there is the onboarding seed timestamp, the
+  /// closest proxy this file has to "when the tease happened" without a new
+  /// persisted field, since `second_name_teased` fires the same day the queue
+  /// is seeded.
+  Future<void> _emitSecondNameLifecycle({
+    required List<NameQueueRow> preCallQueueRows,
+    required QueueRevealPlan plan,
+    required bool queueDriven,
+    required NameQueueRow? queueRow,
+    required String localDateString,
+  }) async {
+    final seedAt = _rowAtPosition(preCallQueueRows, 1)?.unsealedAt;
+    final nowUtc = debugDailyLoopClock();
+    int? daysSinceTease(DateTime? at) =>
+        (seedAt == null || at == null) ? null : at.difference(seedAt).inDays;
+
+    // second_name_unseal_available — position 2 just became unsealable.
+    //
+    // `QueueUnseal` (rule 5 of the planner) always targets the LOWEST still-
+    // sealed position, which lets this be computed here without a return value
+    // from the planner: if that position is 2 today, position 2's 20h floor
+    // has just cleared. Deduped on the user's LOCAL date, not per call — a
+    // user who opens the app four times before revealing must not make the
+    // unseal rate (unsealed ÷ available) read four times worse than it is.
+    final position2 = _rowAtPosition(preCallQueueRows, 2);
+    if (plan is QueueUnseal && position2 != null && position2.isSealed) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final latchKey = supabaseSyncService
+            .scopedKey('second_name_unseal_available_$localDateString');
+        if (prefs.getBool(latchKey) != true) {
+          await prefs.setBool(latchKey, true);
+          onAnalyticsEvent?.call(AnalyticsEvents.secondNameUnsealAvailable, {
+            AnalyticsEvents.propNameId: position2.nameId,
+            if (daysSinceTease(nowUtc) != null)
+              AnalyticsEvents.propDaysSinceTease: daysSinceTease(nowUtc),
+          });
+        }
+      } catch (_) {}
+    }
+
+    // second_name_unsealed — position 2 ONLY. A third-or-later Name is
+    // ordinary discovery, not the queue's promise being kept.
+    if (queueDriven && queueRow != null && queueRow.position == 2) {
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.secondNameUnsealed, {
+          AnalyticsEvents.propSource: consumeRevealEntrySource(),
+          AnalyticsEvents.propNameId: queueRow.nameId,
+          if (daysSinceTease(nowUtc) != null)
+            AnalyticsEvents.propDaysSinceTease: daysSinceTease(nowUtc),
+        });
+      } catch (_) {}
+    }
+  }
+
+  NameQueueRow? _rowAtPosition(List<NameQueueRow> rows, int position) {
+    for (final row in rows) {
+      if (row.position == position) return row;
+    }
+    return null;
   }
 
   /// Discover-name path funded by an AI bypass (token spend). Reserves on

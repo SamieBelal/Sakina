@@ -471,6 +471,17 @@ void main() {
       // spine and therefore the event people extend — W4 Wave 7 added two
       // props to it and W3's carried wave added two more, in one week. Pinning
       // the key set means the next addition has to be deliberate.
+      //
+      // W6 Wave B is the next deliberate addition, and this pin is what made it
+      // deliberate — it failed on the first full-suite run after that wave and
+      // is being updated on purpose rather than relaxed.
+      //
+      // `name_source` distinguishes a Name that came from the seven-day queue
+      // from a gacha pull, which is the only way to ask whether the queue
+      // actually ran. `queue_position` rides alongside it on the QUEUE path and
+      // is OMITTED here — this is the legacy/gacha path, and an absent key is
+      // correct where a null would claim a position that does not exist. That
+      // asymmetry is pinned in check_in_completed_not_forked_test.dart.
       expect(checkIn.single.props.keys.toSet(), {
         'path',
         'name',
@@ -478,6 +489,7 @@ void main() {
         'is_duplicate',
         AnalyticsEvents.propProblemCategory,
         AnalyticsEvents.propInputMode,
+        AnalyticsEvents.propNameSource,
       });
       // `path` is the D1/D7 retention spine. Changing it to `'feeling'` — as
       // the original Phase-2 prescription proposed — breaks every historical

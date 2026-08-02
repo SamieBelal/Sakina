@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/achievement_toast.dart';
 import 'analytics_event_names.dart';
+import 'reveal_entry_source.dart';
 import 'supabase_sync_service.dart';
 import 'user_local_day.dart';
 
@@ -535,6 +536,14 @@ class NotificationService {
           'type': type ?? 'unknown',
           'route': route,
         });
+      } catch (_) {}
+      // Second-Name lifecycle attribution (W6 Wave B / W3 §9). Stamped for
+      // every click, not just types that route to `/muhasabah` — no push type
+      // does today, and a user re-engaged by ANY push is a plausible reason
+      // they went on to unseal. This is exactly the "directional, not exact"
+      // imprecision the attribution is documented to accept.
+      try {
+        stampRevealEntrySource(AnalyticsEvents.revealSourcePush);
       } catch (_) {}
     });
   }

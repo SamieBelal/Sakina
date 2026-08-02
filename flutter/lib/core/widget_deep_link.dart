@@ -6,6 +6,7 @@ import 'package:home_widget/home_widget.dart';
 
 import '../services/analytics_events.dart';
 import '../services/daily_question_analytics.dart';
+import '../services/reveal_entry_source.dart';
 import '../widgets/achievement_toast.dart' show rootNavigatorKey;
 
 /// URL scheme the iOS widget's `.widgetURL` uses. MUST be registered in the
@@ -110,6 +111,14 @@ class WidgetDeepLinkHandler {
   void _handle(Uri? uri, {required bool cold}) {
     final location = parseWidgetDeepLink(uri);
     if (location == null) return;
+    // Second-Name lifecycle attribution (W6 Wave B / W3 §9): only the
+    // muḥāsabah target can plausibly explain a queue unseal — a build-dua tap
+    // is a different surface entirely. Stamped BEFORE analytics/navigation so
+    // a same-frame discoverName() (unlikely, but not this handler's job to
+    // rule out) still sees it.
+    if (_widgetTarget(uri) == 'muhasabah') {
+      stampRevealEntrySource(AnalyticsEvents.revealSourceWidget);
+    }
     // NOTE: this path only sees HOME-WIDGET taps (delivered via
     // HomeWidget.widgetClicked). A Live Activity `Link` is delivered straight to
     // GoRouter by Flutter deep-linking, NOT this stream, so its

@@ -1367,4 +1367,89 @@ abstract final class AnalyticsEvents {
   static const String duaRead = 'dua_read';
 
   static const String propDuaId = 'dua_id';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // W6 Wave B — the Second-Name lifecycle.
+  //
+  // Inherited scope: W3 specified this as its Wave 5, W3 shipped its other four
+  // slices, and the fifth never landed — `grep -rn second_name lib/` returned
+  // nothing until this wave. It is FEATURE work that arrived inside an
+  // instrumentation plan, which is why it was split out and costed separately
+  // rather than smuggled in as "a few more events".
+  //
+  // It measures the seven-day queue: the ship's central retention mechanic, and
+  // the one thing the T0+6wk keep decision would otherwise be blind to. Without
+  // these, "did the queue run?" cannot be asked at all — only "did people come
+  // back", which conflates the queue with everything else in the app.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// A second Name was TEASED at the end of the onboarding reveal — the promise
+  /// the seven-day queue is made of. Carries [propNameId], [propDeckId] and
+  /// [propContract].
+  ///
+  /// Latched alongside `kindledFired` so a rebuild cannot re-fire it; one tease
+  /// per user, ever.
+  static const String secondNameTeased = 'second_name_teased';
+
+  /// The teased Name became unsealable. Carries [propNameId] and
+  /// [propDaysSinceTease].
+  ///
+  /// **Deduped on the USER-LOCAL date**, not per launch: four app opens in one
+  /// day are one availability, and counting them four times would make the
+  /// unseal rate (unsealed ÷ available) look four times worse than it is.
+  static const String secondNameUnsealAvailable =
+      'second_name_unseal_available';
+
+  /// The user actually met the second Name. Carries [propSource],
+  /// [propNameId] and [propDaysSinceTease].
+  ///
+  /// Position 2 only — a third or later Name is ordinary discovery, not the
+  /// queue's promise being kept.
+  static const String secondNameUnsealed = 'second_name_unsealed';
+
+  static const String propNameId = 'name_id';
+  static const String propDeckId = 'deck_id';
+
+  /// Days between the tease and this event. The queue promises a Name on a
+  /// schedule; this is whether the schedule held.
+  static const String propDaysSinceTease = 'days_since_tease';
+
+  // [propSource] on [secondNameUnsealed] — how the user got back to the app for
+  // it. **DIRECTIONAL, NOT EXACT, and it must be documented that way wherever
+  // it is charted.**
+  //
+  // The stamp is a process-global `(source, timestamp)` with a ~10-minute TTL,
+  // written by the widget deep-link handler and the notification click
+  // listener and read once by the unseal. A cold-launch race, or a user who
+  // wanders through the app before revealing, both degrade to
+  // [revealSourceOrganic]. So `organic` means "widget/push not observed",
+  // NOT "arrived organically" — it is a floor on organic, not a measurement of
+  // it. Treating it as exact would over-credit organic and under-credit the
+  // two surfaces the queue actually depends on.
+
+  /// The user came back via the home-screen widget.
+  static const String revealSourceWidget = 'widget';
+
+  /// The user came back via a push notification.
+  static const String revealSourcePush = 'push';
+
+  /// Neither was observed within the TTL. See the caveat above — this is the
+  /// residual bucket, not a positive finding.
+  static const String revealSourceOrganic = 'organic';
+
+  /// On `check_in_completed`: whether this Name came from the seven-day queue
+  /// or from the gacha. [nameSourceQueue] | [nameSourceGacha].
+  ///
+  /// **Rides alongside `path`, which stays `'discover'`.** Do not fork the
+  /// event and do not change `path` — the binding rule from W3/W4. The daily
+  /// funnel already divides into `check_in_completed`, and a fork would break
+  /// every series that crosses the T0 boundary.
+  static const String propNameSource = 'name_source';
+
+  static const String nameSourceQueue = 'queue';
+  static const String nameSourceGacha = 'gacha';
+
+  /// Which position in the seven-day queue this Name was. Answers whether users
+  /// get through the queue or stall at position 2.
+  static const String propQueuePosition = 'queue_position';
 }

@@ -644,6 +644,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       OnboardingRevealScreen(
         pairNameIds: pairNameIds,
         latch: _revealLatch,
+        // W6 Wave B: rides `second_name_teased` alongside Name₂'s id/deck.
+        // Read from state (not a field), same reasoning as `_onHookCommitted`
+        // above — survives an app kill between the hook and this page.
+        contract: ref.read(onboardingProvider).contract,
         onBack: _back,
         onDone: _onRevealDone,
       ),

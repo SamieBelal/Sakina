@@ -34,6 +34,7 @@ class OnboardingRevealScreen extends StatefulWidget {
     this.onBack,
     this.stories,
     this.latch,
+    this.contract,
     this.loaderBeat = const Duration(milliseconds: 2200),
     this.showFirstRunHint = true,
     super.key,
@@ -57,6 +58,13 @@ class OnboardingRevealScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
   final NameStoriesService? stories;
+
+  /// [HookContract.problem] / [HookContract.sign] — what the hook promised.
+  /// Carried on `second_name_teased` (W6 Wave B / W3 §9) alongside Name₂'s own
+  /// id/deck. Null in tests and for any caller that hasn't resolved a hook
+  /// (the comfort-pair / kill-switch paths still reveal — the contract is
+  /// just absent on that emit, not fabricated).
+  final String? contract;
 
   /// The once-per-onboarding-run latch for the award / abandon emissions.
   ///
@@ -115,6 +123,12 @@ class OnboardingRevealLatch {
   /// in the [State] for the same reason as the others: a re-mount rebuilds the
   /// beat, and the lamp is only ever lit once per onboarding run.
   bool kindledFired = false;
+
+  /// `second_name_teased` (W6 Wave B / W3 §9) has been reported. Mirrors
+  /// [kindledFired]'s reasoning exactly: lives here, not in [State], so a
+  /// re-mount (back-nav, a PageView rebuild) cannot re-fire it — one tease per
+  /// user, ever.
+  bool secondNameTeasedFired = false;
 
   /// [OnboardingRevealScreen.onDone] has been handed back. Guards the deckless-
   /// Name₂ path, where `_finish` runs from a post-frame callback in `build`:
@@ -233,6 +247,43 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
     setState(() => _phase = _Phase.tease);
   }
 
+  /// Schedules `second_name_teased{name_id, deck_id, contract}` — the promise
+  /// the seven-day queue is made of — for the frame after [two] is first
+  /// shown sealed.
+  ///
+  /// Called from `build()`, not `_onAmeen`, and deliberately so: `_onAmeen`
+  /// already guards ITSELF against re-entry via `_latch.completed`, which
+  /// would make a guard living only there untestable dead code. `build()`
+  /// re-runs on every rebuild while the tease is on screen (a parent
+  /// `setState`, a PageView relayout) with no such guard of its own — exactly
+  /// the shape `kindledFired` protects against for the kindle beat, and this
+  /// mirrors it. The post-frame hop (not a direct call) keeps a side effect
+  /// out of `build()` itself, matching the deckless-tease `_finish` scheduling
+  /// three lines below.
+  void _scheduleSecondNameTeased(NameStoryDeck two) {
+    if (_latch.secondNameTeasedFired) return;
+    // Set BEFORE scheduling, not inside the callback: several builds can land
+    // before the first post-frame callback runs, and each would otherwise
+    // schedule its own.
+    _latch.secondNameTeasedFired = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Guarded: a throwing hook must not surface as an uncaught exception
+      // from a scheduler callback, which Flutter treats as a crash report.
+      try {
+        OnboardingRevealScreen.onAnalyticsEvent?.call(
+          AnalyticsEvents.secondNameTeased,
+          {
+            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceOnboardingReveal,
+            AnalyticsEvents.propNameId: two.nameId,
+            AnalyticsEvents.propDeckId: two.deckId,
+            if (widget.contract != null)
+              AnalyticsEvents.propContract: widget.contract,
+          },
+        );
+      } catch (_) {}
+    });
+  }
+
   void _finish() {
     if (_latch.finished) return;
     _latch.finished = true;
@@ -247,6 +298,7 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   Widget build(BuildContext context) {
     final tease = _name2;
     if (_phase == _Phase.tease && tease != null) {
+      _scheduleSecondNameTeased(tease);
       return SealedNameTease(deck: tease, onContinue: _finish);
     }
     // Name₂ has no approved deck (ship-gate fallback territory) — the reveal
