@@ -40,11 +40,19 @@ void main() {
   };
 
   // Duʿa provenance that RENDERS (`DuaTextBlock` shows the source line). Only
-  // these three decks cite the duʿa itself — their sources table names the exact
+  // these decks cite the duʿa itself — their sources table names the exact
   // verse/hadith the words come from. Pinned so the attribution can never be
-  // silently dropped. The other eleven duʿas are catalog invocations with no
-  // citation anywhere in their deck; the gate will not accept an invented one,
-  // and byte-identity with the verified catalog (below) is their provenance.
+  // silently dropped. Every other duʿa is a catalog invocation with no citation
+  // anywhere in its deck, and byte-identity with the verified catalog (below)
+  // is its provenance.
+  //
+  // This map is EXHAUSTIVE, not a whitelist — see the assertion below. An
+  // earlier version of this comment claimed "the gate will not accept an
+  // invented one" while the check was `if (pinned != null)`, i.e. it asserted
+  // nothing at all about the unpinned decks: a fabricated `source` on any of
+  // them would have rendered on screen and passed CI silently. Adding a deck
+  // that cites its duʿa means adding it here, and that is the point — a
+  // citation nobody had to write down is a citation nobody verified.
   const renderedDuaSources = {
     'as-salam@1': 'Sahih Muslim 591',
     'al-wakeel@1': "Qur'an 3:173",
@@ -199,13 +207,26 @@ void main() {
           expect(b['primary'], catalogDuaTranslation[d['name_id']],
               reason: '${d['deck_id']} dua translation diverges from the '
                   'verified catalog');
-          final pinned = renderedDuaSources[d['deck_id']];
-          if (pinned != null) {
-            expect(b['source'], pinned,
-                reason: '${d['deck_id']} dropped the duʿa citation its own '
-                    'sources table carries — attribution renders, so losing '
-                    'it is a content regression');
-          }
+          // Both directions, because each failure is real and they are
+          // different failures:
+          //   * a pinned deck losing its citation is a content regression —
+          //     the attribution renders, so dropping it silently unattributes
+          //     words the sources table says came from somewhere specific;
+          //   * an UNPINNED deck growing one is worse. It renders a provenance
+          //     claim under `DuaTextBlock` that no sources table backs and no
+          //     human ever verified. That is the fabrication this whole gate
+          //     exists to make impossible, and until now it was the one shape
+          //     of it the gate could not see.
+          final pinned = renderedDuaSources[d['deck_id']] ?? '';
+          expect(((b['source'] ?? '') as String), pinned,
+              reason: pinned.isEmpty
+                  ? '${d['deck_id']} renders a duʿa citation that is not in '
+                      'renderedDuaSources. Either it is invented — in which '
+                      'case delete it — or it is real, in which case verify it '
+                      'and pin it here.'
+                  : '${d['deck_id']} dropped the duʿa citation its own sources '
+                      'table carries — attribution renders, so losing it is a '
+                      'content regression');
         }
         if (kind == 'verse' || kind == 'comfort_verse') {
           expect(((b['source'] ?? '') as String).isNotEmpty, isTrue,
