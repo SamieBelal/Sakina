@@ -353,11 +353,20 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       );
       if (_disposed) return;
       _lastBuiltYmd = _ymd(now);
+      // Resolve the awaited value BEFORE touching `state`. Dart evaluates the
+      // receiver ahead of the arguments, so `state.copyWith(x: await …)` reads
+      // `state` first and writes that pre-await snapshot back — silently
+      // reverting anything that landed while the await was in flight. The
+      // symptom is a field mysteriously reset with no code that resets it,
+      // which points nowhere near the cause. Found by a repo-wide sweep after
+      // the same shape cost four suites in the daily loop (Wave C, 2026-08-02).
+      final snoozed = await _isBannerSnoozed(now);
+      if (_disposed) return;
       state = state.copyWith(
         schedule: schedule,
         now: now,
         building: false,
-        preciseBannerSnoozed: await _isBannerSnoozed(now),
+        preciseBannerSnoozed: snoozed,
       );
       _syncTicker();
       _emitScheduleBuilt(schedule);
