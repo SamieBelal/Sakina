@@ -52,11 +52,20 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 
 ### 1 — In the build (before you cut it)
 
-- [ ] **Land the branch — nothing else in this checklist can happen until it does.**
-  Verified 2026-08-01: `feat/reel-first-w2-onboarding` is **92 commits ahead of its
-  own remote** and **no PR exists** (`gh pr list --head … --state all` → empty). W2 and W5
-  are both sitting local. The remote branch ref exists but is 92 commits stale, so "it's
-  pushed" is not the same as "it's shipped".
+- [x] **~~Land the branch~~ — DONE, and the old wording here was actively misleading.**
+  `feat/reel-first-w2-onboarding` merged as **PR #64 (`a4e493c`)**; master carries W1
+  through W6. Re-verified 2026-08-02 at `814975c`.
+
+  The superseded line said this was **92 commits ahead of its own remote with no PR**
+  and declared that *"nothing else in this checklist can happen until it does."* That was
+  true when written on 2026-08-01 and false a day later — and because it was framed as
+  the blocker on everything below it, anyone opening this checklist on release day would
+  conclude they were blocked on work that had already landed.
+
+  **What is actually outstanding is the deployment, not the code:** no 1.3.0 version
+  record exists in App Store Connect (bucket 2), the build has not been submitted, and
+  `t0_flip_all_to_reel_v1.sql` has not run — so `new_signup_cohort` is still `'legacy'`
+  and the tightened free tier reaches **nobody** (bucket 4).
 
 - [x] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** —
   closed by One Ship W6. `reel_hook`/`reel_hook_source` are registered as super properties
@@ -166,7 +175,8 @@ are wrong before the build is live.
   number this release is judged on.
 - [ ] **Delete the retired `reverse_trial_experiment_enabled` key** — step 2b of
   `reverse_trial_close.sql`, currently commented out. Pure hygiene, no urgency; a retired
-  key costs nothing.
+  key costs nothing. Tracked with every other flag in the
+  [retirement ledger](#feature-flag-retirement-ledger).
 - [ ] **Sanity-check the satisfaction thresholds against the real baseline —
   before the T0+6wk read, not during it.** W6 Wave E shipped four "what bad looks like"
   numbers (rating-gate accept rate, churn reasons, D1, and D7 as *the guardrail that
@@ -178,6 +188,57 @@ are wrong before the build is live.
 
 - [ ] T0+6wk: the **keep decision**, which in turn triggers the
   [softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+---
+
+## Feature-flag retirement ledger
+
+**Trigger:** each row carries its own. Nothing here is due today.
+
+Every `app_config` key the app reads, and **what has to happen before deleting it
+is safe**. This exists because that answer was previously recoverable only by
+grepping `getBool`/`getString`/`getInt` call sites and trusting the code comments
+around them — and during the 2026-08-02 cleanup audit that method produced a
+confidently wrong answer (see the `guided_tour_enabled` row).
+
+A flag is safe to delete when **no shipped binary still reads it**. That is a
+higher bar than "master no longer reads it", and it is the bar this table uses.
+
+| Key | Read by | Status | Safe to delete when |
+|---|---|---|---|
+| `guided_tour_enabled` | `main.dart:399` → `flag_guided_tour` super property | **LIVE for users.** See the note below. | The 1.3.0 tour deletion is live AND 1.2.0 adoption has tailed off |
+| `reel_first_onboarding_enabled` | `onboarding_screen.dart:182` | **LIVE kill switch** — the revert path for 1.3.0's entire thesis | T0+6wk keep decision |
+| `onboarding_trim_enabled` | `onboarding_screen.dart:185` | **LIVE** — picks which flow the kill switch reverts *to* | With the row above; deleting it alone leaves the switch with no target |
+| `post_tour_paywall_mode` | `app_session.dart:356` | **LIVE**, prod = `soft` | Never — a dial, not a flag |
+| `hard_paywall_after_tour_enabled` | `app_session.dart:792` | Legacy bool; the fallback when the mode key is unset | Once `post_tour_paywall_mode` has held in prod across a release |
+| `warmup_reflect_size`, `warmup_built_dua_size`, `warmup_discover_name_size` | `gating_service.dart:201` | **LIVE dials**, prod = 3/3/3 | Never — meant to be tuned |
+| `weekly_pool_size` | `gating_service.dart:298` | **LIVE dial**, prod = 3 | Never |
+| `bypass_token_cost`, `max_bypasses_per_day` | Server-side RPC only | Live until the bypass subsystem dies | [Softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor) |
+| `new_signup_cohort` | `t0_flip_all_to_reel_v1.sql` | **Not yet flipped** — still `'legacy'` | After T0, once every account is backfilled |
+| `reverse_trial_experiment_enabled` | Retired 2026-08-01 18:11 UTC | Row still present, read by nothing | Now — bucket 5 above |
+
+### The `guided_tour_enabled` trap, written down so it is not re-derived
+
+The tour was deleted from the codebase on 2026-07-28, and `main.dart` carries a
+comment saying exactly that. Reading only master, the obvious conclusion is that
+the flag is inert and can go.
+
+**It cannot.** The deletion lives on master, and master is 1.3.0, which has not
+shipped. **Every user on the App Store today is running 1.2.0 — which still has
+the tour and still reads this key to decide whether to show it.** Deleting the
+`app_config` row would change the live experience for the entire install base.
+
+There is a second, subtler trap in deleting the row *before* the code: with the
+row absent, `getBool(…, fallback: true)` finds nothing to refresh, so a
+cold-cache client falls back to `true` while a warm-cache client keeps whatever
+it last saw. A constant, harmless analytics dimension becomes an inconsistent
+one. **Retire the code read first, the row second.**
+
+`flag_guided_tour` is not among the super properties the bucket-5 coverage check
+reads (`onboarding_flow`, `contract`, `reel_hook_source`, `free_tier_cohort`), so
+its removal does not disturb the T0 readout.
+
+**Surfaced by:** workspace cleanup audit, 2026-08-02.
 
 ---
 
