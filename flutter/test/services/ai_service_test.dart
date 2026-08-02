@@ -250,4 +250,41 @@ Second thought here.
       expect(parsed!.reframe, 'Ayoub endured his trials.');
     });
   });
+
+  group('parseRelatedDuaRows', () {
+    test('drops the echoed prompt legend row', () {
+      // The buildDua prompt states the format as a literal line, and the model
+      // echoed it back. It used to survive (title:"Title", arabic:"Arabic" are
+      // both non-empty) and rendered as the first — expanded — related card.
+      final rows = parseRelatedDuaRows('''
+Title | Arabic | Transliteration | Translation | Source
+Dua for Marriage | رَبَّنَا هَبْ لَنَا | Rabbana hab lana | Our Lord, grant us | Quran 25:74
+''');
+
+      expect(rows, hasLength(1));
+      expect(rows.single.title, 'Dua for Marriage');
+    });
+
+    test('drops any row whose Arabic column holds no Arabic script', () {
+      final rows = parseRelatedDuaRows('''
+Some Dua | (Arabic goes here) | translit | translation | source
+Real Dua | اللَّهُمَّ إِنِّي أَسْأَلُكَ | Allahumma inni as'aluka | O Allah, I ask You | Hadith
+''');
+
+      expect(rows, hasLength(1));
+      expect(rows.single.title, 'Real Dua');
+    });
+
+    test('keeps well-formed rows and strips list numbering from the title', () {
+      final rows = parseRelatedDuaRows('''
+1. Dua for Patience | رَبَّنَا أَفْرِغْ عَلَيْنَا صَبْرًا | Rabbana afrigh | Our Lord, pour patience | Quran 2:250
+- Dua for Light | اللَّهُمَّ اجْعَلْ لِي نُورًا | Allahumma ij'al li nooran | O Allah, make for me light | Hadith
+''');
+
+      expect(rows, hasLength(2));
+      expect(rows[0].title, 'Dua for Patience');
+      expect(rows[1].title, 'Dua for Light');
+      expect(rows[0].source, 'Quran 2:250');
+    });
+  });
 }
