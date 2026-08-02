@@ -62,11 +62,15 @@ SVGs reference `'DM Serif Display'` (display) and `Lora` (body), with `Georgia` 
 
 ## Regenerating slide 8 if the app icon changes
 
-Slide 8 embeds the app icon at `screenshots-app/public/app-icon.png` as inline base64. To regenerate after updating the icon:
+Slide 8 embeds the app icon as inline base64. It used to live at
+`screenshots-app/public/app-icon.png`; that directory was deleted in the
+2026-08-02 cleanup, and the icon — which was a distinct 1024px file, not a copy
+of any other brand asset — was rescued to `flutter/docs/marketing/brand/`.
+Paths below are repo-relative so they survive the next move.
 
 ```bash
-cd "/Users/appleuser/CS Work/Repos/sakina/flutter/sakina-research/workspace/assets/duas-not-accepted-svgs"
-ICON_B64=$(base64 -i "/Users/appleuser/CS Work/Repos/sakina/screenshots-app/public/app-icon.png" | tr -d '\n')
+cd "$(git rev-parse --show-toplevel)/flutter/sakina-research/workspace/assets/duas-not-accepted-svgs"
+ICON_B64=$(base64 -i "$(git rev-parse --show-toplevel)/flutter/docs/marketing/brand/app-icon-1024.png" | tr -d '\n')
 # then re-run the heredoc that produced 08-cta.svg, substituting ${ICON_B64}
 ```
 

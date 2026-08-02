@@ -82,38 +82,5 @@
     "https://esm.sh/whatwg-url@5.0.0?target=denonext": "f001a2cadf81312d214ca330033f474e74d81a003e21e8c5d70a1f46dc97b02d",
     "https://esm.sh/ws@8.21.0/denonext/ws.mjs": "2123ca54b24f3afe1eaf408d9e6b39147b05cda4c3c0c7773465e44c86964671",
     "https://esm.sh/ws@8.21.0?target=denonext": "bbe46738716c3f43e77c16cd757403a4a9e8bcca1559f405c06fe59e5b6f3de5"
-  },
-  "workspace": {
-    "packageJson": {
-      "dependencies": [
-        "npm:@anthropic-ai/sdk@0.81",
-        "npm:@expo-google-fonts/amiri@~0.4.1",
-        "npm:@expo/vector-icons@^15.0.3",
-        "npm:@react-native-async-storage/async-storage@2.2.0",
-        "npm:@supabase/supabase-js@^2.101.1",
-        "npm:@types/react@19.1",
-        "npm:babel-preset-expo@^55.0.13",
-        "npm:expo-font@~14.0.11",
-        "npm:expo-haptics@~15.0.8",
-        "npm:expo-linear-gradient@~15.0.8",
-        "npm:expo-linking@~8.0.11",
-        "npm:expo-media-library@~18.2.1",
-        "npm:expo-notifications@~0.32.16",
-        "npm:expo-router@~6.0.23",
-        "npm:expo-secure-store@~15.0.8",
-        "npm:expo-sharing@~14.0.8",
-        "npm:expo-splash-screen@~31.0.13",
-        "npm:expo-status-bar@~3.0.9",
-        "npm:expo@~54.0.33",
-        "npm:react-native-reanimated@~3.16.7",
-        "npm:react-native-safe-area-context@5.6",
-        "npm:react-native-screens@4.16",
-        "npm:react-native-url-polyfill@3",
-        "npm:react-native-view-shot@^4.0.3",
-        "npm:react-native@0.81.5",
-        "npm:react@19.1.0",
-        "npm:typescript@~5.9.2"
-      ]
-    }
   }
 }
