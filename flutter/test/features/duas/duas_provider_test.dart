@@ -401,85 +401,75 @@ void main() {
     expect(notifier.state.error, 'Something went wrong. Please try again.');
   });
 
-  test(
-      'saveCurrentBuiltDua sets needsUpgrade and does not save when free limit hit',
-      () async {
-    // Seed 5 saved duas (the freeJournalLimit) on a free user.
-    final savedPayload = List.generate(
-      DuasNotifier.freeJournalLimit,
-      (i) => {
-        'id': 'dua-$i',
-        'savedAt': fixedNow.toIso8601String(),
-        'need': 'need-$i',
-        'arabic': 'ar',
-        'transliteration': 'tr',
-        'translation': 'en',
-      },
-    );
-    SharedPreferences.setMockInitialValues({
-      'saved_built_duas:user-1': jsonEncode(savedPayload),
+  // The 5-entry free-tier save cap was removed 2026-08-02 (design §9A): the
+  // weekly allowance pool is now the only gate on Build-a-Duʿā, and it is
+  // spent at GENERATION time — so a second ration on KEEPING the output only
+  // destroyed something the user had already paid for. These cases pin that a
+  // free (non-premium) user keeps accumulating well past the old ceiling.
+  for (final existing in [5, 9, 49]) {
+    test(
+        'a free user with $existing saved built duas saves the '
+        '${existing + 1}th', () async {
+      final savedPayload = List.generate(
+        existing,
+        (i) => {
+          'id': 'dua-$i',
+          'savedAt': fixedNow.toIso8601String(),
+          'need': 'need-$i',
+          'arabic': 'ar',
+          'transliteration': 'tr',
+          'translation': 'en',
+        },
+      );
+      SharedPreferences.setMockInitialValues({
+        'saved_built_duas:user-1': jsonEncode(savedPayload),
+      });
+      fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+      SupabaseSyncService.debugSetInstance(fakeSync);
+
+      final notifier = DuasNotifier(
+        dependencies: DuasDependencies(
+          findDuas: (_) async => findResponse(),
+          buildDua: (_) async => buildResponse(),
+          now: () => fixedNow,
+          createId: () => 'dua-new',
+        ),
+        resultRevealDelay: Duration.zero,
+      );
+      addTearDown(notifier.dispose);
+
+      // Wait for loadSavedDuas to finish
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.state.savedBuiltDuas, hasLength(existing));
+
+      // Put something in state.buildResult so saveCurrentBuiltDua proceeds
+      // past its null guard.
+      notifier.setBuildNeed('anything');
+      await notifier.submitBuild();
+      await notifier.saveCurrentBuiltDua();
+
+      expect(
+        notifier.state.savedBuiltDuas,
+        hasLength(existing + 1),
+        reason: 'no free-tier row cap: the save must land',
+      );
+      expect(notifier.state.savedBuiltDuas.last.id, 'dua-new');
+      expect(
+        fakeSync.insertCalls
+            .where((c) => c['table'] == 'user_built_duas')
+            .length,
+        1,
+        reason: 'the new row must reach the server, not just local state',
+      );
     });
-    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
-    SupabaseSyncService.debugSetInstance(fakeSync);
+  }
 
-    final notifier = DuasNotifier(
-      dependencies: DuasDependencies(
-        findDuas: (_) async => findResponse(),
-        buildDua: (_) async => buildResponse(),
-        now: () => fixedNow,
-        createId: () => 'dua-new',
-      ),
-      resultRevealDelay: Duration.zero,
-    );
-    addTearDown(notifier.dispose);
-
-    // Wait for loadSavedDuas to finish
-    await Future<void>.delayed(Duration.zero);
-    expect(notifier.state.savedBuiltDuas, hasLength(DuasNotifier.freeJournalLimit));
-
-    // Put something in state.buildResult so saveCurrentBuiltDua proceeds past
-    // its null guard
-    notifier.setBuildNeed('anything');
-    await notifier.submitBuild();
-
-    expect(notifier.state.needsUpgrade, isFalse);
-    await notifier.saveCurrentBuiltDua();
-
-    expect(notifier.state.needsUpgrade, isTrue);
-    expect(
-      notifier.state.savedBuiltDuas,
-      hasLength(DuasNotifier.freeJournalLimit),
-      reason: 'blocked save must not add to the list',
-    );
-
-    notifier.dismissUpgradePrompt();
-    expect(notifier.state.needsUpgrade, isFalse);
-  });
-
-  test(
-      'save-handled flag prevents the Ameen auto-save loop after cap rejection',
-      () async {
-    // Regression guard for the infinite-loop bug: when a free user hits the
-    // journal cap, the Ameen screen's auto-save was re-running on every
-    // widget rebuild (triggered by dismissUpgradePrompt flipping
-    // needsUpgrade back to false), re-raising the upgrade sheet forever.
-    // The fix sets buildResultSaveHandled=true on cap rejection so the
-    // widget can gate the auto-save on it. This test pins that flag's
-    // lifecycle at the provider level.
-    final savedPayload = List.generate(
-      DuasNotifier.freeJournalLimit,
-      (i) => {
-        'id': 'dua-$i',
-        'savedAt': fixedNow.toIso8601String(),
-        'need': 'need-$i',
-        'arabic': 'ar',
-        'transliteration': 'tr',
-        'translation': 'en',
-      },
-    );
-    SharedPreferences.setMockInitialValues({
-      'saved_built_duas:user-1': jsonEncode(savedPayload),
-    });
+  test('the Ameen auto-save runs once per build result', () async {
+    // Regression guard for the infinite-loop bug: the Ameen screen's
+    // auto-save was re-running on every widget rebuild. `buildResultSaveHandled`
+    // is the latch the widget gates on — it must go true after the save
+    // attempt and only reset when a NEW build starts.
+    SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
 
@@ -503,22 +493,8 @@ void main() {
     expect(notifier.state.buildResultSaveHandled, isFalse);
 
     await notifier.saveCurrentBuiltDua();
-
-    // Cap rejection path marks the attempt as handled AND raises the sheet.
-    expect(notifier.state.needsUpgrade, isTrue);
     expect(notifier.state.buildResultSaveHandled, isTrue);
-
-    // Dismissing the upgrade sheet must NOT reset buildResultSaveHandled,
-    // otherwise the Ameen rebuild would re-enter the auto-save branch.
-    notifier.dismissUpgradePrompt();
-    expect(notifier.state.needsUpgrade, isFalse);
-    expect(
-      notifier.state.buildResultSaveHandled,
-      isTrue,
-      reason:
-          'dismissing the upgrade sheet must keep buildResultSaveHandled=true '
-          'so the Ameen widget does not retry the auto-save in a loop',
-    );
+    expect(notifier.state.savedBuiltDuas, hasLength(1));
 
     // Starting a new build resets the flag so the next result can auto-save.
     notifier.setBuildNeed('another intention');

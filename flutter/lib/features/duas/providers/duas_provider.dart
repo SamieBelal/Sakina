@@ -222,16 +222,9 @@ class DuasState {
   /// [DuasNotifier.dismissBuildWarmupExhausted] to clear.
   final GatedFeature? buildWarmupJustExhausted;
 
-  /// True when saving a built dua was blocked by the free-tier journal limit.
-  /// UI should show the upgrade sheet and call
-  /// [DuasNotifier.dismissUpgradePrompt] when acknowledged.
-  final bool needsUpgrade;
-
   /// True once the auto-save attempt for the current [buildResult] has been
-  /// made, whether the save succeeded or was rejected by the cap. The Ameen
-  /// screen reads this to avoid retrying the auto-save in a loop after the
-  /// user dismisses the upgrade sheet. Reset to false when a new build
-  /// starts.
+  /// made. The Ameen screen reads this to avoid retrying the auto-save on
+  /// every widget rebuild. Reset to false when a new build starts.
   final bool buildResultSaveHandled;
 
   /// Progress theater value (0.0 – 1.0) shown during dua generation.
@@ -254,7 +247,6 @@ class DuasState {
     this.savedRelatedDuas = const [],
     this.buildGateResult,
     this.buildWarmupJustExhausted,
-    this.needsUpgrade = false,
     this.buildResultSaveHandled = false,
     this.buildProgress = 0.0,
   });
@@ -276,7 +268,6 @@ class DuasState {
     List<SavedRelatedDua>? savedRelatedDuas,
     GateResult? buildGateResult,
     GatedFeature? buildWarmupJustExhausted,
-    bool? needsUpgrade,
     bool? buildResultSaveHandled,
     double? buildProgress,
     bool clearBuildGateResult = false,
@@ -303,7 +294,6 @@ class DuasState {
       buildWarmupJustExhausted: clearBuildWarmupJustExhausted
           ? null
           : (buildWarmupJustExhausted ?? this.buildWarmupJustExhausted),
-      needsUpgrade: needsUpgrade ?? this.needsUpgrade,
       buildResultSaveHandled:
           buildResultSaveHandled ?? this.buildResultSaveHandled,
       buildProgress: buildProgress ?? this.buildProgress,
@@ -531,11 +521,6 @@ class DuasNotifier extends StateNotifier<DuasState>
     state = state.copyWith(clearBuildWarmupJustExhausted: true);
   }
 
-  /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
-  void dismissUpgradePrompt() {
-    state = state.copyWith(needsUpgrade: false);
-  }
-
   bool _isDuaOffTopic(String text) {
     final lower = text.toLowerCase().trim();
     if (lower.length < 5) return true;
@@ -696,25 +681,16 @@ class DuasNotifier extends StateNotifier<DuasState>
 
   // ── Save Built Dua ─────────────────────────────────────────
 
-  static const int freeJournalLimit = 5;
-
+  /// Saves the built duʿā. There is deliberately no free-tier row cap here.
+  ///
+  /// A 5-entry lifetime save cap lived here from May 2026 until 2026-08-02.
+  /// It predated W5's weekly allowance pool and, because the allowance is
+  /// spent at generation time, only ever discarded output the user had
+  /// already paid for. The weekly pool (3/week, shared with Reflect) is now
+  /// the single gate. See design §9A (2026-08-02).
   Future<void> saveCurrentBuiltDua() async {
     final result = state.buildResult;
     if (result == null) return;
-
-    // Check journal limit for free users
-    final premium = await PurchaseService().isPremium();
-    if (!premium && state.savedBuiltDuas.length >= freeJournalLimit) {
-      // Mark the attempt as handled so the Ameen screen doesn't loop: after
-      // the user dismisses the upgrade sheet, needsUpgrade goes back to false
-      // — without this flag, the widget rebuild would re-enter the auto-save
-      // path, re-hit this cap, and re-raise the sheet immediately.
-      state = state.copyWith(
-        needsUpgrade: true,
-        buildResultSaveHandled: true,
-      );
-      return;
-    }
 
     final duaId = _dependencies.createId();
     final dua = SavedBuiltDua(
