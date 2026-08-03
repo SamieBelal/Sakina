@@ -1,4 +1,19 @@
-# Deck Draft — Al-Ghaniyy (catalogue id 92, *The Self-Sufficient*) — **NO DECK. REASONED REFUSAL.**
+# Deck Draft — Al-Ghaniyy (catalogue id 92, *The Self-Sufficient*) — **R1, SUPERSEDED. See R2.**
+
+> **SUPERSEDED 2026-08-03.** This was the outcome of a search that scored every candidate as a single
+> text required to both *show* non-need and *carry* `الْغَنِيُّ`. The coordinator sent it back: two
+> decks drafted this same wave (`al-wahid@1`, `al-muhyi@1`) split that requirement across a story beat
+> and a separate verse beat, and this search never tried the split. **R2 applies it and drafts the
+> deck**: [`2026-08-03-al-ghaniyy-DRAFT.md`](./2026-08-03-al-ghaniyy-DRAFT.md). **The sweep below is
+> kept intact — every citation it closed off (Cluster A's collision with `al-kareem@1`, 2:263's
+> collision with `al-haleem@1`, the duʿā finding, the 93:8/4:130 ground already spent by `al-mughni@1`)
+> is still true and is reused by R2 without re-deriving it.** What changed is only the question asked
+> of Cluster B and Cluster C: R1 asked "can this alone show and carry," R2 asks "can this carry, once
+> something else shows."**
+
+---
+
+## R1 (original) — Deck Draft — Al-Ghaniyy (catalogue id 92, *The Self-Sufficient*) — **NO DECK. REASONED REFUSAL.**
 
 **Drafted 2026-08-03.** Claim filed at [`.context/claims/92.md`](../../../.context/claims/92.md)
 **before** this document, and re-read against the full claims directory (32 files at write time)

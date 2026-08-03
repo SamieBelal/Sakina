@@ -1,4 +1,18 @@
-# Deck Draft — Al-Barr (id 85) — R0
+# Deck Draft — Al-Barr (id 85) — R1
+
+> **R1, 2026-08-03 — one ruling, one re-run, no content change.**
+> 1. **The "the Good" re-rendering (over Saheeh's "the Beneficent") was reviewed by the
+>    coordinator and confirmed correct**, and is now the standing model for this project: **re-
+>    rendering from the Arabic and naming ONE published translation that agrees is a sourcing
+>    decision with a citable backstop — it is not a composite.** (Contrast the fix this ruling
+>    forced on the sibling deck `al-jami@1`, which *had* assembled a string from two translators
+>    and was reverted to one, pasted whole.)
+> 2. **The rendered-English token-frequency sweep is re-run against the current 45-deck asset**
+>    (11 decks landed while this draft was in progress: Allah, Al-Quddus, Al-Azeez, Al-Wahhab,
+>    Al-Hayy, Al-Qabid, Al-Basit, Al-Khafid, Ar-Rafi, As-Sami, Ar-Rauf). **Result: every number
+>    from R0 holds** except "kind"/"kindness" (substring), which grew from 5 to 7 on two
+>    unrelated hits, neither blocking. `ar-rauf@1` — a tenderness deck specifically worth checking
+>    — was read in full and adds no collision on any axis. See the token table below.
 
 **Status: DRAFT, awaiting adversarial verification and founder sign-off.** Not yet in
 `assets/content/name_stories.json`.
@@ -15,7 +29,8 @@ here was recalled, reconstructed or composed.** No ḥadīth is claimed on this 
 
 **Translation standard:** Saheeh International (`20`) is the base, **with one deliberate,
 disclosed departure** on the verse beat — see below. **One character-level change, disclosed
-once:** where Saheeh prints `Allāh`, beats render `Allah`, matching all 24 shipped decks.
+once:** where Saheeh prints `Allāh`, beats render `Allah`, matching all 24 shipped decks at draft
+time (45 in the current asset).
 
 ---
 
@@ -118,19 +133,27 @@ protected) · د-ع-و (52:28 `نَدْعُوهُ`, called upon).
 **Roots absent from every beat, checked word by word:** ر-ح-م (cut, per above) · ك-ر-م · ل-ط-ف ·
 غ-ف-ر · ع-ف-و · ح-ل-م · و-ك-ل · ج-ب-ر.
 
-**Rendered-English pass**, run against all 24 shipped decks' rendered strings (`primary`/`label`/
-`translation`) plus this file's own beats:
+**⚠️ R1 — RE-RUN against the current `assets/content/name_stories.json`, which grew from 24 to 45
+decks while this draft was in progress** (Allah, Al-Quddus, Al-Azeez, Al-Wahhab, Al-Hayy, Al-Qabid,
+Al-Basit, Al-Khafid, Ar-Rafi, As-Sami, Ar-Rauf landed). **Re-measured, not re-stated**, 2026-08-03,
+against all 45 decks' `primary`/`label`/`translation` strings, plus this file's own beats:
 
-| candidate string | pre-existing count | verdict |
-|---|---|---|
-| "goodness" | **0** | fresh — first deck to render this token |
-| "kind"/"kindness" | 5 (`al-jabbar@1`, `ar-rahman@1` ×1, `al-lateef@1` ×2, `al-qadir@1`) | none in a Name-gloss position; this deck does not use *kind*/*kindness* as a rendered word (its own gloss is "Source of Goodness") — **no shared string** |
-| "merciful" | 9, incl. `ar-raheem@1`'s own `name_intro` ("The Most Merciful") | **the one real hazard**, and it is why the ellipsis exists. **Cut before it reaches this deck's screen.** |
-| "the Good" (as this deck's rendering of `al-Barr`) | 0 | fresh |
-| "favoured"/"favour" | 2 (`ar-razzaq@1` duʿā "Your favor," `al-wakeel@1` "Allah's favours and grace") | no shared run of ≥3 words; different grammatical role (verb here, noun there) |
-| "protected...from the punishment" | 0 | fresh construction |
-| "firm" | 2 (`al-khaliq@1` story "a firm lodging," `al-mumin@1` duʿā "make us firm upon faith") | **disclosed, non-blocking.** `al-mumin@1`'s duʿā asks to be kept firm **upon faith**; this duʿā (catalogue-locked) asks to be kept firm **on the grounds of [Allah's] goodness**. Different object, no shared run ≥3 words. |
-| "tremble"/"trembling" | 0 | fresh |
+| candidate string | count at R0 (24 decks) | count at R1 (45 decks) | verdict |
+|---|---|---|---|
+| "goodness" | 0 | **0 — unchanged** | fresh — first deck to render this token |
+| "kind"/"kindness" (substring) | 5 | **7 — grew by 2.** New hits: `al-wahhab@1` "what kind of person" (type, not affection) · `ar-rauf@1` "man**kind** was created weak" (substring only, unrelated word). | Neither is a Name-gloss and neither is the affectionate sense this deck avoids using anyway (its own gloss is "Source of Goodness," and no beat renders *kind*/*kindness*) — **no shared string, verdict unchanged** |
+| "merciful" | 9 | **9 — unchanged.** Confirmed `ar-rauf@1` (a tenderness deck landing after R0, specifically worth checking) adds no hit. | **the one real hazard, and it is why the ellipsis exists.** Cut before it reaches this deck's screen. |
+| "He is truly the Good" (exact title construction) | not run precisely at R0 | **0**, precisely re-run | fresh |
+| "favoured"/"favour" | 2 | **2 — unchanged** | no shared run ≥3 words; different grammatical role |
+| "protected...from the punishment" (exact construction) | 0 | **0 — unchanged** | fresh construction |
+| "firm" | 2 | **2 — unchanged.** Confirmed `ar-rauf@1` adds no hit here either — its duʿā is "be gentle with me **and protect me from trials**," a different root and word from "firm." | `al-mumin@1`'s duʿā asks to be kept firm **upon faith**; this duʿā (catalogue-locked) asks to be kept firm **on the grounds of [Allah's] goodness**. Different object, no shared run ≥3 words. |
+| "tremble"/"trembling" | 0 | **0 — unchanged** | fresh |
+
+**`ar-rauf@1` read in full, specifically because the coordinator flagged it as a tenderness deck
+landing after this draft's initial read.** It is the Isrāʾ/Miʿrāj fifty-prayers-reduced-to-five
+narrative (Bukhārī, not fetched by this deck) — different narrative, different root, different
+engine ("lightened, not strengthened" vs. this deck's "named only after"). No shared string beyond
+the two substring false-positives already itemised above.
 
 **⚠️ Gloss-template overlap, disclosed per the ledger's own §7 flag on this row.** "The Source of
 Goodness" (85) shares the template "The Source of ___" with shipped "The Source of Serenity"

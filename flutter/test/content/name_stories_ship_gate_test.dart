@@ -37,7 +37,25 @@ void main() {
     'takeaway',
     'recognition',
     'comfort_verse',
+    'reflection',
   };
+
+  // The two beats the runtime is allowed to REPLACE with AI-personalised text,
+  // so that a user drawing the same Name twice does not read the same words
+  // twice. Everything else on a deck is the pre-authored religious core and
+  // renders byte-identically every time.
+  //
+  // What ships in the asset for these two kinds is the FALLBACK — what a user
+  // sees offline, when the model call fails, or when they are outside the tier
+  // that gets personalisation. It is not decoration; it is the floor.
+  //
+  // These kinds are forbidden from carrying `source` or `arabic` (asserted
+  // below). That is the whole safety property: the generated text sits in slots
+  // that structurally cannot hold scripture, so a model that invents a verse has
+  // nowhere in the deck to put it. The gate can only see the asset — it never
+  // sees generated text — so the guarantee has to come from the shape of the
+  // slot rather than from checking the output.
+  const personalisableKinds = {'bridge', 'reflection'};
 
   // Duʿa provenance that RENDERS (`DuaTextBlock` shows the source line). Only
   // these decks cite the duʿa itself — their sources table names the exact
@@ -189,9 +207,11 @@ void main() {
             reason: '${d['deck_id']} has unknown beat kind "$k"');
       }
       // Standard spine: bridge → name_intro → story×3 → verse → dua →
-      // takeaway. The sign Name₁ deck prepends recognition + comfort_verse.
+      // takeaway. The sign Name₁ deck prepends recognition + comfort_verse, and
+      // a deck may append one optional `reflection` beat.
       final core = kinds
-          .where((k) => k != 'recognition' && k != 'comfort_verse')
+          .where((k) =>
+              k != 'recognition' && k != 'comfort_verse' && k != 'reflection')
           .toList();
       expect(
         core,
@@ -202,6 +222,40 @@ void main() {
       if (kinds.contains('recognition')) {
         expect(kinds.sublist(0, 2), ['recognition', 'comfort_verse'],
             reason: 'recognition beats must open the sign deck');
+      }
+      // `reflection` closes the deck or does not exist. It is deliberately NOT
+      // required: the 45 decks authored before personalisation existed have no
+      // reflection beat, and backfilling them is a content decision, not a
+      // structural one. Requiring it here would turn that decision into a red
+      // suite.
+      expect(kinds.where((k) => k == 'reflection').length, lessThanOrEqualTo(1),
+          reason: '${d['deck_id']} has more than one reflection beat');
+      if (kinds.contains('reflection')) {
+        expect(kinds.last, 'reflection',
+            reason: '${d['deck_id']} reflection beat must close the deck');
+      }
+    }
+  });
+
+  test('the AI-personalisable beats cannot carry scripture', () {
+    // The runtime may replace a `bridge` or `reflection` beat with generated
+    // text. Those two slots therefore may never carry a citation or an Arabic
+    // field — not because today's authored text would misuse one, but because
+    // the shape of the slot is the only guarantee available once the text stops
+    // being authored. A model asked for "a short bridge connecting this Name to
+    // how you're feeling" will occasionally produce a verse; this is what makes
+    // that unshippable rather than merely unlikely.
+    for (final d in decks) {
+      for (final b in (d['beats'] as List)) {
+        final kind = b['kind'] as String;
+        if (!personalisableKinds.contains(kind)) continue;
+        expect((b['source'] ?? '') as String, isEmpty,
+            reason: '${d['deck_id']} $kind beat carries a source citation — '
+                'this slot is replaceable by generated text, so scripture '
+                'must live on a fixed beat instead');
+        expect((b['arabic'] ?? '') as String, isEmpty,
+            reason: '${d['deck_id']} $kind beat carries an arabic field — '
+                'see above; move it to a fixed beat');
       }
     }
   });

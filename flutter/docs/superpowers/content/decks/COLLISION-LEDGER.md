@@ -1555,3 +1555,31 @@ Two agents measured the same bridge opener independently this wave and reported 
 2. **§9av's corpus cross-check is not a formality.** It exists to catch precisely this, and here it did — a 14-occurrence gap, 19% of the true count, invisible to every other check.
 
 **And report the shape of the answer, not just the number.** The corrected finding was *not* the flat zero the first pass was heading toward: Allah is the finite subject of a `ḍ-r-r` verb **exactly twice** (2:126, 31:24), both the same Form VIII "force to the Fire" clause addressed to deliberate disbelievers — never the ordinary Form I *yaḍurru* (0 of 19). **"Zero" and "twice, both unusable for these stated reasons" support the same decision but are not the same claim**, and only the second survives someone checking it.
+
+### 9br · The decks are the fixed religious core; two beats are AI-personalised — and that decides where bar-3 work may live
+
+**Founder decision, 2026-08-03.** Pre-authored decks mean a user who draws the same Name twice reads the same words twice. The fix is **not** to author more decks: the runtime **replaces two beats with AI-personalised text** and leaves the religious core alone.
+
+| Beat | Personalised? | Why |
+|---|---|---|
+| `bridge` | **YES** | authored prose, no citation on any of the 45 shipped decks — genuinely free |
+| `name_intro` · `story` ×3 · `verse` · `dua` | no | scripture, ḥadīth, or catalogue-locked strings |
+| `takeaway` | **no** | see below — this one was proposed and refused |
+| `reflection` *(new, optional, trailing)* | **YES** | the second free slot |
+
+**Why the takeaway was refused as a personalisation slot, though it was proposed as one.** Two measured reasons.
+
+1. **It is not actually free prose.** Of the 45 shipped decks, **5 takeaways contain a quotation and 1 carries a `source` field** — `al-lateef@1`'s takeaway *is* Qurʾān 67:13. "AI rewrites the takeaway" would have meant AI rewriting around scripture on those decks.
+2. **Beat 8 is where bar 3's surface (c) lands.** Nearly every draft's separation argument is a claim about what the *takeaway* does — "this deck's engine is X, the sibling's is Y." That is the only surface no mechanical pass reaches (§9an), and **it binds only because the beat is fixed.** Personalising it would convert ~45 decks' worth of move-collision reasoning from a guarantee into a hope.
+
+**So: engine-differentiating work may not migrate into the bridge or the reflection.** If a deck's separation rests on a beat the runtime can overwrite, the deck has no separation.
+
+**The safety property is structural, not behavioural.** Both personalisable kinds are **forbidden by the ship gate from carrying `source` or `arabic`**. The gate only ever sees the asset — it cannot inspect generated text — so the guarantee has to come from **the shape of the slot**: a model asked for "a short bridge connecting this Name to how you're feeling" will occasionally produce a verse, and this makes that unshippable rather than merely unlikely. Runtime rejection of scripture-shaped output is still needed on top; it is the second layer, not the first.
+
+**What ships in those two slots is the FALLBACK.** Offline, model failure, or outside the personalised tier, the authored text is what the user reads. Drafters write it to stand alone.
+
+**One thing this does not solve, stated so it is not assumed away.** The personalised beats are **2 of 8**, and the six fixed ones — Name, three story beats, verse, duʿā — carry the screen time and the substance. A second encounter with the same Name is a fresh opening and closing around an identical middle. That may be enough. It is not the same as a different deck.
+
+### 9bp — RETIRED
+
+The "This is the Name for…" opener sat at 7 of 45 decks and was flagged for a founder ruling on whether a house template had become a house tic. **§9br moots it:** the bridge is now an AI-personalised slot, and the authored opener is the offline fallback most users will never read. **Write a good fallback; stop engineering around the template.** Retained above rather than deleted, because the measurement (7 of 45, found independently by two agents) is what a future "is this becoming a tic?" question should be measured against.

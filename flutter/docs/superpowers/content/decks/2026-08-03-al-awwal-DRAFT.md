@@ -145,14 +145,23 @@ then everything else, including whatever the reader is carrying today.
 
 | beat | Al-Awwal | Al-Akhir | shared run ≥4 words? |
 |---|---|---|---|
-| 1 bridge | "Before the thing you're carrying today had a name…" | "Something you're sure is over, one day, all of it will be…" | no |
+| 1 bridge | "Before the thing you're carrying today had a name…" | "Something you're sure is over, one day, all of it will be…" | **yes — 6 words: "…this is the Name for…"** |
 | 2 name_intro | "The First" | "The Last" | no (catalogue-locked, different words) |
 | 3-5 story | The Pen — a single first act, before creation | The last man out of the Fire — a single last act, at the end of judgement | zero shared vocabulary; different narrators, different collections, different chapters |
 | 6 verse | "He is the First…" (57:3 opening) | "…and the Last…" (57:3 mid-clause) | **shares only the connective from the same āyah; the two fragments do not overlap in rendered text** — see the 57:3 disclosure |
 | 7 dua | byte-shared with Al-Akhir (catalogue-locked) | byte-shared with Al-Awwal | **fully shared — this is the one beat where both decks render the same string, disclosed at full strength below** |
 | 8 takeaway | pair-synergy, ends on Al-Akhir | standalone, does not reference Al-Awwal | no |
 
-**Longest shared run outside beat 7: zero words at n≥4.** Beat 7 is disclosed, not hidden — it is the catalogue's own design (one shared duʿā), not a drafting collision.
+**Computed, not eyeballed** (`difflib.SequenceMatcher` longest-match over every beat pair, both decks,
+beat 7 excluded as deliberately shared): **the actual longest cross-deck run is 6 words, at beat 1 —
+both bridges close on "…this is the Name for…".** My own first draft of this row said "zero words at
+n≥4", which was wrong; corrected here rather than silently fixed, per the standing rule to diff prose
+against the table before shipping (ledger §9aj). **Non-blocking**: "This is the Name for [X]" is
+already a standing bridge template, used verbatim by four *shipped* decks before this pair
+(`ar-raheem@1`, `al-malik@1`, `al-kareem@1`, `al-mujeeb@1`) — it is scaffolding, not a collision,
+under the same rule the ledger applies to "For the weight you named…" (§4b). **Own-beat diff within
+each deck** (§9al): Al-Awwal's own beats top out at a 3-word run ("first thing Allah", beats 3–4);
+Al-Akhir's at 3 words ("and the Last", beats 3/6). No pair at n≥4 inside either deck.
 
 ---
 

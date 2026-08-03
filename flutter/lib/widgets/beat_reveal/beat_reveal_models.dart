@@ -323,6 +323,13 @@ List<BeatScreen> buildBeatScreensFromDeck(
         // Includes the pair-synergy beat: it is a takeaway carrying a `synergy`
         // label, not a kind of its own.
         screens.add(BeatScreen(kind: BeatKind.takeaway, primary: beat.primary));
+      case 'reflection':
+        // Drawn with the takeaway template on purpose: it is a closing prose
+        // screen, and giving it its own `BeatKind` is a design decision about
+        // how a reflective question should look, not a plumbing one. Mapping it
+        // here keeps the beat visible today; a dedicated template can replace
+        // this line without touching the asset or the gate.
+        screens.add(BeatScreen(kind: BeatKind.takeaway, primary: beat.primary));
       default:
         // Unknown kind: the ship gate rejects these at build time, so reaching
         // here means a hand-edited asset. Skip the beat rather than crash the

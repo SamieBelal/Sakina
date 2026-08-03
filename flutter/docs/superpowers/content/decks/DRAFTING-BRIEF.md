@@ -73,9 +73,21 @@ Read **§9bo** first. Two reasoned refusals have been returned and overturned, b
 - `docs/superpowers/content/decks/2026-08-03-<slug>-DRAFT.md` per Name
 - `.context/claims/<id>.md` per Name
 
-**Beat spine, exactly:** `bridge → name_intro → story ×3 → verse → dua → takeaway`.
+**Beat spine, exactly:** `bridge → name_intro → story ×3 → verse → dua → takeaway → reflection`.
 
 `name_intro` and `dua` render the catalogue strings **byte-for-byte**. Verse beats carry **no `arabic` field** and **no surrounding quote marks** on `primary`. Use a visible ellipsis wherever you truncate.
+
+### 5a · Two of your beats are the AI-personalisation slots — write them as the floor, not the ceiling
+
+Decks are pre-authored, so a user who draws the same Name twice would read the same words twice. The runtime therefore **replaces two beats with AI-personalised text**: the **`bridge`** (connecting the Name to how this user is feeling today) and the closing **`reflection`** (a question or turn addressed to them). Everything else — name, three story beats, verse, duʿā, takeaway — is the **pre-authored religious core** and renders identically every time.
+
+**What this means for you, concretely:**
+
+- **What you write in those two slots is the FALLBACK.** It is what ships in the asset and what a user actually sees offline, when the model call fails, or when they are outside the personalised tier. **Write it to stand alone.** It is the floor, not a placeholder.
+- **Neither slot may carry `source` or `arabic`.** The ship gate enforces this. It is the whole safety property: **generated text sits in slots that structurally cannot hold scripture**, so a model that invents a verse has nowhere in the deck to put it. If your bridge or reflection wants to quote something, that quotation belongs on a fixed beat instead.
+- **The `takeaway` stays fixed and is NOT personalised.** This matters to you specifically: **beat 8 is where your bar-3 surface-(c) argument lands** — "this deck's engine is X, the neighbour's is Y." That reasoning is the main thing keeping 99 decks from reading as variations of each other, and it only binds because the beat is fixed. Do not move engine-differentiating work into the bridge or the reflection.
+- **A formulaic bridge opener is no longer worth engineering around.** The old concern about a house-template opening (§9o, §9bp) applies to a line most users will never see. Write a good fallback and move on.
+- **The reflection beat is new and optional.** Decks authored before this existed have none, and the gate does not require one. **Author one anyway** — it is the fallback for a slot that will otherwise be empty when the model is unavailable. Keep it a genuine question or turn, not a second takeaway.
 
 **DO NOT** touch `assets/content/name_stories.json`, `assets/content/collectible_names.json`, or `test/content/name_stories_ship_gate_test.dart`. **DO NOT** commit.
 

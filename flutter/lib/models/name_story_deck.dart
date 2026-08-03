@@ -187,6 +187,12 @@ const Set<String> renderableNameStoryBeatKinds = {
   'comfort_verse',
   'dua',
   'takeaway',
+  // Optional trailing beat. Along with `bridge`, this is one of the two slots
+  // the runtime may replace with AI-personalised text so a user drawing the
+  // same Name twice does not read the same words twice. Both slots are
+  // forbidden by the ship gate from carrying `source` or `arabic`, which is
+  // what keeps generated text structurally unable to hold scripture.
+  'reflection',
 };
 
 /// One row of a deck's verification table.
