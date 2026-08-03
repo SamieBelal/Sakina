@@ -74,6 +74,10 @@ void main() {
     // overclaim this project spent a wave learning to catch.
     'al-malik@1': "Qur'an 3:26 (opening)",
     'al-aleem@1': "Jami' at-Tirmidhi 3392 (opening of the supplication)",
+    // Read off the transcribed fragment's own duʿa beat, not from a report.
+    // Bare (no `cf.`, no qualifier) because id 5's catalogue duʿa is the
+    // narration's words in full, not a truncation of them.
+    'al-quddus@1': 'Sahih Muslim 487a',
     // Deliberately absent, and each verified as absent rather than assumed:
     // al-haleem@1, al-kareem@1, al-qayyum@1, al-qadir@1, al-muid@1 render NO
     // duʿa citation. Their duʿa is the catalogue's own authored invocation, so

@@ -1252,3 +1252,192 @@ Found by the Al-Wasi R2 verifier, generalised and measured by me.
 2. **A vocative is not exempt from bar 3 merely because §9o exempts formulaic openings.** §9o rules that a *Qurʾānic* vocative (`يَـٰعِبَادِى`) is a form of address, not a claim. **A Name-gloss vocative is different: it renders a Name.** The §9o test decides it — *could a user read both screens and think they had been told the same thing twice?* — and for *"O Restorer"* against *"Restorer of the Broken"*, the answer is yes.
 
 **Both instances are catalogue-locked**, so no deck can fix this. It escalates to the catalogue track beside `dua_translation`, `meaning` and `lesson`.
+
+### 9at · RULING — authored prose yields; quoted scripture does not
+
+`al-basit@1` (The Expander) collides with shipped `al-wasi@1` on `expand*`. The drafter measured it, correctly refused to rule, and named it **the first case where the fixable half belongs to the other, already-signed deck** — because §9ab says the fixable half must move when the locked half cannot.
+
+**I checked the four instances myself:**
+
+| instance | movable? |
+|---|---|
+| `al-basit@1` `name_intro` — *"The Expander"* | **No** — catalogue `english`, gate-locked |
+| `al-basit@1` duʿā — *"O Constrictor, O Expander"* | **No** — catalogue, gate-locked, and shared byte-for-byte with `al-qabid@1` |
+| `al-wasi@1` duʿā beat 6 — *"expand my heart"* | **No** — catalogue, gate-locked |
+| `al-wasi@1` **story beat 2** — *"we are [its] expander"* | **Movable** — Saheeh International's rendering of 51:47; Abdel Haleem's *"made them vast"* is already fetched and recorded as available in that deck's own draft |
+
+**RULING: do NOT swap the translation. §9ab does not reach this case, and the reason is worth stating as its own rule.**
+
+**§9ab was decided about the word *"afraid"* in AUTHORED PROSE** — a drafter's own sentence, ours to write and ours to change. **Here the movable instance is a published translation of an āyah.** Shopping translators to reduce a token count makes **translation choice serve string hygiene** — which is precisely the inversion `al-kareem@1` was rejected for, where a published English was allowed to do work the Arabic did not. **We do not get to choose which translator is right on the basis of what it does to our diff.**
+
+**So: authored prose yields to a locked string. Quoted scripture does not.** A translation may be changed only for a reason internal to the translation — that it misrenders the Arabic, imports an interpolation, or adjudicates a contested attribute. Never because of a collision.
+
+**Two further grounds, both checked:**
+- **The registers differ.** One is a quoted verb about *the heaven*; the other is *a Name of Allah*. Applying §9o's test — could a user read both screens and think they had been told the same thing twice? — the answer is no.
+- **Bar 3's third surface passes.** `al-wasi@1`'s move is *how much He made*; `al-basit@1`'s is *the record keeps the emptiness* — a sky with no cloud in it, and rain arriving anyway. Different decks.
+
+**Disclose on both, escalate as *Restorer*-class to the catalogue track, change nothing.**
+
+### 9au · Correction — `al-wasi@1` is SHIPPED, not rejected
+
+§9af records `al-wasi@1` as REJECTED, and a wave-2 drafter reasonably read that as current while finding the deck live in the asset with `review_verdict: "good"`. **Both are true in sequence and the ledger only recorded the first half:** it was rejected on its original anchor, **re-drafted onto 51:47**, put through a **fresh adversarial pass** (FIX-THEN-SIGN), had four blocking fixes applied at R3, and shipped in wave 1. §9af stands as the record of *why the rejection was right*; it is not the deck's current status.
+
+**Rule: when a ledger section records a rejection, and the deck later ships, the rejection section must say so.** A drafter reading §9af alone would conclude a shipped deck is not shipped — and this one did, correctly flagging the contradiction rather than assuming.
+
+### 9av · A STANDING LIMIT IS PARTLY BROKEN — use the Quranic Arabic Corpus for root enumerations
+
+Every pass in this project has closed with the same limit: *no corpus independent of quran.com / sunnah.com was reached.* **A wave-2 verifier broke it on the enumeration axis** by re-running both root sweeps against **`corpus.quran.com` (the Quranic Arabic Corpus)** — a morphologically tagged source neither drafter used.
+
+**It immediately caught a wrong number that two internal methods had missed.**
+
+`al-basit@1` claimed **18** true `b-s-ṭ` occurrences. The corpus says **25**. And the finding that makes it undeniable: **the deck's own itemised breakdown table, summed by hand, also equals 25** (10 rizq + 1 qābiḍ-pair + 1 hands + 2 human-speech + 1 clouds + 10 not-Allah). **The deck's own supporting evidence contradicted its own headline** — §9aj reproduced *inside a single section of one file*.
+
+By contrast `q-b-ḍ` was **verified correct, verse for verse** — 9 occurrences, Allah the finite subject in exactly 2. So the corpus confirms as well as refutes; it is a check, not a scythe.
+
+**New rule for every future deck that trades or claims a bar on a root enumeration:**
+1. Run the sweep over the full text as before, **and**
+2. **cross-check the total against `corpus.quran.com`**, and
+3. **sum your own breakdown table and confirm it equals your headline.**
+
+Step 3 costs seconds and would have caught this without any external source at all. **A drafter's own itemisation is the cheapest independent check available and nobody had been running it.**
+
+**What this does and does not change about the standing limit.** Root enumeration now has a genuinely independent second source. **Ḥadīth verification does not** — sunnah.com remains one digitisation read twice, and **no isnād has been audited by anyone at any point.** Qurʾān *text* also remains single-source (api.quran.com) for the quotations themselves. **State the limit at its true, narrower size from now on**, rather than repeating the blanket version.
+
+### 9aw · `al-qabid@1` — SIGN, and the reverence question answered by reading it as the user
+
+First clean **SIGN** since wave 1. Scripture verified byte-exact by live fetch; the `q-b-ḍ` enumeration verified against an independent corpus; the refused pricing ḥadīth independently confirmed **refused correctly** (a list of epithets in reported prophetic speech, not Allah's own demonstrated act); and sunnah.com's mistranslation of `الْبَاسِطُ` as *"Al-Basir"* on the Tirmidhī 1314 page independently confirmed real.
+
+**On the reverence question — a deck about Allah withholding, met at 11pm by someone in the middle of a hard thing — the verifier read it as that user and ruled it does NOT accuse.** No beat says *"protection"* or *"relief is coming"*. One soft note recorded rather than actioned: **the comfort is structural and intellectual rather than affective.** Worth reading beats 0 and 7 back to back at some point; not a rewrite.
+
+**Also ruled, on the item the drafter correctly declined to rule on itself (§9ab):** `al-basit@1`'s move-adjacency to shipped `al-mujeeb@1` is **NOT BLOCKING** — different engines (scope-of-answer vs distribution-of-narrative-weight) despite both being request-answered stories.
+
+**One discrepancy left open and correctly not papered over:** the drafts state a universe of **663 rendered strings**; the verifier's own extraction of the current 34-deck asset gives **595**. Every specific count either deck relies on **matched exactly** when re-derived independently, so no finding is undermined — but the gap is unexplained and is recorded rather than reconciled.
+
+### 9ax · "BYTE-IDENTICAL" IS A CODEPOINT CLAIM — and it has now been false twice
+
+**Second instance.** The pilot recorded a ✅ for *"letter-for-letter identical to quran.com's `text_imlaei`"* on 18:10 when the strings differed. `as-sami@1` now asserts **"byte-identical… exact string equality"** for 11:61's closing four words; the verifier diffed at codepoint level and found the catalogue's `مُجِيبٌ` against `text_imlaei`'s `مُّجِيبٌ` — **one shadda, U+0651, idghām.**
+
+**Rasm-identical. NOT byte-identical.** The difference is religiously immaterial and the deck ships **unpinned** regardless, so nothing is blocked. **But the false ✅ would have been read as grounds for a future pin decision**, which is exactly what a wrong equality claim is for.
+
+**Rule: the words *byte-identical*, *exact string equality* and *letter-for-letter* are codepoint claims. Run the codepoint diff, or use the weaker true word.** The vocabulary this project has already earned:
+- **byte-identical** — every codepoint equal. Rare across orthographies. Prove it or do not say it.
+- **rasm-identical** — same consonantal skeleton, marks may differ. **This is almost always the true claim** and it is enough for every purpose this pipeline has.
+- **skeleton-identical after fold X** — say which fold.
+
+Six Names have now had their duʿā identified as scripture on this axis (ids 4, 10, 14, 37, 64, 5). **Every one of those findings rests on a string comparison, so the vocabulary is load-bearing, not pedantry.**
+
+### 9ay · Two more verifier rulings, and one disclosure that was hiding the nearer danger
+
+**`al-azeez@1`'s bar-5 disclosure named 36:29 — fifteen āyāt out — and never mentioned 36:18**, which carries an explicit threat of stoning and *"painful punishment"* **four āyāt** past the deck's last quoted material. The verifier fetched it. **The deck disclosed the farther danger and not the nearer one** — the same shape as `ar-raheem@1`'s 18:19 in wave 1, where the draft disclosed a distant instance and missed the adjacent one. **When disclosing a bar-5 successor, walk outward from n+1; do not start at the first thing that looks quotable.**
+
+**Both live objections on `as-sami@1` resolved in the deck's favour, on evidence:**
+- **20:42–48 re-proposal — bar 5 MET.** The earlier `al-haleem@1` rejection was scoped to a *Pharaoh-forbearance* sub-arc; this deck's sub-arc is Mūsā and Hārūn's fear and its answer, **no beat names Pharaoh**, and 20:48's punishment sits at n+2 **inside instructed speech**, general and eschatological — softer than shipped `al-afuw@1`'s already-cleared 42:26.
+- **The `hear` hapax (n=1 → 2) — NON-BLOCKING.** Distinguished from the `afraid` precedent on the axis that actually mattered there: **no staging echo.** `afraid` was one token doing identical work across three consecutive beats; here the two uses sit in **different fields** (a `source` annotation vs a beat `primary`) and **different grammatical roles** (a bystander's failure vs Allah's own first-person verb).
+
+**That distinction is the useful one and it sharpens §9ab: a hapax is not blocking because it is rare — it is blocking when it does the same JOB in the same STAGING.** Rarity is what makes it visible; the repetition of function is what makes it a collision.
+
+### 9az · Al-Khafid HOLDS — and "must ship paired" is now a real constraint with no mechanism behind it
+
+**Reverence ruling: `al-khafid@1` does not accuse.** The verifier read it beat by beat as a user at 11pm after a bad week. It **never narrates Allah lowering a person** — only *"a thing of this world"*; the pain is validated through a communal narrative the Prophet ﷺ neither shames nor confirms; and the duʿā redirects the lowering onto **the user's own arrogance**, self-chosen, paired with a raising *"with You"*.
+
+**The structural safety was reproduced independently: Allah is the finite subject of a `kh-f-ḍ` verb in ZERO of 6,236 āyāt.** Four occurrences, two word-forms — three imperatives to the Prophet ﷺ, and 56:3's feminine participle whose subject is **the Hour, not Allah** (confirmed by fetching 56:1–3). So the Name that abases has no verse in which Allah is shown abasing anyone, and the deck is built on that fact rather than around it.
+
+**PAIRING VERDICT: Al-Khafid ships paired, as Name₁, never solo.** Two independent grounds:
+1. **The catalogue already fuses them** — ids 41/42's `dua_translation` share a **byte-identical 5-word run** (*"raise my rank with You"*), and **id 41's `dua_arabic` renders id 42's root** (`wa-rfaʿ`). Verified directly against `collectible_names.json`.
+2. **The verifier's own catch: beat 8 names *"Ar-Rafi — the second Name of your answer"*.** That is a promise that **dangles if the deck ships alone.**
+
+**⚠️ AND THERE IS NO MECHANISM ENFORCING IT.** The draft cited `name_stories_ship_gate_test.dart:284` as proof the gate *rejects* a synergy label on a non-position-1 deck. **The verifier read the code: that assertion only runs inside a loop over `chipKeys`, so a `chip_keys: []` deck — which is what these are — is never evaluated at all.**
+
+**The gate does not reject it. The gate never sees it.** That makes the no-enforcement argument stronger and the deck's citation backwards.
+
+**So three Name-pairs now carry a "must be met together" ruling — Ad-Darr/An-Nafiʿ, Al-Qābiḍ/Al-Bāsiṭ, Al-Khāfiḍ/Ar-Rāfiʿ — and nothing in the code enforces any of them.** That is an engineering gap for the founder, not a drafting one: either these pairs get `chip_keys` so the existing pair machinery applies, or a new constraint is needed. **Recorded here so it is not discovered at ship time.**
+
+**One recurring drafter error worth naming:** both drafts labelled **10 already-shipped wave-1 decks as "(drafted this wave)"**. They carry `review_verdict: "good"` in the asset and wave 1 is committed. The collision rulings are unaffected — the content is fixed either way — **but "drafted this wave" implies still-negotiable, and shipped content is not.** Check the asset, not your assumption about timing.
+
+### 9ba · THE ATTACHMENT PATTERN — how to meet bar 1 for a Name that has no verb
+
+**`ar-rauf@1` failed bar 1 in a way this project had not seen:** the deck rested on a **lexical equation** — *raʾfa ≈ "the tenderness that will not overload"* — demonstrated through a passage carrying **a different root entirely** (`kh-f-f`, "lighten"). No lexicon or tafsīr was consulted, and the verifier could not corroborate it.
+
+**The ruling was not that the premise is wrong.** It may well be right. **The failure was teaching a lexical equation as though it were the text's own claim** — and nobody in this pipeline has the sources to settle what a Qurʾānic word means. The `al-kareem@1` failure in a new costume: adjudicating meaning while believing you are only choosing a passage.
+
+**The fix is the generalisable part, and it worked.** Instead of asserting what `raʾūf` means, the drafter re-fetched **all 11 occurrences** and asked what immediately precedes the Name each time:
+
+> **9 of 11 attach the Name directly after a burden is lifted, restrained, forgiven, delayed or eased** — 2:143 (a feared loss of prayers avoided) · 9:117 (forgiveness after Tabūk) · 9:128 (*"grievous to him is what you suffer"*) · 16:7 (loads carried *"with difficulty"*) · 16:47 (a sudden seizure withheld) · 22:65 (the sky restrained from falling) · 24:20 (favour amid the ifk) · 57:9 (brought out of darkness) · 59:10 (a plea to have resentment removed).
+
+**That is the text demonstrating the meaning rather than the deck asserting it.** And the two weaker fits — 2:207, 3:30 — were **named as weaker rather than folded into the count**, which is what makes 9-of-11 believable.
+
+**STANDING TECHNIQUE, and most of the remaining Names will need it.** A large share of the 99 are **epithet-only**: no finite verb anywhere with Allah as subject of the Name's own root. Bar 1 forbids a trailing epithet as carrier, so those Names look unbuildable. **They are not.**
+
+**Enumerate every occurrence of the epithet and read what immediately precedes it. If the Qurʾān consistently attaches the Name after the same kind of act, that recurrence IS the demonstration** — bar 1 carried by the *pattern*, not by any single verse and not by a definition.
+
+**Two load-bearing conditions:**
+1. **Show the pattern; do not name the definition.** The moment a deck writes *"X means Y"*, it is adjudicating a lexical question it cannot settle.
+2. **Count the misses out loud.** A pattern claimed at 11-of-11 when it is 9-of-11 is the §9ak failure, and it destroys the only thing that made the argument credible.
+
+### 9bb · A fix applied only where the verifier pointed is half a fix — second confirmation
+
+Correcting `al-basit@1`'s **18 → 25**, the fixer **searched for the same arithmetic elsewhere and found a second instance nobody had named**: a claim-table aside reading *"the fifteen-vs-three subject split"* — where *three* was `18 − 15`, the same wrong subtraction propagating into a second sentence. Corrected to *fifteen-vs-ten* (15 Allah-subject + 10 not-Allah = 25).
+
+**Second time this behaviour has paid** (the first was an An-Nur drafter told to fix one attributed motive, which went looking and found a second). **When a verifier names an error, treat it as an instance of a class and sweep for the class.**
+
+And the root lesson stands recorded in the deck itself: **the itemised table already contained the right answer and nobody summed it against the headline.** Summing your own breakdown is the cheapest check available and it needed no external source at all.
+
+### 9bc · A NEGATIVE TOOL RESULT IS A CLAIM ABOUT THE TOOL, NOT ABOUT THE WORLD
+
+**New failure class, and it broke the unverifiable-vs-unsourced distinction in the direction nobody was watching.**
+
+`allah@1` §7 stated that Wayback CDX for `sunnah.com/mishkat:2452` **returned an empty response**, and built on it: *"unverifiable by this pipeline"* (§9k's careful, correct framing). **The verifier re-ran the identical query and got 7 rows, 6 of them status 200.** It then **fetched the page**: Mishkat al-Maṣābīḥ 2452, Ibn Masʿūd, transmitted by Razīn, no printed grade line — and **its Arabic contains catalogue id 1's duʿā as a SPLICE**, the same composite shape as §9k's ids 17/61 (the catalogue keeps `اللَّهُمَّ إِنِّي` + `أَسْأَلُكَ بِكُلِّ اسْمٍ هُوَ لَكَ` and cuts the entire intervening servant/forelock/decree clause).
+
+**The UNPINNED conclusion survives** — on tier and grading grounds, since Razīn is outside the six books and the page carries no grade. **But the "unreachable" framing was factually false.**
+
+**§9k taught us not to report *"unverifiable"* as *"unsourced"*. This is the mirror: reporting *"my query failed"* as *"the source is unreachable".*** A tool returning nothing has told you about your query, your encoding, your endpoint, or the archive's index — **not about whether the text exists.**
+
+**Rule: a negative retrieval result may only be reported as a property of the retrieval.** Say *"CDX returned no rows for this URL form on this attempt"* — never *"this is unarchived"* or *"unreachable"* — unless a second query shape and a second endpoint both came back empty. And **before building any conclusion on unreachability, try the other URL form.** It cost this project a false claim in a packet a founder would sign.
+
+### 9bd · MOVE-COLLISIONS: the drafter has now been overturned 3 for 3
+
+**Third instance, and the pattern is no longer suggestive.** When a drafter discloses a beat-to-beat collision **in the move** — same insight, zero shared n-grams — and declines to rule on it per §9ab, **the independent pass has overturned the drafter every time**:
+
+| deck | against | outcome |
+|---|---|---|
+| `al-mumin@1` | `al-wakeel@1` | **BLOCKING** (§9ab) |
+| `ar-raqeeb@1` | `al-ghafur@1` | **mandatory disclosure → new beat 8** (§9ao) |
+| `al-quddus@1` | `al-kareem@1` | **BLOCKING** — this one |
+
+Al-Quddūs's beat 8 lands on *He is not diminished*; `al-kareem@1`'s lands on *the asking costs Him nothing at all*. **Zero shared n-grams, independently confirmed — and the same move.**
+
+**So the rule hardens: a drafter must disclose a move-collision and must NOT reason about whether it is fine.** The reasoning has been sound every time and wrong every time — because the author of a beat cannot feel what a *user meeting both screens* feels. **Disclose it, name the escape hatch, and hand it over.**
+
+**And when the ruling is blocking, the fix is a NEW BEAT 8, never a reword** — a reword leaves the move in place and only hides the evidence. Al-Quddūs has its own named escape hatch already: the **unspent kneeling detail** in beat 2.
+
+### 9be · Ruled — the tawḥīd formula is not a bar-3 collision
+
+Requested by `allah@1` and **it will recur on Al-Hayy, Al-Ahad and Al-Wahid**, all still to draft. **NOT BLOCKING**, on §9o's existing grounds: a creedal formula is **shared scripture, not a taught insight**. Same test as the vocative — *could a user read both screens and think they had been told the same thing twice?* Two decks quoting the same creed have not each taught it.
+
+Handle every future instance the same way and do not re-escalate it.
+
+### 9bf · FOURTH must-pair ruling — and this one is forced by grammar, not by register
+
+**Al-Muizz (43) / Al-Muzill (44): ship as a pair, both-or-neither. RULED.**
+
+The three earlier must-pair rulings (Aḍ-Ḍārr/An-Nāfiʿ, Al-Qābiḍ/Al-Bāsiṭ, Al-Khāfiḍ/Ar-Rāfiʿ) rested on **reverence** — a Name whose act is felt as loss should not be met alone. **This one rests on the text.**
+
+A fresh full-corpus sweep of `dh-l-l` (28 skeleton hits, 4 discarded as the unrelated `r-dh-l`) found **exactly ONE occurrence in the entire Qurʾān that is a finite verb, with Allah as subject, carrying the sense *humiliate a person*: 3:26's `وَتُذِلُّ`.** Two other Allah-subject `dh-l-l` occurrences exist (36:72 tamed cattle; 76:14 fruit hanging low) but both carry the **other** sense of the root — docility, not disgrace — so **using either would misdemonstrate the Name.**
+
+**And `وَتُذِلُّ` is not merely near Al-Muizz's clause. It is the same sentence, the same tense, joined by one `وَ`.** The two Names are grammatically fused in the only verse that can carry either.
+
+**So a standalone Al-Muzill would have to either drop bar 4 entirely** — building only on 7:152, where the Name's own root never reaches a screen — **or render the humiliation clause with no signal that it is half of a coordinated sentence.** The second is exactly the failure the pairing exists to prevent.
+
+**Note 3:26 is now spent three ways and each deck takes only its own clause:** shipped `al-malik@1` renders the sovereignty clauses *with `وَتُعِزُّ … وَتُذِلُّ` deliberately elided* — an elision made in wave 1 **specifically to leave this ground** — and Al-Muizz and Al-Muzill each render **only their own half**, never the twin's. That is what keeps them from being one deck twice with the polarity flipped.
+
+**Two craft decisions worth copying.** The drafter **declined to quote 7:149–151** — the Mūsā/Hārūn drama — specifically to keep `gh-f-r` and `r-ḥ-m` off Al-Muzill's screen, choosing a weaker narrative to protect bar 3. And it built Al-Muzill's move as ***"it was never real"*** — the failure of **a fabricated object**, not the downfall of a person. That is how a Name about humiliation avoids accusing the reader: **the thing humbled is the calf.**
+
+### 9bg · THE ENFORCEMENT GAP IS NOW FOUR PAIRS AND STILL UNENFORCED
+
+Aḍ-Ḍārr/An-Nāfiʿ · Al-Qābiḍ/Al-Bāsiṭ · Al-Khāfiḍ/Ar-Rāfiʿ · **Al-Muizz/Al-Muzill**.
+
+**Nothing in the code enforces any of them.** §9az records why: the ship gate's pair assertion runs only inside a loop over `chipKeys`, and every one of these decks carries `chip_keys: []` — so the gate **never evaluates them**, rather than rejecting them.
+
+**This is now a shipping-blocker in waiting, not a note.** Four Names are ruled unsafe or incoherent to meet alone, and the app can currently serve any of them alone. **Either these pairs get `chip_keys` so the existing pair machinery applies, or a `requires_deck`-style constraint is needed.** Engineering decision, founder's to make — recorded before ship time rather than discovered at it.
+
+**One catalogue finding added, no change recommended:** the catalogue's own `dua_translation` renders `dh-l-l` as **"humiliate"** while Saheeh International's 3:26 renders the same root as **"humble"** — a real English inconsistency **across two beats the same user sees on one deck.** Disclosed, not fixed; the verse beat quotes the fetched translation as-is.

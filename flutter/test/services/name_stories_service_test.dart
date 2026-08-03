@@ -79,12 +79,16 @@ void main() {
     });
 
     test('sorting never mutates the shared cache', () async {
+      // Snapshot the cache order BEFORE the sorting call, so an in-place sort
+      // inside decksForChip shows up as a diff rather than as agreement with a
+      // hardcoded deck id. The ids used to be pinned literally here, which made
+      // this test fail every time a wave added a deck that sorts near the top —
+      // churn that says nothing about the invariant the test is named for.
+      final before = (await service.decks()).map((d) => d.deckId).toList();
       final first = (await service.decksForChip('sign')).map((d) => d.deckId);
-      final all = (await service.decks()).map((d) => d.deckId).toList();
+      final after = (await service.decks()).map((d) => d.deckId).toList();
       expect(first, ['ar-rahman@1', 'al-lateef@1']);
-      // The cached list keeps its asset order (sign decks are 11th and 12th).
-      expect(all.first, 'as-salam@1');
-      expect(all[10], 'ar-rahman@1');
+      expect(after, before);
     });
   });
 
