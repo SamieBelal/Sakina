@@ -9,7 +9,7 @@ Written so a fresh session can pick this up cold. Branch `feat/journaling-and-na
 | | Count | |
 |---|---|---|
 | **Shipped** in `assets/content/name_stories.json` | **45** | ship gate green |
-| **Drafted, awaiting review/transcription** | **24** | 3 reviewed — see §2a | ids 19, 21, 22, 43, 44, 62, 63, 69, 70, 71, 73, 74, 77, 78, 79, 80, 81, 82, 85, 91, 92, 94, 95, 96 |
+| **Drafted, awaiting review/transcription** | **24** | 3 of them reviewed (§2a); ids 19, 21, 22, 43, 44, 62, 63, 69, 70, 71, 73, 74, 77, 78, 79, 80, 81, 82, 85, 91, 92, 94, 95, 96 |
 | **Remaining, unstarted** | **30** | listed in §4 |
 
 **Quarantined (9 files, `*-QUARANTINED*.md`).** Renamed off the `*-DRAFT.md` glob so no transcription pass can pick them up. Their ids are UNCLAIMED and free to redraft: **20, 21 (Al-Bari retry only — the Al-Musawwir draft survives), 18, 39, 47, 48, 50, 53.** Do not read them as precedent; see §3.
@@ -56,7 +56,7 @@ draft (Sonnet)  →  blind adversarial verify (Sonnet)  →  fix pass  →  tran
 ```
 
 - **`DRAFTING-BRIEF.md`** is the binding protocol for drafters. Task messages should carry **only** what is Name-specific; everything standing lives there.
-- **`COLLISION-LEDGER.md`** §9a–§9bx are binding rules, each earned from a real failure. §9bq (never sweep a root by adjacent-radical substring — Arabic infixes, and it fails *low*, which is the direction a bar-4 trade argument wants) and §9bi (sweep the asset as it is now, and state the deck count as an integer) are the two most-broken.
+- **`COLLISION-LEDGER.md`** §9a–§9ca are binding rules, each earned from a real failure. §9bq (never sweep a root by adjacent-radical substring — Arabic infixes, and it fails *low*, which is the direction a bar-4 trade argument wants) and §9bi (sweep the asset as it is now, and state the deck count as an integer) are the two most-broken.
 - **Verifiers must be blind and adversarial** — the drafter's tables are claims, never evidence. Brief them with §9bt–§9bx as the failure catalogue, and require **a table of every citation fetched with what the text actually says**.
 - **Claim before drafting** in `.context/claims/<id>.md`, and re-read that directory before finalising — agents run concurrently.
 
