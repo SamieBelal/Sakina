@@ -2948,5 +2948,1499 @@
     "reviewed_by": "founder",
     "reviewed_at": "2026-08-03",
     "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-aleem@1",
+    "name_id": 14,
+    "transliteration": "Al-Aleem",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You already decided what it added up to. There is a sentence in the Qur'an where a mother did the same — and it is answered before she is finished.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 14, verbatim",
+        "primary": "The All-Knowing",
+        "arabic": "الْعَلِيمُ",
+        "transliteration": "Al-Aleem",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "What she thought she had delivered",
+        "primary": "Before her child was born, the wife of ʿImran promised it to Allah's service: \"My Lord, indeed I have pledged to You what is in my womb, consecrated [for Your service], so accept this from me…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 3:35"
+      },
+      {
+        "kind": "story",
+        "label": "What she thought she had delivered",
+        "primary": "The child was a girl. She said: \"My Lord, I have delivered a female.\" The ayah answers inside her own sentence: And Allah was most knowing of what she delivered…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 3:36"
+      },
+      {
+        "kind": "story",
+        "label": "What she thought she had delivered",
+        "primary": "Then her sentence resumes, on the other side of it: \"And I have named her Mary, and I seek refuge for her in You and [for] her descendants…\" And the next ayah: \"So her Lord accepted her with good acceptance and caused her to grow in a good manner…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 3:36-37"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And with Him are the keys of the unseen; none knows them except Him… Not a leaf falls but that He knows it…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 6:59"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 14, verbatim in full",
+        "primary": "O Allah, Knower of the unseen and the seen, Originator of the heavens and the earth.",
+        "arabic": "اللَّهُمَّ عَالِمَ الْغَيْبِ وَالشَّهَادَةِ فَاطِرَ السَّمَاوَاتِ وَالْأَرْضِ",
+        "transliteration": "Allahumma 'Alimal-ghaybi wash-shahadah, Fatiras-samawati wal-ard",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 3392 (opening of the supplication)"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "She told Him what she had delivered. He already knew what she had delivered — and the ayah says so in the middle of her sentence, before anything had proved it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 quotation, verbatim: \"My Lord, indeed I have pledged to You what is in my womb, consecrated [for Your service], so accept this from me…\" (Saheeh International; the bracket is the translator's own). The trailing ellipsis is the deck's and marks a real cut — the ayah's own ending (`إِنَّكَ أَنتَ ٱلسَّمِيعُ ٱلْعَلِيمُ`, \"Indeed, You are the Hearing, the Knowing\") is deliberately not rendered: it is human speech about Allah, and it would put As-Sami's gloss on an Al-Aleem screen. Beat 3's framing clause (\"Before her child was born, the wife of ʿImran promised it to Allah's service\") is a labelled paraphrase of the same ayah; she is not named, because the Qur'an does not name her.",
+        "url": "https://quran.com/3/35",
+        "verified": "✅ verified — live fetch 2026-08-03, re-tested programmatically as a byte-exact substring of the fetched Saheeh International (resource_id 20) translation; zero HTML tags in the fetched string, so no footnote marker falls inside the quoted region",
+        "source_label": "Qur'an 3:35"
+      },
+      {
+        "claim": "Beat 4, two verbatim quotations: \"My Lord, I have delivered a female.\" and \"And Allah was most knowing of what she delivered…\". Reading confirmed on `text_uthmani`: the second clause is `وَٱللَّهُ أَعْلَمُ بِمَا وَضَعَتْ` — third-person `وَضَعَتْ`, i.e. Allah's own comment inserted inside her quoted sentence, not a continuation of her speech (the variant `وَضَعْتُ` is not the Ḥafṣ text). Bar 1 depends on this and it was checked, not assumed. The ellipsis marks the cut before `وَلَيْسَ ٱلذَّكَرُ كَٱلْأُنثَىٰ`, a contested clause the deck refuses to adjudicate by translation choice. Beat 4's connective (\"The ayah answers inside her own sentence\") is authored copy describing the structure of the ayah, and is checkable on the page: her speech resumes after the divine clause.",
+        "url": "https://quran.com/3/36",
+        "verified": "✅ verified — live fetch 2026-08-03, byte-exact substring test re-run programmatically; zero tags in the ayah",
+        "source_label": "Qur'an 3:36"
+      },
+      {
+        "claim": "Beat 5, first quotation, verbatim: \"And I have named her Mary, and I seek refuge for her in You and [for] her descendants…\" — the second half of the interruption the deck's engine claims, and the reason the resumption is quoted rather than paraphrased. The opening quotation mark is the source's own (Saheeh reopens her speech after the divine clause); the bracket `[for]` is the translator's own and is retained. The trailing ellipsis marks a real cut before \"…from Satan, the expelled [from the mercy of Allāh]\", deliberately not rendered on a night surface.",
+        "url": "https://quran.com/3/36",
+        "verified": "✅ verified — re-tested programmatically 2026-08-03 as a byte-exact substring of the fetched string; zero tags in the ayah",
+        "source_label": "Qur'an 3:36"
+      },
+      {
+        "claim": "Beat 5, second quotation, verbatim: \"So her Lord accepted her with good acceptance and caused her to grow in a good manner…\". The ellipsis marks a deliberate cut on collision grounds: the un-quoted remainder carries Zakariyya (shipped `as-samad@1`'s protagonist) and `يَرْزُقُ` / \"provides for whom He wills\" (shipped `ar-razzaq@1`'s exact territory). Nothing withheld is a warning.",
+        "url": "https://quran.com/3/37",
+        "verified": "✅ verified — live fetch 2026-08-03, byte-exact substring; zero tags",
+        "source_label": "Qur'an 3:37"
+      },
+      {
+        "claim": "Beat 6, verse anchor, two verbatim fragments: \"And with Him are the keys of the unseen; none knows them except Him…\" and \"Not a leaf falls but that He knows it…\". The beat carries an interior ellipsis (marking the dropped \"And He knows what is on the land and in the sea.\") AND a trailing ellipsis (marking the dropped \"clear record\" tail), and carries NO quotation marks at all — so no sentence boundary is asserted anywhere in the ayah. Precedent for an unquoted verse beat: shipped `al-lateef@1`.",
+        "url": "https://quran.com/6/59",
+        "verified": "✅ verified — live fetch 2026-08-03; both fragments byte-exact substrings; zero tags in the ayah",
+        "source_label": "Qur'an 6:59"
+      },
+      {
+        "claim": "Duʿa beat — arabic / transliteration / translation byte-identical to `collectible_names.json` id 14, checked programmatically. The catalogue text is not an authored invocation: it is the opening of a graded narration, and it is the Tirmidhi route. Skeleton comparison (diacritics folded) shows the catalogue string and the Tirmidhi string differ in exactly one word — `السَّمَاوَاتِ` vs `السَّمَوَاتِ`, plene vs defective spelling of samawat — with identical word order and count. Sunan Abi Dawud 5067 carries the SAME supplication with the clauses REVERSED; it was fetched precisely so that no wrong catalogue-reordering recommendation could be made, and this deck recommends NO change to `collectible_names.json`. The catalogue text is a truncation (it stops after \"and the earth\"), and because the ship gate requires byte-identity no ellipsis can be added to the Arabic — so the rendered source line carries the disclosure instead: \"(opening of the supplication)\".",
+        "url": "https://sunnah.com/tirmidhi:3392",
+        "verified": "✅ verified byte-identical to catalog id 14 across all three fields; narration verified by live fetch of the Wayback capture 20260124120456 of the exact bare URL (sunnah.com 403s automation). Grading ḥasan ṣaḥīḥ — Abū ʿĪsā's own words `هَذَا حَدِيثٌ حَسَنٌ صَحِيحٌ`, printed on the page. Second route Sunan Abi Dawud 5067 (ṣaḥīḥ, al-Albānī) verified by live fetch of capture 20260213170852; quoted on no beat.",
+        "source_label": "Jami' at-Tirmidhi 3392 + collectible_names.json id 14"
+      },
+      {
+        "claim": "Beat 2 name_intro — `arabic` / `transliteration` / `primary` byte-identical to catalog id 14 (`الْعَلِيمُ` / `Al-Aleem` / `The All-Knowing`). No authored gloss appended.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 14"
+      },
+      {
+        "claim": "Beat 8: authored copy reporting what one ayah does to one sentence. It makes no promise to the reader, and the catalogue `lesson` line for id 14 (\"You never need to explain your pain to Al-Aleem. He already knows.\") was deliberately NOT used as the takeaway, because it is shipped `al-lateef@1`'s insight in a different noun.",
+        "url": "https://quran.com/3/36",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "Qur'an 3:36"
+      },
+      {
+        "claim": "Card corroboration, quoted on NO beat: Ṣaḥīḥ al-Bukhari 4697 (narrator Ibn ʿUmar), the ḥadīth the catalogue-repair pass put on id 14's card on 2026-08-03. Its `مَفَاتِيحُ الْغَيْبِ` is the same phrase this deck's verse beat opens on. Recorded as corroboration only — the deck asserts no join between them on any beat, because 3:36 is spoken after delivery while the ḥadīth clause is about what the wombs hold.",
+        "url": "https://sunnah.com/bukhari:4697",
+        "verified": "✅ verified by live fetch of the Wayback capture 20260314173812 of the exact bare URL; grading ṣaḥīḥ (Ṣaḥīḥ al-Bukhārī)",
+        "source_label": "Sahih al-Bukhari 4697"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-baqi@1",
+    "name_id": 98,
+    "transliteration": "Al-Baqi",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Everything you own today has an expiry date you did not set. Not everything does.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 98, verbatim — english only, no authored gloss",
+        "primary": "The Everlasting",
+        "arabic": "الْبَاقِي",
+        "transliteration": "Al-Baqi",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The shoulder",
+        "primary": "In the Prophet's ﷺ household they slaughtered a sheep. Most of it was already gone. Later he asked ʿĀʾisha what was left of it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The shoulder",
+        "primary": "\"What remains of it?\" She said: \"Nothing remains of it except its shoulder.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The shoulder",
+        "primary": "He said: \"All of it remains except its shoulder.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Whatever you have will end, but what Allah has is lasting…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 16:96"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 98, verbatim in full",
+        "primary": "O Everlasting, You remain while we perish — make the remainder of our lives in obedience to You.",
+        "arabic": "اللَّهُمَّ أَنْتَ الْبَاقِي وَنَحْنُ الْفَانُونَ فَاجْعَلْ بَقَاءَنَا طَاعَةً لَكَ",
+        "transliteration": "Allahumma Antal-Baqi wa nahnul-fanun faj'al baqaana ta'atan lak",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "She counted what they still had. He counted what was with Allah. The only part of that sheep that did not last is the part they kept.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beats 4-5 quotation, verbatim: \"What remains of it?\" / \"Nothing remains of it except its shoulder.\" / \"All of it remains except its shoulder.\" — the page's published English, checked clause-by-clause against its Arabic (ma baqiya minha / ma baqiya minha illa katifuha / baqiya kulluha ghayra katifiha). No interpolation, nothing bracketed, no attribute clause to adjudicate. In-book ref Book 37, Hadith 56. Darussalam grades it hasan; at-Tirmidhi's own verdict on the same page is sahih. The deck claims only the weaker of the two.",
+        "url": "https://sunnah.com/tirmidhi:2470",
+        "verified": "✅ verified (archive) — Arabic + English + grade line all read off the capture",
+        "source_label": "Jami' at-Tirmidhi 2470 (hasan — Darussalam; at-Tirmidhi: sahih)"
+      },
+      {
+        "claim": "Beat 3: they slaughtered a sheep, and \"Most of it was already gone\" as a paraphrase — the strongest statement Aisha's own answer entails (\"nothing remains of it except its shoulder\"). The deck does not say where it went; the narration does not say either. No beat names charity, a recipient, or a destination. R2 correction: R1's \"Most of it left the house\" was NOT entailed — it added a locational fact no speaker states — and beat 8 inherited the same defect through \"the part that never left\". Both replaced with strictly weaker, strictly entailed wording.",
+        "url": "https://sunnah.com/tirmidhi:2470",
+        "verified": "✅ verified (archive) — R1's ✅ on this row was wrong and is superseded",
+        "source_label": "Jami' at-Tirmidhi 2470 (hasan — Darussalam)"
+      },
+      {
+        "claim": "Beat 6 verse anchor, verbatim: \"Whatever you have will end, but what Allah has is lasting…\" — Saheeh International. Visible trailing ellipsis; the omitted clause is \"And We will surely give those who were patient their reward according to the best of what they used to do\", which reinforces the beat rather than qualifying it (omitted for one-breath length, and because its root is As-Sabur's). Successor sweep: 16:95 does not contradict, 16:97 runs toward reward (\"We will surely cause him to live a good life\"), 16:98 is a different subject.",
+        "url": "https://quran.com/16/96",
+        "verified": "✅ verified — api.quran.com, translations=20; 16:95, 16:97 and 16:98 all fetched and read",
+        "source_label": "Qur'an 16:96"
+      },
+      {
+        "claim": "Corroboration only, QUOTED NOWHERE and no beat depends on it: \"…is there anything as your belonging except that which you consumed… or which you gave as charity and sent it forward?\" Recorded so the founder can see that the reading the story relies on has an explicit sahih statement behind it, not so that the deck can borrow its content. Rejected as the story: no scene, no second speaker, no reversal, and zero of the Name's own root.",
+        "url": "https://sunnah.com/muslim:2958a",
+        "verified": "✅ verified (archive) — corroboration only, quoted nowhere",
+        "source_label": "Sahih Muslim 2958a (sahih)"
+      },
+      {
+        "claim": "Register sweep on the hadith's neighbours: Tirmidhi 2469 (a leather cushion stuffed with palm fibres) and Tirmidhi 2471 (\"a month without kindling a fire, having only water and dates\") are household-austerity narrations with no warning and no punishment. R2 correction: all three are in Book 37 but are three DIFFERENT chapters, not one chapter as R1 claimed; the register conclusion is unaffected.",
+        "url": "https://sunnah.com/tirmidhi:2469",
+        "verified": "✅ verified (archive) — both captures read; chapter headings re-extracted in R2",
+        "source_label": "Jami' at-Tirmidhi 2469 and 2471 (sahih — Darussalam)"
+      },
+      {
+        "claim": "The dua (catalog id 98) could NOT be traced to any primary collection. sunnah.com's search endpoint returns HTTP 403 to automation; one targeted Arabic web search returned no page carrying this wording in a primary collection, and a search-engine-generated Abu Dawud attribution was deliberately NOT acted on. Therefore the dua beat renders an empty source and nothing is added to renderedDuaSources — byte-identity with the verified catalog is its provenance.",
+        "url": "",
+        "verified": "❌ NOT established — UNPINNED, deliberately",
+        "source_label": "catalog id 98 (authored invocation)"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-haqq@1",
+    "name_id": 61,
+    "transliteration": "Al-Haqq",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Some of what has power over you tonight is not solid. Knowing which is which is the whole difficulty — and it does not get settled by arguing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 61, verbatim",
+        "primary": "The Truth",
+        "arabic": "الْحَقُّ",
+        "transliteration": "Al-Haqq",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "It looked alive",
+        "primary": "Pharaoh's magicians went first. \"They said, 'O Moses, either you throw or we will be the first to throw.' \" He told them to throw — \"And suddenly their ropes and staffs seemed to him from their magic that they were moving [like snakes].\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 20:65–66"
+      },
+      {
+        "kind": "story",
+        "label": "It looked alive",
+        "primary": "Mūsā felt fear rise in him. Allah answered him: \"Fear not. Indeed, it is you who are superior. And throw what is in your right hand; it will swallow up what they have crafted…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 20:67–69"
+      },
+      {
+        "kind": "story",
+        "label": "It looked alive",
+        "primary": "He threw. \"So the magicians fell down in prostration. They said, 'We have believed in the Lord of Aaron and Moses.' \" The men who had built the illusion went down first, and alone.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 20:70"
+      },
+      {
+        "kind": "verse",
+        "label": "the Name's own root is the subject of the sentence",
+        "primary": "So the truth came to pass, and what they were doing came to nothing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Qur'an 7:118"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 61, verbatim in full",
+        "primary": "O Allah, to You belongs all praise. You are Al-Haqq, Your promise is truth. Make Your truth the anchor of my heart.",
+        "arabic": "اللَّهُمَّ لَكَ الْحَمْدُ أَنْتَ الْحَقُّ وَوَعْدُكَ الْحَقُّ",
+        "transliteration": "Allahumma lakal-hamd, Antal-Haqq, wa wa'dukal-haqq",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Mūsā felt the fear. The men who threw the ropes did not — they knew exactly what they had made. That is why they went down first, and alone.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3, two verbatim quotations: \"They said, 'O Moses, either you throw or we will be the first to throw.' \" and \"And suddenly their ropes and staffs seemed to him from their magic that they were moving [like snakes].\" — Saheeh International, no re-rendering. The bracket [like snakes] is the translator's own and is retained rather than silently dropped. The connective \"He told them to throw\" is the deck's and paraphrases 20:66.",
+        "url": "https://quran.com/20/65",
+        "verified": "✅ verified — substring tests run programmatically 2026-08-03 against api.quran.com/api/v4/verses/by_key/{20:65,20:66}?translations=20; each quotation is a byte-exact substring of the RAW fetched string, with no <sup> markers falling inside either region.",
+        "source_label": "Qur'ān 20:65–66"
+      },
+      {
+        "claim": "Beat 4 first sentence, \"Mūsā felt fear rise in him\" — labelled paraphrase of 20:67, carrying no quotation marks on the beat. SI reads \"And he sensed within himself apprehension, did Moses\", an inversion that breaks the one-breath rule; the paraphrase adds nothing.",
+        "url": "https://quran.com/20/67",
+        "verified": "✅ verified by live fetch 2026-08-03. Labelled as paraphrase, not quotation.",
+        "source_label": "Qur'ān 20:67"
+      },
+      {
+        "claim": "Beat 4 quotation, verbatim: \"Fear not. Indeed, it is you who are superior. And throw what is in your right hand; it will swallow up what they have crafted…\" — Saheeh International. Two disclosures: (a) SI reads `We [i.e., Allāh] said, \"Fear not…\"`, and the beat prints \"Allah answered him:\" OUTSIDE the quotation rather than the translator's bracket inside it, so that bar 1 reaches the reader — no word inside the quoted region is changed, added, dropped or reordered; (b) the quotation is partial and the ellipsis is ON THE BEAT — 20:69 continues \"What they have crafted is but the trick of a magician, and the magician will not succeed wherever he is.\"",
+        "url": "https://quran.com/20/68",
+        "verified": "✅ verified — both substrings byte-exact against the RAW fetched strings, 2026-08-03.",
+        "source_label": "Qur'ān 20:68–69"
+      },
+      {
+        "claim": "Beat 5 quotation, verbatim: \"So the magicians fell down in prostration. They said, 'We have believed in the Lord of Aaron and Moses.' \" — Saheeh International. The āyah carries one <sup> footnote marker immediately after \"prostration.\", which falls BETWEEN the deck's two quoted sentences, not inside either. Name-form disclosure: the quotation renders \"Aaron and Moses\" because that is SI's English while the deck's own prose says \"Mūsā\" — shipped precedent (al-qadir@1, al-hadi@1).",
+        "url": "https://quran.com/20/70",
+        "verified": "✅ verified — byte-exact against the RAW fetched string, 2026-08-03.",
+        "source_label": "Qur'ān 20:70"
+      },
+      {
+        "claim": "Beat 5's closing line and beat 8's closing line, \"went down first, and alone\" — authored. Both halves are exactly true: \"first\" rests on Pharaoh's rebuke \"before I gave you permission\" (20:71), which establishes that they moved ahead of everyone including the authority in the room; \"and alone\" on the same āyah, which establishes that nobody followed them. \"Illusion\" is the deck's word for `yukhayyalu` (it was made to seem), the verb in the āyah beat 3 quotes; 20:66 says the ropes and staffs were theirs and the appearance came from their magic.",
+        "url": "https://quran.com/20/71",
+        "verified": "✅ honest label — authored copy over fetched text. R2 correction: R1 read \"were the first ones down\" / \"they were the first ones on the ground\", where \"first\" was an inference 20:70 does not support; both occurrences were rewritten.",
+        "source_label": "Qur'ān 20:70–71"
+      },
+      {
+        "claim": "Beat 6, verse anchor, the āyah quoted IN FULL: \"So the truth came to pass, and what they were doing came to nothing.\" — rendered from the Arabic. SI reads \"So the truth was established, and abolished was what they were doing.\" Two reasons for rendering: the inversion fails the one-breath rule, and `waqaʿa` is intransitive (fell / came to pass) whereas \"was established\" imports an establisher the Arabic does not name — which matters on a beat whose whole job is that al-ḥaqq is the SUBJECT. `baṭala` is \"became void / came to nothing\". The Name's own word is rendered \"the truth\", identical to SI and to the catalogue's gloss; no contested word is resolved differently. There is no elision and therefore no ellipsis.",
+        "url": "https://quran.com/7/118",
+        "verified": "✅ verified by live fetch of api.quran.com/api/v4/verses/by_key/7:118 (text_uthmani, text_imlaei, translations=20), 2026-08-03. Position confirmed non-final: verses/by_key/7:119 returns 200. Successor sweep recorded in the draft: 7:117 (clean, and it places 7:118 inside Allah's own first-person narration), 7:119–122 and 7:123–126 all fetched and disclosed, none rendered.",
+        "source_label": "Qur'ān 7:118"
+      },
+      {
+        "claim": "Beat 2 name_intro, and the duʿā's arabic / transliteration / translation fields",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog, checked programmatically 2026-08-03",
+        "source_label": "collectible_names.json id 61"
+      },
+      {
+        "claim": "Beat 7 duʿā is UNPINNED and its `source` field is deliberately EMPTY. The narration it comes from — the tahajjud duʿā — runs \"...You are the Truth and Your promise is the Truth and Your word is the Truth and the meeting with You is true...\"; catalogue id 61 keeps the opening four words and the \"You are the Truth, Your promise is the truth\" clause and drops the three clauses in between, with no ellipsis. The printed string is therefore a splice, and a `source` would claim a contiguity it does not have. Also refused as a beat text on bar 1 (it is the Prophet's ﷺ speech, not Allah's), bar 2 (it states the attribute), register (the litany names the Fire), and because the same duʿā contains An-Nur's own phrase while An-Nur is drafted in the same wave.",
+        "url": "https://sunnah.com/muslim:769",
+        "verified": "✅ Sahih Muslim 769a (Wayback 20260514225846), Sahih al-Bukhari 1120 (20260306014934) and 7385 (20260607193135) all fetched 2026-08-03 and quoted on no beat. Two findings reported WITHOUT a recommendation to change catalogue data: the card's citation of Bukhari 7385 is DEFENSIBLE (the page's second chain, Thābit b. Muḥammad ← Sufyān, carries \"You are the Truth\"), and the card's \"when waking\" is a framing difference from the narrations' \"at night / on rising for tahajjud\", not a misattribution of words.",
+        "source_label": "splice — no single contiguous narration; deliberately unpinned"
+      },
+      {
+        "claim": "CATALOGUE-LEVEL FINDING, raised because it renders and NOT accompanied by a recommended fix: id 61's `dua_translation` closes with \"Make Your truth the anchor of my heart.\", a sentence with no counterpart in the same field's Arabic (which contains no imperative at all) and none in any of the three fetched narrations; `dua_transliteration` likewise ends at `wa wa'dukal-haqq`. The deck cannot fix it — the ship gate asserts duʿā beats byte-identical to the catalogue — and the correct remedy is a content decision about a duʿā, not a drafting one.",
+        "url": "",
+        "verified": "⚠️ disclosed — a reading of two catalogue fields, not a scholarly judgement; the wider ḥadīth corpus was NOT searched for a narration carrying that wording.",
+        "source_label": "collectible_names.json id 61 (dua_translation)"
+      },
+      {
+        "claim": "Beats 1 and 8: authored copy, no scripture claim. Beat 8's three claims trace: \"Mūsā felt the fear\" to 20:67 (beat 4); \"the men who threw the ropes\" to 20:65–66 (beat 3); \"they knew exactly what they had made\" to 20:69's un-rendered tail (\"What they have crafted is but the trick of a magician\", Allah's own words) and to 20:73, where the magicians call it magic themselves.",
+        "url": "https://quran.com/20/69",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "authored"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-khaliq@1",
+    "name_id": 10,
+    "transliteration": "Al-Khaliq",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Some nights it lands that you might just be an accident that kept going. There is a passage about exactly that, and it is not an argument.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 10, verbatim",
+        "primary": "The Creator",
+        "arabic": "الْخَالِقُ",
+        "transliteration": "Al-Khaliq",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Seven verbs",
+        "primary": "The Qurʾān does not describe you being made from the outside. It describes it from inside the doing, and the One doing it is the speaker: \"And certainly did We create man from an extract of clay.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 23:12"
+      },
+      {
+        "kind": "story",
+        "label": "Seven verbs",
+        "primary": "\"Then We placed him as a sperm-drop in a firm lodging. Then We made the sperm-drop into a clinging clot, and We made the clot into a lump [of flesh], and We made [from] the lump, bones, and We covered the bones with flesh;…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 23:13-14"
+      },
+      {
+        "kind": "story",
+        "label": "Seven verbs",
+        "primary": "\"…then We developed him into another creation. So blessed is Allāh, the best of creators.\" Count them: seven verbs, and the same One is behind every one.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 23:14"
+      },
+      {
+        "kind": "verse",
+        "label": "quoted in full — no elision, so no ellipsis",
+        "primary": "Exalted is He who created all pairs - from what the earth grows and from themselves and from that which they do not know.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 36:36"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 10, verbatim in full",
+        "primary": "Our Lord, You have not created this in vain. Glory be to You.",
+        "arabic": "رَبَّنَا مَا خَلَقْتَ هَذَا بَاطِلًا سُبْحَانَكَ",
+        "transliteration": "Rabbana ma khalaqta hadha batilan subhanak",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "The subject of every one of those verbs is the same, and it is never you. You were not arrived at by default.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 framing: \"The Qurʾān does not describe you being made from the outside…\" — authored copy, not a source claim. It asserts only a grammatical fact about 23:12-14 (first-person plural narration), which the fetched text_uthmani carries.",
+        "url": "https://quran.com/23/12",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "Qur'ān 23:12-14"
+      },
+      {
+        "claim": "Beat 3 quotation, verbatim: \"And certainly did We create man from an extract of clay.\" (Saheeh International; Abdel Haleem fetched and compared, rejected for batch consistency only)",
+        "url": "https://quran.com/23/12",
+        "verified": "✅ verified — live fetch, byte-exact substring; the āyah carries no footnote marker",
+        "source_label": "Qur'ān 23:12"
+      },
+      {
+        "claim": "Beat 4 quotation, part 1: \"Then We placed him as a sperm-drop in a firm lodging.\" (Saheeh International). One <sup> marker falls inside the quoted region, immediately after \"sperm-drop\", and is stripped. Saheeh International's bracketed gloss [i.e., the womb] after \"firm lodging\" is DROPPED — a deliberate, disclosed cross-wave concession so that only one deck in the wave carries the word \"womb\"; the bracket is the translator's editorial insertion, not part of ٱلنُّطْفَةَ فِى قَرَارٍ مَّكِينٍ.",
+        "url": "https://quran.com/23/13",
+        "verified": "✅ verified — live fetch, byte-exact after stripping one footnote marker; translator's bracket dropped, disclosed",
+        "source_label": "Qur'ān 23:13"
+      },
+      {
+        "claim": "Beat 4 quotation, part 2: \"Then We made the sperm-drop into a clinging clot, and We made the clot into a lump [of flesh], and We made [from] the lump, bones, and We covered the bones with flesh;…\" — the trailing ellipsis is the deck's and is the required visible mark, because the āyah continues into beat 5. Both brackets are the translator's own.",
+        "url": "https://quran.com/23/14",
+        "verified": "✅ verified — live fetch, byte-exact substring; no word inside the quoted region changed, added, dropped or reordered",
+        "source_label": "Qur'ān 23:14"
+      },
+      {
+        "claim": "Beat 5 quotation: \"…then We developed him into another creation. So blessed is Allāh, the best of creators.\" — the leading ellipsis is the deck's, marking the continuation from beat 4. Abdel Haleem rejected here on the batch's stated ground: it renders ٱللَّهُ as \"God\".",
+        "url": "https://quran.com/23/14",
+        "verified": "✅ verified — live fetch, byte-exact substring; the āyah's single footnote marker falls after \"creators.\" and therefore outside the quoted region",
+        "source_label": "Qur'ān 23:14"
+      },
+      {
+        "claim": "Beat 5 closing line: \"Count them: seven verbs, and the same One is behind every one.\" — counted by hand against the fetched text_uthmani, in order: خَلَقْنَا (23:12) · جَعَلْنَٰهُ (23:13) · خَلَقْنَا · فَخَلَقْنَا · فَخَلَقْنَا · فَكَسَوْنَا · أَنشَأْنَٰهُ (23:14). All first-person-plural perfect verbs with Allah as subject; فَتَبَارَكَ is deliberately excluded as a doxology, not one of the acts.",
+        "url": "https://quran.com/23/14",
+        "verified": "✅ honest label — authored copy, counted against the fetched Arabic rather than recalled",
+        "source_label": "Qur'ān 23:12-14"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim in full: \"Exalted is He who created all pairs - from what the earth grows and from themselves and from that which they do not know.\" (Saheeh International). The hyphen after \"pairs\" is Saheeh International's own and is retained. No elision — the āyah is quoted in full and needs no ellipsis. Its خَلَقَ is a finite perfect verb with Allah as the subject of the relative clause.",
+        "url": "https://quran.com/36/36",
+        "verified": "✅ verified — live fetch, byte-exact after stripping one footnote marker that falls inside the quoted region, immediately after \"all pairs\"",
+        "source_label": "Qur'ān 36:36"
+      },
+      {
+        "claim": "Duʿā text — catalog id 10, byte-identical across dua_arabic / dua_transliteration / dua_translation. The catalogue string is SIX WORDS LIFTED FROM THE MIDDLE of Qur'ān 3:191: measured programmatically, the āyah is 21 words, the catalogue string begins at word index 12, so 12 words are omitted BEFORE and 3 words after (فَقِنَا عَذَابَ ٱلنَّارِ — \"then protect us from the punishment of the Fire\"). It is rasm-identical but NOT byte-identical to text_imlaei (هَذَا vs هَٰذَا). RULING: UNPINNED — the duʿā beat's source is EMPTY and al-khaliq@1 must NOT be added to renderedDuaSources. The earlier `cf. Qur'an 3:191` proposal was WITHDRAWN: `cf.` discloses variance, not truncation at both ends; the beat cannot carry an ellipsis because the gate locks it byte-identical to the catalogue; and the hidden tail is the punishment of the Fire. The 3:191 provenance is recorded here as a finding and reaches no screen.",
+        "url": "",
+        "verified": "⚠️ verified byte-identical to catalog — no scripture citation claimed, UNPINNED by ruling",
+        "source_label": "collectible_names.json id 10"
+      },
+      {
+        "claim": "Beat 2 name_intro — arabic / transliteration / primary byte-identical to catalog id 10 (الْخَالِقُ / Al-Khaliq / The Creator). No gloss added.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 10"
+      },
+      {
+        "claim": "Beat 8: authored copy reporting who the agent of the seven verbs was. Makes no promise to the reader. The catalogue's own `lesson` line was deliberately not used — it contains \"designed\", which is Al-Musawwir's ground in English.",
+        "url": "",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Successor sweep, all neighbours fetched live: 23:11 (fresh وَلَقَدْ opening, no run-on); 23:15-17 (death, resurrection, and وَمَا كُنَّا عَنِ ٱلْخَلْقِ غَٰفِلِينَ — \"and never have We been of [Our] creation unaware\") — no punishment; 36:34-35 (one mild reproach, \"will they not be grateful?\", not quoted) and 36:37-38 (the night and the sun). Disclosed off-screen adjacency: 36:38's تَقْدِيرُ is q-d-r, al-qadir@1's root, two āyāt out and reaching no screen.",
+        "url": "https://quran.com/23/17",
+        "verified": "✅ verified — bar 5 clean on both excerpts",
+        "source_label": "Qur'ān 23:11-17, 36:34-38"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-malik@1",
+    "name_id": 4,
+    "transliteration": "Al-Malik",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Most of what shapes your week was decided by people who never asked you. This is the Name for who is actually in charge.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 4, verbatim — english only, no authored gloss",
+        "primary": "The King",
+        "arabic": "الْمَلِكُ",
+        "transliteration": "Al-Malik",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Where are the kings",
+        "primary": "Abū Hurayra narrated a scene the Prophet ﷺ described. It is short, and it ends on a question.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Where are the kings",
+        "primary": "\"Allah will hold the whole earth, and roll all the heavens up in His Right Hand…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Where are the kings",
+        "primary": "\"…and then He will say, 'I am the King; where are the kings of the earth?'\" That is the whole narration. It ends on the question.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "Say, \"O Allah, Owner of Sovereignty, You give sovereignty to whom You will and You take sovereignty away from whom You will… In Your hand is [all] good…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 3:26"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 4, verbatim in full — all three scripts",
+        "primary": "O Allah, Owner of Sovereignty, You give sovereignty to whom You will.",
+        "arabic": "اللَّهُمَّ مَالِكَ الْمُلْكِ تُؤْتِي الْمُلْكَ مَنْ تَشَاءُ",
+        "transliteration": "Allahumma Malikal-Mulk tu'til-mulka man tasha'",
+        "translation": "",
+        "source": "Qur'an 3:26 (opening)"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "The same sentence gives sovereignty away and takes it back. Then it says what is in the hand that does both — and the word is not \"power\". It is \"good\".",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beats 4-5 quotation, verbatim across two beats with a visible ellipsis at the break in BOTH directions, so neither beat claims to be a complete sentence: \"Allah will hold the whole earth, and roll all the heavens up in His Right Hand… / …and then He will say, 'I am the King; where are the kings of the earth?'\" — the page's own published English, checked clause-by-clause against its Arabic. Capitalisation (\"Right Hand\") and punctuation (\"He will say,\") are the page's exactly; the deck makes zero editorial change and adds no gloss, no interpretation and no capitalisation of its own. Beat 5's closing two sentences are the deck's and assert only that the narration stops there, which is verifiable on the page. In-book ref Book 65, Hadith 334.",
+        "url": "https://sunnah.com/bukhari:4812",
+        "verified": "✅ verified (archive) — Arabic and English both read off the capture web.archive.org/web/20260217212758id_/https://sunnah.com/bukhari:4812, and the capture re-fetched at transcription time to settle a stale claim-table cell that had quoted R1's lower-cased \"right hand\" and colon",
+        "source_label": "Sahih al-Bukhari 4812 (sahih), narrated Abu Hurayra"
+      },
+      {
+        "claim": "Beat 6 verse anchor, verbatim: Say, \"O Allah, Owner of Sovereignty, You give sovereignty to whom You will and You take sovereignty away from whom You will… In Your hand is [all] good…\" — Saheeh International, bracketed [all] is the translation's own. TWO visible ellipses, both marked on the beat itself and not only in the draft's tables: the internal one drops \"You honor whom You will and You humble whom You will\" (the roots are Al-Muizz 43 and Al-Muzill 44, whose shared catalogue dua English would otherwise land on this beat); the trailing one drops \"Indeed, You are over all things competent\" (Al-Qadir 75, a shipped deck, and a trailing epithet that carries no demonstration). The word \"Say,\" is deliberately kept: 3:26 is a taught prayer and the deck does not present it as a bare divine declaration.",
+        "url": "https://quran.com/3/26",
+        "verified": "✅ verified — api.quran.com, fields=text_uthmani,text_imlaei, translations=20",
+        "source_label": "Qur'an 3:26"
+      },
+      {
+        "claim": "Successor sweep on the verse: 3:25 does not contradict and closes on \"they will not be wronged\"; 3:27 contains no punishment and runs toward provision (\"And You give provision to whom You will without account\" — Ar-Razzaq's root is one ayah out, off-screen, not quoted); 3:28 is a warning two ayat away, not quoted and not alluded to. The excerpt stops before a trailing epithet, and the clause elided internally is a PARALLEL to the clause kept, so the elision weakens the deck's own case rather than flattering it.",
+        "url": "https://quran.com/3/27",
+        "verified": "✅ fetched and read — 3:25, 3:27 and 3:28 each fetched individually",
+        "source_label": "Qur'an 3:25, 3:27, 3:28"
+      },
+      {
+        "claim": "Hadith neighbours fetched. Bukhari 4811 (n-1) is the \"one finger\" narration — DELIBERATELY UNUSED and recorded so nobody \"enriches\" the story from it: it is an attribute narration whose English rendering is a theological surface this deck has no business adjudicating. Reaching for the \"finger\" detail is a regression, not an improvement. Bukhari 4813 (n+1) is a different subject with no punishment. Bukhari 4812 itself is one narrated sentence that ends on the question, so there is no continuation to be dishonest about.",
+        "url": "https://sunnah.com/bukhari:4811",
+        "verified": "✅ verified (archive) — both neighbours read off their captures",
+        "source_label": "Sahih al-Bukhari 4811 and 4813 (sahih)"
+      },
+      {
+        "claim": "Parallel fetched and REJECTED, do not re-propose: Sahih Muslim 2787 is identical in substance to Bukhari 4812 in Arabic, but its published English renders the Name as \"I am the Lord\" and \"the sovereigns of the world\". Using Muslim's English would delete the Name from the deck — a published translation quietly adjudicating the point the deck exists to make. The route was chosen on the English, not on the collection. Quoted nowhere. Muslim 2788a was also fetched and rejected: its \"where are the haughty and where are the proud\" is a rebuke rather than an open question, and its roots collide with shipped al-jabbar@1 and with Al-Mutakabbir (19).",
+        "url": "https://sunnah.com/muslim:2787",
+        "verified": "✅ verified (archive) — quoted nowhere in the deck",
+        "source_label": "Sahih Muslim 2787 and 2788a (sahih) — rejected"
+      },
+      {
+        "claim": "The dua's pin. Catalogue id 4's dua_arabic is rasm-identical to Qur'an 3:26's text_imlaei minus the opening \"Qul\", truncated after \"man tasha'\" — computed with a normalisation script, not eyeballed. It is NOT byte-identical: exactly one word differs, the catalogue's \"man\" carrying a sukun the ayah does not. Immaterial religiously, recorded because a comparable check was once ticked when it had not passed. Two facts the pin discloses: (1) it is a TRUNCATION — the catalogue stops after the first of four parallel clauses, and since the dua beat's three scripts are catalogue-locked by the ship gate, `source` is the only rendered field where the partiality can be made visible, hence \"(opening)\" rather than a bare \"Qur'an 3:26\"; (2) the imperative \"Qul\" is dropped by the catalogue, while the verse beat keeps \"Say,\" — recorded, not flagged as a defect.",
+        "url": "https://quran.com/3/26",
+        "verified": "✅ computed in this session — the surviving diff is one sukun; requires 'al-malik@1': \"Qur'an 3:26 (opening)\" in renderedDuaSources IN THE SAME CHANGE, the gate asserts bidirectionally",
+        "source_label": "catalog id 4 + Qur'an 3:26 (opening)"
+      },
+      {
+        "claim": "DISCLOSED DECK PREMISE, ruled and deliberately kept: beat 7's entire rendered English is a byte-exact 12-word substring of beat 6. The user reads the same clause twice, two screens apart. This deck was selected dua-first BECAUSE the catalogue dua is 3:26; the repetition is the fact the deck is built on, and with the pin rendering beneath it, beat 7 reads as \"the clause you just read is your prayer\". The costed alternative — trimming beat 6 to open after the shared clause — was rejected because it takes \"You give sovereignty to whom You will\" off screen and breaks beat 8's arithmetic. An undisclosed repetition and a disclosed premise look identical on screen, so it is recorded here.",
+        "url": "",
+        "verified": "✅ deck-internal diff run — the check R1 never ran; keep, do not \"fix\"",
+        "source_label": "deck construction note"
+      },
+      {
+        "claim": "Collision disclosed at its true strength: beat 6 shares an 11-word contiguous run with catalogue id 88's (Malik-ul-Mulk) dua_translation — \"Owner of Sovereignty, You give sovereignty to whom You will and\" — after which the wording diverges and id 88's whole second sentence is absent from beat 6. Id 88 is already BLOCKED in the collision ledger, so this deck does not create the block, it deepens it. Recorded at that strength and no higher: an earlier draft said \"entire\", which was an overstatement of a true finding.",
+        "url": "",
+        "verified": "✅ recomputed — 11 words, not the whole dua",
+        "source_label": "catalog id 4 vs id 88"
+      },
+      {
+        "claim": "Catalogue corroboration: id 4's `hadith` card field correctly attributes and renders Bukhari 4812, including the \"King\" rendering. Two immaterial compressions (it omits \"Allah will hold the earth\" and adds \"on the Day of Resurrection\", which is Muslim 2787's wording). NO catalogue change is recommended on this Name.",
+        "url": "https://sunnah.com/bukhari:4812",
+        "verified": "✅ verified — no catalogue change recommended",
+        "source_label": "collectible_names.json id 4"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-mughni@1",
+    "name_id": 93,
+    "transliteration": "Al-Mughni",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Everyone else got something. You did the arithmetic in your head and it came out short. A whole group of people once did that, and said it where it got back to him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 93, verbatim",
+        "primary": "The Enricher",
+        "arabic": "الْمُغْنِي",
+        "transliteration": "Al-Mughni",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The share they were not given",
+        "primary": "When the day of Hunayn was over, what Allah had granted His Messenger ﷺ was divided among the people whose hearts had recently been reconciled. The Ansar were given nothing of it. The narration says it was as though they found something in themselves, because what reached the others had not reached them.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 4330"
+      },
+      {
+        "kind": "story",
+        "label": "The share they were not given",
+        "primary": "He gathered them and said: \"O company of Ansar — did I not find you astray, and Allah guided you through me? And divided, and Allah brought you together through me? And poor, and Allah enriched you through me?\" Every time he said something they answered: \"Allah and His Messenger have given more.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 4330"
+      },
+      {
+        "kind": "story",
+        "label": "The share they were not given",
+        "primary": "He kept going, and then: \"…Are you content that the people go away with the sheep and the camel, and you go away with the Prophet ﷺ to your homes?…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 4330"
+      },
+      {
+        "kind": "verse",
+        "label": "bar 1's load-bearing text — a finite verb of Allah's act in the Name's own root, transitive, with an object and a source; the trailing ellipsis marks the omitted closing pair",
+        "primary": "But if they separate [by divorce], Allah will enrich each [of them] from His abundance…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 4:130"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 93, verbatim in full — authored catalogue invocation, no scripture citation claimed",
+        "primary": "O Enricher, make me rich through You so I need no one else. Fill my heart with You until no desire competes with Your glory.",
+        "arabic": "يَا مُغْنِي أَغْنِنِي بِغِنَاكَ عَنْ سِوَاكَ وَاجْعَلْ قَلْبِي غَنِيًّا بِكَ",
+        "transliteration": "Ya Mughni, aghnini bighinaka 'an siwak waj'al qalbi ghaniyyan bik",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "They were the only ones who went home without a sheep or a camel. He did not tell them a share was coming later. He told them what they were already taking home.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: the setting — Hunayn, the distribution to al-muallafati qulubuhum, nothing to the Ansar. Paraphrase, re-rendered from the page's Arabic: the published English says \"the war booty\"; the beat says \"what Allah had granted His Messenger ﷺ\", which is what afa'a Allahu 'ala rasulihi says. The battle setting is not hidden — beat 3 opens \"When the day of Hunayn was over\". Narrator: Abdullah b. Zayd b. Asim — NOT Anas; the claim file said Anas and has been corrected.",
+        "url": "https://sunnah.com/bukhari:4330",
+        "verified": "✅ verified by live fetch (archive) — sunnah.com 403s automation, read from the Wayback capture of the exact bare-numbered URL",
+        "source_label": "Sahih al-Bukhari 4330 (sahih)"
+      },
+      {
+        "claim": "Beat 3's last sentence: \"it was as though they found something in themselves, because what reached the others had not reached them\" — re-rendered from the Arabic, and deliberately NOT the published English, which reads \"they seemed to have felt angry and sad\", an emotional attribution the Arabic does not make. The beat labels it as the narration's own hedge (\"the narration says it was as though…\") rather than asserting their state of mind.",
+        "url": "https://sunnah.com/bukhari:4330",
+        "verified": "✅ verified (archive) — same fetch",
+        "source_label": "Sahih al-Bukhari 4330 (sahih)"
+      },
+      {
+        "claim": "Beat 4, quotation: \"O company of Ansar — did I not find you astray, and Allah guided you through me? And divided, and Allah brought you together through me? And poor, and Allah enriched you through me?\" — re-rendered from the Arabic. One deliberate departure from the published English, disclosed: Muhsin Khan renders fa-aghnakumu Allahu bi as \"Allah made you rich through me\"; the beat renders \"Allah enriched you through me\". Both are aghna; the deck's rendering is the more literal one, but it also makes the tie to the Name more visible than the published English does. No clause inside the quoted region is dropped, added or reordered.",
+        "url": "https://sunnah.com/bukhari:4330",
+        "verified": "✅ verified (archive) — same fetch",
+        "source_label": "Sahih al-Bukhari 4330 (sahih)"
+      },
+      {
+        "claim": "Beat 4, second quotation: \"Allah and His Messenger have given more.\" — re-rendered from the Arabic. Amannu is the comparative of mann, bestowal of favour; Muhsin Khan's \"Allah and his Apostle have more favours to do\" is not usable English on a phone. Labelled as a rendering, not a quotation of the published translation.",
+        "url": "https://sunnah.com/bukhari:4330",
+        "verified": "✅ verified (archive) — same fetch",
+        "source_label": "Sahih al-Bukhari 4330 (sahih)"
+      },
+      {
+        "claim": "Beat 5, quotation: \"…Are you content that the people go away with the sheep and the camel, and you go away with the Prophet ﷺ to your homes?…\" — re-rendered from the Arabic, which uses the generic singular bi'sh-shati wa'l-ba'ir; Muhsin Khan pluralises and the deck keeps the singular because it is what the page says. The LEADING ellipsis marks that the utterance is resumed mid-flow: law shi'tum qultum ji'tana kadha wa kadha sits immediately before atardawna, and a \"What stops you from answering the Messenger of Allah?\" exchange sits between this and beat 4. The trailing ellipsis marks the narration's own continuation (the inner-garment simile and \"be patient until you meet me at the Hawd\"), deliberately not rendered.",
+        "url": "https://sunnah.com/bukhari:4330",
+        "verified": "✅ verified (archive) — same fetch",
+        "source_label": "Sahih al-Bukhari 4330 (sahih)"
+      },
+      {
+        "claim": "Beat 6, verse anchor: \"But if they separate [by divorce], Allah will enrich each [of them] from His abundance…\" — Saheeh International verbatim, brackets and all. Both of the translator's brackets are retained; [by divorce] discloses an uncontested grammatical antecedent (the husband and wife of 4:128–129) that the dual verb cannot supply in English. The trailing ellipsis marks the omitted \"And ever is Allah Encompassing and Wise\", withheld because it would render Al-Wasi (57) and Al-Hakeem (26) on an Al-Mughni screen. Single Allāh→Allah change is the deck-wide disclosure.",
+        "url": "https://quran.com/4/130",
+        "verified": "✅ verified — live fetch 2026-08-03, byte-exact substring; the fetched translation carries zero HTML tags, so no footnote marker falls in the quoted region",
+        "source_label": "Qur'ān 4:130"
+      },
+      {
+        "claim": "Duʿa text — catalog id 93, byte-identical across dua_arabic / dua_transliteration / dua_translation. An authored catalogue invocation, not a narration: it opens with the vocative Ya Mughni. No primary narration was found behind it and none was manufactured, so this deck claims NO scripture citation for its duʿa and ships UNPINNED. Recorded finding, not actioned: the catalogue's dua_translation ends \"until no desire competes with Your glory\", which has no counterpart in dua_arabic or dua_transliteration. NO catalogue change is recommended.",
+        "url": "",
+        "verified": "⚠️ verified byte-identical to catalog — no scripture citation claimed",
+        "source_label": "collectible_names.json id 93"
+      },
+      {
+        "claim": "Beat 2 name_intro — arabic / transliteration / english byte-identical to catalog id 93 (الْمُغْنِي / Al-Mughni / The Enricher). No authored gloss appended.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 93"
+      },
+      {
+        "claim": "Card corroboration — quoted on NO beat. Narrator Abu Hurayra; page English: \"Wealth is not in having many possessions, but rather (true) wealth is feeling sufficiency in the soul.\" Catalogue id 93's hadith field cites exactly this number and paraphrases it faithfully; the card is correct and needs no change. It is not on any beat because it STATES the Name's meaning where the story SHOWS it.",
+        "url": "https://sunnah.com/bukhari:6446",
+        "verified": "✅ verified by live fetch (archive)",
+        "source_label": "Sahih al-Bukhari 6446 (sahih)"
+      },
+      {
+        "claim": "Fetched and rejected, recorded so it is not re-derived: 93:8 (blocked — al-waliyy@1 holds 93:6, two ayat away), 9:28 (9:29 is the fighting ayah), 24:32 (trailing Wasi/Aleem pair), 24:33 (dies intra-ayah), 53:48 (states rather than shows; the litany reaches the destruction of Aad at 53:50, two ayat later), 9:74 (subject is the hypocrites, ends in punishment). 4:130 is the only survivor of the seven-candidate gh-n-y sweep, which is why it is the verse beat.",
+        "url": "https://quran.com/4/130",
+        "verified": "✅ all fetched live 2026-08-03",
+        "source_label": "Qur'ān 4:130 (the only survivor)"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-mumin@1",
+    "name_id": 7,
+    "transliteration": "Al-Mumin",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You said you can't stop bracing for what might happen. This Name is not about being braver. It is about who makes a person safe.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 7 english verbatim, plus a gloss lifted verbatim from catalog id 7's own meaning field",
+        "primary": "The Guardian of Faith — the One who grants safety",
+        "arabic": "الْمُؤْمِنُ",
+        "transliteration": "Al-Mumin",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The sword on the thorn tree",
+        "primary": "On the way back from Najd, midday caught them in a valley thick with thorn trees. Everyone scattered into the shade. The Prophet ﷺ lay down under one, hung his sword on a branch, and slept.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 2910"
+      },
+      {
+        "kind": "story",
+        "label": "The sword on the thorn tree",
+        "primary": "A man took the sword down and drew it. \"…Then who will protect you from me?\" \"Allah will protect me from you.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 843a"
+      },
+      {
+        "kind": "story",
+        "label": "The sword on the thorn tree",
+        "primary": "In Bukhari's route the answer is one word — \"Allah\" — and he says it three times. Neither route narrates a miracle. His companions closed in, the man sheathed the sword and hung it back up, and the Prophet ﷺ did not punish him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 2910 · Sahih Muslim 843a"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt — the leading ellipsis is on the beat because 106:4 grammatically continues 106:3",
+        "primary": "…Who has fed them, [saving them] from hunger and made them safe, [saving them] from fear.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 106:4"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 7, verbatim in full",
+        "primary": "O Allah, make us firm upon faith.",
+        "arabic": "اللَّهُمَّ ثَبِّتْنَا عَلَى الْإِيمَانِ",
+        "transliteration": "Allahumma thabbitna 'alal-iman",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "He did not answer that he was brave. He answered by naming who was protecting him. And the ayah counts being made safe alongside being fed — safety is not something you rise to. It is something you are given.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 — the Najd expedition, the return, midday in a valley of thorn trees, the people scattering into the shade, the Prophet ﷺ under a tree with his sword hung on it, sleeping. Labelled paraphrase of the narration's opening, no quotation. Arabic on the page: غَزَا مَعَ رَسُولِ اللَّهِ ﷺ قِبَلَ نَجْدٍ … فَأَدْرَكَتْهُمُ الْقَائِلَةُ فِي وَادٍ كَثِيرِ الْعِضَاهِ … وَتَفَرَّقَ النَّاسُ يَسْتَظِلُّونَ بِالشَّجَرِ، فَنَزَلَ رَسُولُ اللَّهِ ﷺ تَحْتَ سَمُرَةٍ وَعَلَّقَ بِهَا سَيْفَهُ. In-book: Book 56, Hadith 123.",
+        "url": "https://sunnah.com/bukhari:2910",
+        "verified": "✅ verified by live fetch (Wayback capture of the exact bare number) — every element of the beat is in that sentence",
+        "source_label": "Sahih al-Bukhari 2910 (sahih)"
+      },
+      {
+        "claim": "DISCLOSURE — beats 3-4 blend the two routes' SETTINGS. Beat 3's setting is Bukhārī's (an expedition towards Najd, الْقَائِلَة the midday nap, a valley كَثِيرِ الْعِضَاهِ, a سَمُرَة). Beat 4's dialogue is Muslim's, and Muslim names the place بِذَاتِ الرِّقَاعِ and its tree simply شَجَرَةٍ ظَلِيلَةٍ — it says nothing about Najd, midday or thorn trees. Nothing invented, nothing contradicted; the two are classically understood as the same episode and the deck names both collections on the beats. But the reader meets a single valley, and that valley is composite.",
+        "url": "https://sunnah.com/bukhari:2910",
+        "verified": "✅ honest label — composite setting, disclosed",
+        "source_label": "Sahih al-Bukhari 2910 + Sahih Muslim 843a"
+      },
+      {
+        "claim": "Beat 3 — \"and slept\" / the sword taken while he was asleep. Paraphrase of the Prophet's ﷺ own reported words: إِنَّ هَذَا اخْتَرَطَ عَلَىَّ سَيْفِي وَأَنَا نَائِمٌ، فَاسْتَيْقَظْتُ وَهْوَ فِي يَدِهِ صَلْتًا. The sleeping detail is Bukhārī's and is absent from Muslim 843a — which is why this deck uses both routes and says which is which.",
+        "url": "https://sunnah.com/bukhari:2910",
+        "verified": "✅ verified — same fetch",
+        "source_label": "Sahih al-Bukhari 2910 (sahih)"
+      },
+      {
+        "claim": "Beat 4, quoted: \"…Then who will protect you from me?\" / \"Allah will protect me from you.\" Re-rendered from the page's Arabic (فَمَنْ يَمْنَعُكَ مِنِّي / اللَّهُ يَمْنَعُنِي مِنْكَ) rather than pasted, because the published English capitalises \"Me\" for the attacker and renders يَمْنَعُكَ archaically; the one line that carries the deck — \"Allah will protect me from you\" — is the published English verbatim, unchanged. ELISION, DISCLOSED ON THE BEAT: the narration's first exchange (أَتَخَافُنِي / لاَ) is dropped for a rendered-English collision reason, not a source-critical one, so beat 4 carries a VISIBLE LEADING ELLIPSIS inside the quotation marks. The retained فَ in \"Then\" is the narration's own connective and now points at the elided exchange. Number discipline: the bare URL sunnah.com/muslim:843 resolves to the page whose own reference line reads \"Sahih Muslim 843a\"; this deck cites 843a, not 843.",
+        "url": "https://sunnah.com/muslim:843",
+        "verified": "✅ verified by live fetch (Wayback capture); no word added or reordered inside the quoted region",
+        "source_label": "Sahih Muslim 843a (sahih)"
+      },
+      {
+        "claim": "Beat 5 — \"In Bukhari's route the answer is one word — 'Allah' — and he says it three times\", with the route named ON THE BEAT. Bukhārī's text: فَقَالَ مَنْ يَمْنَعُكَ مِنِّي فَقُلْتُ \"اللَّهُ\" ‏.‏ ثَلاَثًا — ثَلاَثًا attaches to the ONE-WORD answer اللَّهُ. Muslim 843a's answer is the full sentence اللَّهُ يَمْنَعُنِي مِنْكَ, said once. An earlier revision said \"He said it three times\" after quoting Muslim's sentence — a cross-route conflation asserting something no ṣaḥīḥ route reports. Corrected: the route is named on the beat and ثَلاَثًا is restored to what it actually counts.",
+        "url": "https://sunnah.com/bukhari:2910",
+        "verified": "✅ verified — and this row records a real earlier error, corrected rather than quietly patched",
+        "source_label": "Sahih al-Bukhari 2910 (sahih)"
+      },
+      {
+        "claim": "Beat 5 — \"Neither route narrates a miracle.\" Authored and load-bearing. An earlier revision read \"Neither narration reports a miracle — ONLY that his companions closed in…\"; \"only\" overclaimed, since both routes do continue (Bukhārī within Kitāb al-Jihād; Muslim straight on into ṣalāt al-khawf). \"only\" removed, the sentence split, and \"reports\" → \"narrates\", because the claim being made is specifically that no route narrates a miraculous event.",
+        "url": "https://sunnah.com/muslim:843",
+        "verified": "✅ honest label — authored, verified against both pages",
+        "source_label": "Sahih al-Bukhari 2910 + Sahih Muslim 843a"
+      },
+      {
+        "claim": "Beat 5 — \"his companions closed in, the man sheathed the sword and hung it back up\". Paraphrase of فَتَهَدَّدَهُ أَصْحَابُ رَسُولِ اللَّهِ ﷺ فَأَغْمَدَ السَّيْفَ وَعَلَّقَهُ. Included deliberately: the popular retelling has the sword fall from the man's hand, and neither ṣaḥīḥ route says that. Omitting the Companions in order to leave a miracle-shaped hole would be an elision, so beat 5 states outright that no miracle is narrated.",
+        "url": "https://sunnah.com/muslim:843",
+        "verified": "✅ verified — same fetch",
+        "source_label": "Sahih Muslim 843a (sahih)"
+      },
+      {
+        "claim": "Beat 5 — \"the Prophet ﷺ did not punish him\". Paraphrase of وَلَمْ يُعَاقِبْهُ وَجَلَسَ. Kept to one clause on purpose: the deck must not become a deck about the Prophet's ﷺ magnanimity. The clause is reported because it is how the narration ends and dropping it would be an elision; no beat builds on it and beat 8 does not mention it.",
+        "url": "https://sunnah.com/bukhari:2910",
+        "verified": "✅ verified — same fetch",
+        "source_label": "Sahih al-Bukhari 2910 (sahih)"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim: \"…Who has fed them, [saving them] from hunger and made them safe, [saving them] from fear.\" (Saheeh International, translator's brackets retained — dropping them would leave \"fed them from hunger\", which is wrong English). Uthmānī: ٱلَّذِىٓ أَطْعَمَهُم مِّن جُوعٍ وَءَامَنَهُم مِّنْ خَوْفٍۭ. The leading ellipsis is required, not decorative: 106:4 opens ٱلَّذِىٓ, a relative pronoun whose antecedent is \"the Lord of this House\" in 106:3. Abdel Haleem fetched and REJECTED with a reason: he renders وَءَامَنَهُم, a finite verb of Allah's action, as the bare noun \"safety\", dissolving the grammatical fact this deck's bar 1 rests on.",
+        "url": "https://quran.com/106/4",
+        "verified": "✅ verified by live fetch — no footnote marker; byte-exact after prepending the ellipsis",
+        "source_label": "Qur'ān 106:4"
+      },
+      {
+        "claim": "Duʿā text — catalog id 7, byte-identical across dua_arabic / dua_transliteration / dua_translation; scanned for Arabic presentation forms (U+FE70-FEFF): none. PROVENANCE: اللَّهُمَّ ثَبِّتْنَا عَلَى الْإِيمَانِ could not be located as a primary narration and NO narration is claimed. It reads as an authored catalogue invocation. Therefore al-mumin@1's dua beat source is EMPTY and al-mumin@1 must NOT be added to renderedDuaSources — a pin would assert a provenance the text does not have.",
+        "url": "",
+        "verified": "⚠️ verified byte-identical to catalog — no scripture citation claimed, UNPINNED",
+        "source_label": "collectible_names.json id 7"
+      },
+      {
+        "claim": "Beat 2 name_intro — arabic (الْمُؤْمِنُ) and transliteration (Al-Mumin) byte-identical to catalog id 7, and the English up to the em-dash is catalog `english` (\"The Guardian of Faith\") verbatim. The gloss after the em-dash, \"the One who grants safety\", is a verbatim prefix of catalog id 7's own `meaning` field (\"The One who grants safety and confirms the faith of His servants.\") — not authored from nothing. Third glossed name_intro after al-wakeel@1 and al-muid@1.",
+        "url": "",
+        "verified": "⚠️ catalog english + a verbatim gloss from the same record's meaning field, disclosed",
+        "source_label": "collectible_names.json id 7"
+      },
+      {
+        "claim": "Beat 8: authored copy. Reports what the answer named and what the āyah lists it beside. Bar 5 / successor sweep: verses/by_key/106:5 returns HTTP 404 — 106:4 is the final āyah of Sūrat Quraysh, and all four āyāt were fetched: no warning, no rebuke, no punishment anywhere in the sūrah. Backward disclosure: the PRECEDING sūrah (al-Fīl) is a destruction narrative and 105:5 reads \"And He made them like eaten straw\" — no word of it is on any beat, and this deck's story is not the Elephant.",
+        "url": "https://quran.com/106/4",
+        "verified": "✅ honest label — authored copy; bar 5 verified at its maximal form",
+        "source_label": "Qur'ān 106:1-5, 105:5"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-wasi@1",
+    "name_id": 57,
+    "transliteration": "Al-Wasi",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Some weeks there is nowhere to put anything — not in the day, not in you, not in the place you live. Two sentences in the Qur'an speak to that, and neither of them is about you.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 57, verbatim",
+        "primary": "The All-Encompassing",
+        "arabic": "الْوَاسِعُ",
+        "transliteration": "Al-Wasi",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Two lines, two directions",
+        "primary": "Both are Allah describing what He made, and in both the verbs of making are His own. The first: \"And the heaven We constructed with strength, and indeed, We are [its] expander.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 51:47"
+      },
+      {
+        "kind": "story",
+        "label": "Two lines, two directions",
+        "primary": "\"And the earth We have spread out, and excellent is the preparer.\" Above you and underneath you — both described as room, and both described as room He made.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 51:48"
+      },
+      {
+        "kind": "story",
+        "label": "Two lines, two directions",
+        "primary": "Those two lines are about the space itself. The one that follows is said to the person who has to live in it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "O My servants who have believed, indeed My earth is spacious, so worship only Me.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 29:56"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 57, verbatim in full",
+        "primary": "O All-Encompassing, expand my heart to hold more gratitude, my patience to endure with more grace, and my vision to see beyond my limits.",
+        "arabic": "يَا وَاسِعُ وَسِّعْ قَلْبِي لِلصَّبْرِ وَبَصِيرَتِي لِتَجَاوُزِ حُدُودِي",
+        "transliteration": "Ya Wasi', wassi' qalbi lis-sabr wa-basiirati litajawuzi hududy",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "When nothing will fit any more, that is news about where you are. It is not news about how much was made — and it was never the room that was missing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 framing: \"Both are Allah describing what He made, and in both the verbs of making are His own.\" — authored copy. Corrected in R3: the earlier framing (\"…in the first person, and each is one line long\") was contradicted by beat 4's own quoted tail فَنِعْمَ ٱلْمَـٰهِدُونَ (\"and excellent is the preparer\"), which is third person. The claim is now only that the verbs of making (بَنَيْنَـٰهَا, فَرَشْنَـٰهَا, and the predication وَإِنَّا لَمُوسِعُونَ) are first-person; the closing doxology is not.",
+        "url": "",
+        "verified": "✅ honest label — authored copy, corrected in R3",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Beat 3 quotation, verbatim in full: \"And the heaven We constructed with strength, and indeed, We are [its] expander.\" (Saheeh International; the bracket [its] is the translator's own and is retained). Abdel Haleem fetched and compared (\"We built the heavens with Our power and made them vast,\") — different aspect, identical agency; rejected for batch consistency only. Arabic: وَٱلسَّمَآءَ بَنَيْنَـٰهَا بِأَيْي۟دٍ وَإِنَّا لَمُوسِعُونَ",
+        "url": "https://quran.com/51/47",
+        "verified": "✅ verified — live fetch 2026-08-03, byte-exact after stripping one <sup> marker that falls inside the quoted region, immediately after \"strength\". No elision — quoted in full.",
+        "source_label": "Qur'an 51:47"
+      },
+      {
+        "claim": "Beat 4 quotation, verbatim in full: \"And the earth We have spread out, and excellent is the preparer.\" (Saheeh International). Abdel Haleem fetched (\"We spread out the earth- how well We smoothed it out!-\") and rejected — the exclamatory register does not sit with beat 3. Arabic: وَٱلْأَرْضَ فَرَشْنَـٰهَا فَنِعْمَ ٱلْمَـٰهِدُونَ",
+        "url": "https://quran.com/51/48",
+        "verified": "✅ verified — byte-exact, live fetch 2026-08-03. The āyah carries no <sup> marker. No elision.",
+        "source_label": "Qur'an 51:48"
+      },
+      {
+        "claim": "Beat 4 closing line: \"Above you and underneath you — both described as room, and both described as room He made.\" — authored copy. \"Above\" / \"underneath\" restate ٱلسَّمَآءَ / ٱلْأَرْضَ; \"room He made\" restates بَنَيْنَـٰهَا / فَرَشْنَـٰهَا. Adds nothing the two āyāt do not carry, and makes no cosmological claim.",
+        "url": "",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Beat 5, whole beat — authored copy, a hinge into beat 6. Quotes nothing. Written specifically to keep the shortage located in the situation and not in the reader, to stay off al-qayyum@1's engine.",
+        "url": "",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim in full: \"O My servants who have believed, indeed My earth is spacious, so worship only Me.\" (Saheeh International). The beat prints the āyah in full, including the imperative فَإِيَّـٰىَ فَٱعْبُدُونِ — not cut, because cutting it would leave the room without the reason it is offered. The proposed leading-ellipsis \"fix\" against al-ghaffar@1's 39:53 vocative was WITHDRAWN: COLLISION-LEDGER §9o rules that a formulaic Qurʾānic opening is not a bar-3 collision and requires no disclosure. Arabic: يَـٰعِبَادِىَ ٱلَّذِينَ ءَامَنُوٓا۟ إِنَّ أَرْضِى وَٰسِعَةٌ فَإِيَّـٰىَ فَٱعْبُدُونِ",
+        "url": "https://quran.com/29/56",
+        "verified": "✅ verified — byte-exact, live fetch 2026-08-03. No <sup> marker. No elision.",
+        "source_label": "Qur'an 29:56"
+      },
+      {
+        "claim": "Beat 8: \"When nothing will fit any more, that is news about where you are. It is not news about how much was made — and it was never the room that was missing.\" — authored copy, quoting and paraphrasing NOTHING. Row corrected in R3: R2's beat 8 printed Saheeh International's bracketed [its] unbracketed, as speech attributed to Allah, on an uncited beat (plan §6 rule 2). The clause was dropped rather than re-bracketed — beat 3 already carries the quotation correctly. This also removes the §9v intra-deck repeats with beat 3 (\"We are its expander\") and beat 5 (\"the place you are in\"), and the leak in the expanding-universe guard. The deck explicitly refuses the \"the Qurʾān predicted the expanding universe\" reading; no beat gestures at it.",
+        "url": "",
+        "verified": "✅ honest label — authored copy, quoting nothing",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Duʿā text — catalog id 57, byte-identical across dua_arabic / dua_transliteration / dua_translation. An authored catalogue invocation (يَا وَاسِعُ plus imperatives), not a narration; no citation was hunted for it. RULING: UNPINNED — the duʿā beat's source is EMPTY and al-wasi@1 must NOT be added to renderedDuaSources. Catalogue finding, reported and deliberately NOT actioned: id 57's dua_translation has three petitions where dua_arabic has two (\"gratitude\" has no counterpart in the Arabic, and the English attaches \"patience\" to a different object). No change proposed; the deck is unaffected.",
+        "url": "",
+        "verified": "⚠️ verified byte-identical to catalog — no scripture citation claimed, UNPINNED by ruling",
+        "source_label": "collectible_names.json id 57"
+      },
+      {
+        "claim": "Beat 2 name_intro — arabic / transliteration / primary byte-identical to catalog id 57 (الْوَاسِعُ / Al-Wasi / The All-Encompassing). No gloss added. Disclosed: \"The All-Encompassing\" renders here and again on beat 7's duʿā primary (\"O All-Encompassing, …\"); both strings are catalogue-locked and neither is deck-fixable. Shipped ar-rahman@1 renders \"encompass*\" twice as well — the two decks are LEVEL on that axis, not separated. Non-blocking, escalated per COLLISION-LEDGER §9o row 4.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 57"
+      },
+      {
+        "claim": "Successor sweep, all neighbours fetched live 2026-08-03. 51:47 n−1..n−3 (51:44-46) are three āyāt of destruction — the deck's heaviest backward disclosure, stated plainly; 51:47 opens وَٱلسَّمَآءَ, a fronted accusative beginning a new series of divine acts (51:47-49), and nothing from 51:44-46 is quoted, paraphrased or alluded to. 51:47 n+1 is 51:48, quoted by this deck. 51:48 n+1 is 51:49 (two mates, clean) — carries kh-l-q, the root of sibling al-khaliq@1, which fetched and rejected 51:49; neither deck quotes it. 51:48 n+2 is 51:50 (\"So flee to Allāh. Indeed, I am to you from Him a clear warner.\") — disclosed; it is the Prophet's ﷺ speech and an invitation, not a sentence pronounced on anyone, and the al-khaliq@1 inconsistency question is RULED CONSISTENT (that deck rejected 51:49 as a comparative preference at n+1, not as a bar-5 disqualification; here it is n+2 with 51:49's benign parable in between). 29:56 n−1 is 29:55 (punishment) — disclosed, mitigated by 29:56 opening on a vocative address to believers, يَـٰعِبَادِىَ ٱلَّذِينَ ءَامَنُوٓا۟, so the addressee changes completely at the āyah boundary. 29:56 n+1..n+4 are clean and confirming (Paradise, patience, reliance, provision; no punishment for four āyāt). verses/by_key/29:70 → HTTP 404, so 29:69 is sūrah-final and 29:56 is NOT sūrah-final — the maximal form of bar 5 is not available and is not claimed.",
+        "url": "https://quran.com/51/47",
+        "verified": "✅ all neighbours fetched live 2026-08-03; backward punishment disclosed on both excerpts, clean at n+1 on both",
+        "source_label": "Qur'an 51:44-51 · 29:55-60"
+      },
+      {
+        "claim": "Recorded reading dispute on 51:47, so no later editor re-opens it: لَمُوسِعُونَ has more than one classical reading. The verifier fetched 8 published renderings and the split is 6–2 — Maududi and Hilali-Khan read مُوسِعُونَ as CAPABILITY ONLY (\"possessed of vast power\"), with no act of widening. R2's claim that \"every reading carries agency\" is therefore FALSE on 2 of 8 and is withdrawn. Bar 1 survives on 51:48, not on 51:47: وَٱلْأَرْضَ فَرَشْنَـٰهَا is a finite first-person verb of Allah's act with no contested morphology, and all eight renderings carry the making of room there. Bar 4 rests on 51:47's لَمُوسِعُونَ — a Form-IV active participle (أَوْسَعَ, \"to make wide\"), not the Form-I وَاسِع of the Name itself; same root, causative form, and it matches the duʿā's own Form-II وَسِّعْ. It is a hapax (n=1 in the muṣḥaf) against وَٱللَّهُ وَٰسِعٌ عَلِيمٌ at n=7 āyāt verbatim, so it is not a formulaic tag; morphology cross-checkable against 2:236's ٱلْمُوسِعِ.",
+        "url": "https://quran.com/51/47",
+        "verified": "⚠️ disputed word, disclosed — bar 1 deliberately does NOT rest on it",
+        "source_label": "Qur'an 51:47"
+      },
+      {
+        "claim": "Rejected candidates, all fetched live 2026-08-03 and recorded so they are not re-proposed. Dropped in R2: 2:115 (body shows ubiquity, not capacity — bar 1 was being bridged by a trailing epithet plus authored prose; removing it also removed an on-screen \"all-Encompassing\" from a STORY beat, an undisclosed \"the right way\" 3-word run against shipped al-hadi@1, an \"and Knowing\" / Al-Aleem status error, and a sixth Baqara deck). Ceded to Al-Mughni (93): 4:130. Already spent: 2:255 · 7:156 · 2:286 · 9:117-118. Rejected on bar 1 (trailing epithet, or speaker is not Allah): 7:89 · 40:7 · 20:98 · 6:80 · 2:247 · 2:261 · 2:268 · 3:73 · 5:54 · 24:32. Rejected on bar 3: 53:32 · 2:143 · 4:100. Rejected on bar 5 / register: 4:97 · 17:20 · 2:246-251 · 39:10 · 65:7 · 14:34 / 16:18 · 94:1. Ḥadīth fetched and rejected — all eight; THIS DECK CITES NO ḤADĪTH: Tirmidhī 345 (at-Tirmidhī himself grades the isnād weak on the page) · Muslim 2577 and Bukhārī 7422 (their insight IS al-kareem@1's beat 8) · Bukhārī 6010 (object is mercy; already refused by al-haleem@1) · Bukhārī 1096 / Muslim 700a (neither cites 2:115) · Bukhārī 5450 / Muslim 2059 (barakah; bar 1 fails) · Muslim 186 · Bukhārī 3877.",
+        "url": "",
+        "verified": "✅ all fetched live 2026-08-03; recorded as rejections",
+        "source_label": "rejected candidates"
+      },
+      {
+        "claim": "Method limits, carried forward verbatim in substance. (1) Every Qurʾān claim rests on api.quran.com, Saheeh International (resource 20), with Abdel Haleem (85) fetched on the two rows that turn on a translation choice; no printed muṣḥaf. (2) All ḥadīth candidates were read through Wayback captures of sunnah.com; no printed edition, no isnād audited. (3) The R1 w-s-ʿ enumeration was INCOMPLETE — it listed 17 occurrences and missed 7:89 and, decisively, 51:47, both supplied by the verifier's concordance; the drafter never ran a concordance. Generalisable lesson: enumerate by verb form, not by the Name's own morphology. (4) The rendered-English sweep covers the 24 transcribed decks only, not the nine drafting concurrently. (5) The duʿā beat was a systematic blind spot: earlier sweeps quoted beat 7 from its FIFTH word, which is why \"O All-Encompassing\" went unseen across R1, R2 and the wave-1 verification. A duʿā beat is a rendered beat — sweep its primary from word one and count it in every \"on any beat\" claim.",
+        "url": "",
+        "verified": "⚠️ method limits, disclosed",
+        "source_label": "method"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "an-nur@1",
+    "name_id": 17,
+    "transliteration": "An-Nur",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "There are nights when nothing in you feels lit. A boy once arranged to be woken in the middle of one — to watch how the Prophet ﷺ prayed.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 17, verbatim",
+        "primary": "The Light",
+        "arabic": "النُّورُ",
+        "transliteration": "An-Nur",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Wake me",
+        "primary": "Ibn ʿAbbās was a boy. He spent a night at the house of his aunt Maymūna — the Prophet's ﷺ wife — and asked her for one thing: \"When the Messenger of Allah ﷺ gets up, wake me.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Sahih Muslim 763e"
+      },
+      {
+        "kind": "story",
+        "label": "Wake me",
+        "primary": "He got up. The boy stood at his left; the Prophet ﷺ took him by the hand and moved him to his right. And whenever the boy dozed off, he took hold of his earlobe.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 763e"
+      },
+      {
+        "kind": "story",
+        "label": "Wake me",
+        "primary": "He went out to the prayer, and in it he kept saying: \"O Allah! place light in my heart, light in my hearing, light in my sight … light above me, light below me, make light for me,\" — or, the narrator says, he said: \"Make me light.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 763g"
+      },
+      {
+        "kind": "verse",
+        "label": "the Name's own root is the object of Allah's own first-person verb",
+        "primary": "…and We made for him a light by which he walks among the people…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Qur'an 6:122"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 17, verbatim in full",
+        "primary": "O Allah, place light in my heart, light on my tongue, and make me light.",
+        "arabic": "اللَّهُمَّ اجْعَلْ فِي قَلْبِي نُورًا وَفِي لِسَانِي نُورًا وَاجْعَلْنِي نُورًا",
+        "transliteration": "Allahumma-j'al fi qalbi nuran wa fi lisani nuran waj'alni nuran",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Every line asks for light in a place — heart, hearing, sight, above, below. The last one asks for no place at all: make me light. Not something to carry. Something to be made of.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: Ibn ʿAbbās spent the night at his aunt Maymūna's and asked her, \"When the Messenger of Allah ﷺ gets up, wake me.\" — rendered from the Arabic; sunnah.com's published English reads \"Awake me when the Messenger of Allah (ﷺ) stands to pray (at night)\", whose archaism and parenthesis are the translator's. No word is added, and `qāma` is rendered \"gets up\" because the Arabic does not say \"to pray\" here.",
+        "url": "https://sunnah.com/muslim:763e",
+        "verified": "✅ verified by live fetch of the Wayback capture (20260113063455) of the exact bare number, 2026-08-03. `muslim:763` resolves to 763a, a different route with different wording — which is why the lettered number is cited.",
+        "source_label": "Sahih Muslim 763e (sahih)"
+      },
+      {
+        "claim": "Beat 4: the boy stood on his left; the Prophet ﷺ took him by the hand and moved him to his right; the earlobe when he dozed off — labelled paraphrase, following the published English closely. Corroborated independently by Sahih al-Bukhari 6316, which is quoted on no beat.",
+        "url": "https://sunnah.com/muslim:763e",
+        "verified": "✅ verified, same capture. The beat asserts nothing the narration does not carry.",
+        "source_label": "Sahih Muslim 763e (sahih)"
+      },
+      {
+        "claim": "Beat 5, the supplication, partial with a visible ellipsis on the beat: sunnah.com's published English of 763g, verbatim within the quoted regions. Six directional clauses are elided and the elision is shown on screen. Two disclosures: the \"or ... he said: 'Make me light'\" uncertainty is the narration's own (`aw qāla`), not the deck's; and the narration places the words \"in his prayer, or in his prostration\", the narrator being unsure which — the beat's \"went out to the prayer, and in it he kept saying\" is true on either reading and resolves nothing.",
+        "url": "https://sunnah.com/muslim:763g",
+        "verified": "✅ verified by live fetch of the Wayback capture (20260418160155), 2026-08-03.",
+        "source_label": "Sahih Muslim 763g (sahih)"
+      },
+      {
+        "claim": "DISCLOSURE — the story is a TWO-CHAIN SPLICE. Beats 3–4 are Muslim 763e (Ḍaḥḥāk ← Makhrama b. Sulaymān ← Kurayb ← Ibn ʿAbbās); beat 5 is Muslim 763g (Shuʿba ← Salama ← Kurayb ← Ibn ʿAbbās). Two chains describing two nights, presented on screen as one continuous evening. 763e carries \"wake me\" and the earlobe and no supplication; 763g carries the vigil and the supplication and no \"wake me\". Nothing is attributed to the wrong person — same Companion, same transmitter — and each beat carries its own `source`, so the screen is honest.",
+        "url": "https://sunnah.com/muslim:763g",
+        "verified": "✅ disclosed, not fixed — both narrations sahih, both fetched 2026-08-03.",
+        "source_label": "Sahih Muslim 763e + 763g (both sahih)"
+      },
+      {
+        "claim": "Beat 6, verse anchor: \"…and We made for him a light by which he walks among the people…\" — rendered from the Arabic. Saheeh International reads \"and made for him light by which to walk among the people\", which drops the visible subject; with the preceding clause elided, SI's English would leave the beat with no agent. `wa-jaʿalnā` is first-person plural perfect, \"and We made\". Nothing is added and nothing contested is resolved — the light here is uncontroversially a created light given to a person, not the disputed predication of 24:35. The quoted region is contiguous; ellipses at both ends are on the beat.",
+        "url": "https://quran.com/6/122",
+        "verified": "✅ verified by live fetch of api.quran.com/api/v4/verses/by_key/6:122 (text_uthmani, text_imlaei, translations=20), 2026-08-03. Successor sweep run: 6:121, 6:123 and the excerpt's own head and tail are all recorded in the draft; 6:123 is the harshest thing within one āyah and is disclosed, not hidden.",
+        "source_label": "Qur'ān 6:122"
+      },
+      {
+        "claim": "Beat 2 name_intro, and the duʿā's arabic / transliteration / translation fields",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog, checked programmatically 2026-08-03",
+        "source_label": "collectible_names.json id 17"
+      },
+      {
+        "claim": "Beat 7 duʿā is UNPINNED and its `source` field is deliberately EMPTY. All five routes were fetched (Bukhari 6316, Muslim 763a, Muslim 763g, Abu Dawud 1353, Tirmidhi 3419) and not one contains all three of the catalogue's clauses: the tongue clause comes from the Abu Dawud 1353 route and \"make me light\" from Muslim 763g, with the intervening clauses of both dropped. A `source` here would assert a contiguity and a single provenance the printed string does not have. No catalogue change is recommended — every clause is in a sahih narration; it is the combination that is unpinnable.",
+        "url": "https://sunnah.com/muslim:763g",
+        "verified": "✅ all five routes fetched 2026-08-03; Tirmidhi 3419 is graded Ḍaʿīf (Darussalam) and carries NEITHER catalogue clause, which strengthens the composite finding.",
+        "source_label": "composite — no single narration; deliberately unpinned"
+      },
+      {
+        "claim": "Beats 1 and 8: authored copy, no scripture claim. Beat 1's \"arranged to be woken\" is 763e's `fa-ayqiẓīnī` and \"to watch how the Prophet ﷺ prayed\" is 763g's own stated purpose (`fa-baqaytu kayfa yuṣallī`); the deck attributes no motive the narrations lack. Beat 8's every noun (heart, hearing, sight, above, below, make me light) is a word rendered on beat 5 or beat 7.",
+        "url": "",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "authored"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "ar-raqeeb@1",
+    "name_id": 40,
+    "transliteration": "Ar-Raqeeb",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "The hardest hours are the ones nobody is around for. This Name is not about being observed. It is about not being left unattended.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 40, verbatim, no authored gloss",
+        "primary": "The Watchful",
+        "arabic": "الرَّقِيبُ",
+        "transliteration": "Ar-Raqeeb",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The changing of the watch",
+        "primary": "The Prophet ﷺ said that angels take turns among you — a group through the night, a group through the day. They all come together twice: at Fajr and at Asr.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 632a"
+      },
+      {
+        "kind": "story",
+        "label": "The changing of the watch",
+        "primary": "Then the ones who spent the night with you go up. And their Lord asks them — though He is the best informed about them — \"How did you leave My servants?\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 632a"
+      },
+      {
+        "kind": "story",
+        "label": "The changing of the watch",
+        "primary": "They answer: \"We left them while they were praying and we came to them while they were praying.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 632a"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And be patient for your Lord's decision — for you are before Our eyes…",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 52:48, said to the Prophet ﷺ"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 40, verbatim in full",
+        "primary": "O Watchful One, guard me in my private and public life.",
+        "arabic": "يَا رَقِيبُ احْفَظْنِي فِي سِرِّي وَعَلَانِيَتِي",
+        "transliteration": "Ya Raqib, ihfadhni fi sirri wa 'alaniyyati",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "The watchers went up and gave their report, and the people it was about were not there for it. The whole report was that they were praying.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 — angels take turns among you, a group by night and a group by day; they assemble at Fajr and at ʿAsr. Sahih Muslim 632a's published English, lightly re-cast into the deck's register (\"a group through the night, a group through the day\" for \"by night and by day\"; \"all come together twice\" for \"they all assemble\"). \"Come together\" renders وَيَجْتَمِعُونَ (assemble / gather together); an earlier draft's \"overlap\" was an interpretive gloss and was removed. Quotation marks are used on NO part of beat 3 — it is presented as reported speech, not as a quotation. \"Fajr\" and \"Asr\" are used rather than the published \"dawn and afternoon prayers\" because the Arabic names both prayers explicitly and the app's register uses the Arabic names elsewhere. Arabic: يَتَعَاقَبُونَ فِيكُمْ مَلاَئِكَةٌ بِاللَّيْلِ وَمَلاَئِكَةٌ بِالنَّهَارِ وَيَجْتَمِعُونَ فِي صَلاَةِ الْفَجْرِ وَصَلاَةِ الْعَصْرِ. In-book: Book 5, Hadith 265; Kitāb al-Masājid.",
+        "url": "https://sunnah.com/muslim:632",
+        "verified": "✅ verified by live fetch (Wayback capture 20260218094934 of sunnah.com/muslim:632a). NUMBER DISCIPLINE: the bare CDX query for sunnah.com/muslim:632 returns nothing; the page exists as muslim:632a (and separately muslim:632b), and its own reference line reads \"Sahih Muslim 632a\". This deck cites 632a.",
+        "source_label": "Sahih Muslim 632a (ṣaḥīḥ)"
+      },
+      {
+        "claim": "Beat 4 — \"Then the ones who spent the night with you go up\": paraphrase of ثُمَّ يَعْرُجُ الَّذِينَ بَاتُوا فِيكُمْ; published English \"Those (of the angels) who spend the night among you, then, ascend\". \"Go up\" is preferred to \"ascend\" on readability grounds (spec §4). No content changes.",
+        "url": "https://sunnah.com/muslim:632",
+        "verified": "✅ verified — same fetch",
+        "source_label": "Sahih Muslim 632a (ṣaḥīḥ)"
+      },
+      {
+        "claim": "Beat 4 — \"though He is the best informed about them\": Sahih Muslim 632a's published English, VERBATIM. Arabic: وَهُوَ أَعْلَمُ بِهِمْ. This wording is used because the obvious rendering is blocked: the natural short English \"though He knows them best\" collides with shipped al-lateef@1's beat 8 (\"He surely knows best what is hidden in the heart\") — a rendered-English collision invisible to a root sweep. The two Bukhārī routes render the clause \"though He knows everything about you, well\" (555) and \"and He knows everything about you\" (7429); neither is used. Muslim 632a's own published wording solves it without a paraphrase.",
+        "url": "https://sunnah.com/muslim:632",
+        "verified": "✅ verified — same fetch",
+        "source_label": "Sahih Muslim 632a (ṣaḥīḥ)"
+      },
+      {
+        "claim": "Beat 4's quoted question (\"How did you leave My servants?\") and Beat 5's quoted answer (\"We left them while they were praying and we came to them while they were praying.\") — Sahih Muslim 632a's published English, BYTE-VERBATIM in both cases. Arabic: فَيَسْأَلُهُمْ رَبُّهُمْ وَهُوَ أَعْلَمُ بِهِمْ كَيْفَ تَرَكْتُمْ عِبَادِي فَيَقُولُونَ تَرَكْنَاهُمْ وَهُمْ يُصَلُّونَ وَأَتَيْنَاهُمْ وَهُمْ يُصَلُّونَ. CORRECTION RECORDED: an earlier revision inserted a comma before \"and we came\"; the fetched page has no comma there. The comma is removed and beat 5 is byte-exact against the fetched string. \"Their Lord asks them\" is Muslim's رَبُّهُمْ; the Bukhārī routes have the pronoun without the noun. Beats 3–5 together render the narration IN FULL — not one clause is dropped, so there is no elision to disclose on any beat.",
+        "url": "https://sunnah.com/muslim:632",
+        "verified": "✅ verified — same fetch; byte-exact re-checked at transcription",
+        "source_label": "Sahih Muslim 632a (ṣaḥīḥ)"
+      },
+      {
+        "claim": "Corroborating parallel routes, QUOTED ON NO BEAT, recorded so nobody \"enriches\" the beats from the wrong one: Bukhārī 555 has وَهْوَ أَعْلَمُ بِهِمْ and orders the prayers Fajr then ʿAṣr; Bukhārī 7429 has وَهْوَ أَعْلَمُ بِكُمْ (\"about you\", not \"about them\"), orders them ʿAṣr then Fajr, and adds فَيَقُولُ. All three routes share the same isnād spine (Mālik → Abū az-Zinād → al-Aʿraj → Abū Hurayra). THE DECK FOLLOWS MUSLIM 632a THROUGHOUT AND MIXES NO ROUTE.",
+        "url": "https://sunnah.com/bukhari:555",
+        "verified": "✅ both verified by live fetch (Wayback captures 20250814023635 and 20240815023141 of the exact bare numbers) — not used",
+        "source_label": "Sahih al-Bukhari 555 / 7429 (ṣaḥīḥ) — quoted on no beat"
+      },
+      {
+        "claim": "Beat 6, verse anchor: \"And be patient for your Lord's decision — for you are before Our eyes…\" — RE-RENDERED FROM THE ARABIC, not quoted from a published translation, per plan §6 rule 2. This is the deck's one deliberate deviation from the batch's Saheeh-International standard. Uthmānī: وَٱصْبِرْ لِحُكْمِ رَبِّكَ فَإِنَّكَ بِأَعْيُنِنَا. Saheeh International, verbatim: \"And be patient, [O Muḥammad], for the decision of your Lord, for indeed, you are in Our eyes [i.e., sight]. And exalt [Allāh] with praise of your Lord when you arise\". Abdel Haleem, verbatim: \"Wait patiently [Prophet] for your Lord's judgement: you are under Our watchful eye. Celebrate the praise of your Lord when you rise.\" WHY NEITHER IS PASTED: \"in Our eyes\" is an English idiom meaning in Our estimation / in Our judgement — which is not what بِأَعْيُنِنَا says, and Saheeh International has to append [i.e., sight] to stop the reader making exactly that error. \"Before Our eyes\" carries the Arabic's sense with no bracket and keeps أَعْيُن PLURAL, which Abdel Haleem's \"eye\" does not. Abdel Haleem's \"under Our watchful eye\" was considered and NOT taken: it makes أَعْيُن singular and sharpens the Al-Muhaymin (18) catalogue collision. EXCERPT DISCLOSED ON THE BEAT: a visible trailing ellipsis marks the omitted continuation, \"And exalt [Allāh] with praise of your Lord when you arise\" — an instruction to praise, containing no warning and reversing nothing. The beat is ENGLISH-ONLY (arabic field empty), per plan §7's convention for new decks.",
+        "url": "https://quran.com/52/48",
+        "verified": "✅ verified by live fetch — api.quran.com/api/v4/verses/by_key/52:48?fields=text_uthmani,text_imlaei&translations=20,85, 2026-08-03",
+        "source_label": "Qur'ān 52:48"
+      },
+      {
+        "claim": "Beat 6 `source` string — \"Qur'an 52:48, said to the Prophet ﷺ\" — AUTHORED CONTEXT NOTE, deliberate and not decorative. 52:48 addresses the Prophet ﷺ (وَٱصْبِرْ, masculine singular; both published translations insert [O Muḥammad] / [Prophet]). A beat that let a user read it as addressed to THEM would be putting words in Allah's mouth about the reader. Precedent for a context note in the `source` field: shipped al-baseer@1's 58:1 beat.",
+        "url": "",
+        "verified": "authored — labelled, not verified",
+        "source_label": "authored copy"
+      },
+      {
+        "claim": "Beat 7 duʿā text, all three scripts — catalogue id 40 only, NO SCRIPTURE CITATION CLAIMED ANYWHERE IN THIS DECK. Byte-identical to assets/content/collectible_names.json id 40 across dua_arabic / dua_transliteration / dua_translation. Scanned for Arabic presentation forms (U+FE70–FEFF): none. PROVENANCE: يَا رَقِيبُ احْفَظْنِي فِي سِرِّي وَعَلَانِيَتِي is an AUTHORED CATALOGUE INVOCATION — the يَا <Name> + imperative shape of ids 39, 41, 42, 53, 75. No primary narration was located and none is claimed. UNPINNED: the `source` field is empty and ar-raqeeb@1 is deliberately absent from renderedDuaSources in test/content/name_stories_ship_gate_test.dart. Duʿā provenance is UNRESOLVED, NOT DISPROVEN — no Arabic-primary corpus was searched; unpinned is the conservative default the gate enforces, not a finding that it is unnarrated.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalogue id 40 (re-checked programmatically at transcription)",
+        "source_label": "collectible_names.json id 40"
+      },
+      {
+        "claim": "Beat 2 `name_intro` — byte-identical to catalogue id 40 across arabic (الرَّقِيبُ), transliteration (Ar-Raqeeb) and english (The Watchful). NO AUTHORED GLOSS, deliberately — every gloss tried (\"the One who watches over you\", \"the One whose attention does not lapse\") drifted toward Al-Muhaymin's \"Overseer\" or Al-Baseer's \"All-Seeing\". The bare catalogue string is the safest object on the screen.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalogue id 40 (re-checked programmatically at transcription)",
+        "source_label": "collectible_names.json id 40"
+      },
+      {
+        "claim": "BAR-4 TRADE, DELIBERATE — DO NOT \"FIX\". The Name's own word رَقِيب renders in Arabic on the duʿā beat (يَا رَقِيبُ) but appears in NO SCRIPTURE QUOTED BY THIS DECK, because no Qur'ānic occurrence survives bars 1, 3 and 5. The Name-noun رَقِيب occurs exactly five times; all five were fetched in full and all five refused: 4:1 (trailing epithet, subject is taqwā and kinship); 5:117 (ʿĪsā's speech, not Allah's — and the same āyah carries شَهِيدًا/شَهِيدٌ twice, i.e. Ash-Shaheed, id 60); 11:93 (the رَقِيبٌ is Shuʿayb, a human; the āyah carries عَذَابٌ يُخْزِيهِ inside the excerpt; register is confrontation); 33:52 (trailing epithet, marital ruling); 50:18 (the رَقِيب is the RECORDING ANGEL, not Allah, and it is the surveillance-of-speech register this deck exists to avoid). Enumeration method, checkable rather than recalled: api.quran.com search is surface-form sensitive, so it was run once per attested form — رقيب → 2 (50:18, 11:93), رقيبا → 2 (4:1, 33:52), الرقيب → 1 (5:117); union = exactly five. STATED LIMIT: this enumerates the NOUN, not the root; verbal derivatives of r-q-b were NOT enumerated by the drafter. Precedent for the trade: al-haleem@1 (no ḥ-l-m anywhere) and al-waliyy@1 (no w-l-y anywhere), both founder-signed. Plan §7 makes bar 4 subordinate to bars 1 and 3 explicitly.",
+        "url": "https://quran.com/50/18",
+        "verified": "⚠️ disclosed — deliberate trade; all five āyāt verified by live fetch 2026-08-03 and refused with reasons. Quoted on no beat.",
+        "source_label": "deck construction note (Qur'ān 4:1 · 5:117 · 11:93 · 33:52 · 50:18)"
+      },
+      {
+        "claim": "SUCCESSOR SWEEP (bar 5). FORWARD, CLEAN: 52:49 — \"And in a part of the night exalt Him and after [the setting of] the stars\" — the successor is night praise; and verses/by_key/52:50 returns HTTP 404, i.e. 52:49 is the final āyah of Sūrat aṭ-Ṭūr. The sūrah ends on praise two āyāt after the excerpt. BACKWARD, TWO DISCLOSURES, both judged non-blocking: (a) 52:47 — \"And indeed, for those who have wronged is a punishment before that, but most of them do not know\" — the immediately preceding āyah is a punishment clause, but the excerpt does not continue it (52:48 opens وَٱصْبِرْ, a fresh imperative with a DIFFERENT ADDRESSEE — the Prophet ﷺ, not the wrongdoers), the arc terminates forward in 52:49's praise, and it contradicts no beat; precedent for disclosing rather than discarding: al-haleem@1's 35:44 and al-qayyum@1's 2:254, both founder-signed on the same basis. (b) THE SHARPER ONE: Sūrat aṭ-Ṭūr's first half is a Day-of-Judgement passage, and 52:16 uses this deck's own verb — فَٱصْبِرُوٓا۟ أَوْ لَا تَصْبِرُوا۟, \"be patient or impatient\" — as a TAUNT to the punished, thirty-two āyāt before 52:48 uses وَٱصْبِرْ as a command to the Prophet ﷺ. Same root, opposite force, same sūrah. It is on no beat, changes no meaning, and the two addressees are unmistakably different in the Arabic — disclosed because a founder who opens quran.com/52/48 and scrolls up will meet it. ON THE STORY SIDE: Muslim 632a is free-standing, the narration ends on the angels' answer, and there is no continuation to be dishonest about.",
+        "url": "https://quran.com/52/47",
+        "verified": "✅ verified by live fetch in both directions 2026-08-03 (52:13, 52:16, 52:46, 52:47, 52:49; 52:50 → HTTP 404). ⚠️ two backward disclosures, judged non-blocking. Quoted on no beat.",
+        "source_label": "Qur'ān 52:46–52:49 / 52:13 / 52:16"
+      },
+      {
+        "claim": "BAR-3 SEPARATION, recorded so it is not re-litigated. ARABIC ROOTS: no b-ṣ-r (shipped al-baseer@1) and no sh-h-d (Ash-Shaheed, id 60) anywhere in this deck, in Arabic or English; also absent are h-y-m-n (Al-Muhaymin, 18), ḥ-ṣ-y (Al-Muhsi, 66), r-ḥ-m, gh-f-r, ʿ-f-w, ḥ-l-m, j-w-b, s-m-ʿ. RENDERED ENGLISH, token pass across all 24 decks (425 non-empty rendered strings): watch 0 · watched 0 · watchful 0 · watchers 0 · report 0 · absent 0 · praying 0 · eyes 0 · protect 0. This deck's central vocabulary is genuinely unspent. THREE DISCLOSED HITS: (1) \"My servants\" also renders on shipped al-ghaffar@1's verse beat (39:53) — different grammatical roles (a vocative addressed TO people vs an interrogative asked ABOUT them), and `servants` is n=4 across the corpus, i.e. ordinary Qur'ānic-register vocabulary; عِبَادِي is the narration's own word and \"My slaves\" is worse on register. Recorded, not changed. (2) the singular token `eye` is n=2 — shipped al-baseer@1 b5 (\"No human eye saw her\", a HUMAN eye in a NEGATION) and al-qayyum@1 b7 (an idiom for a DURATION); this deck's is Allah's, PLURAL and affirmative, and the plural token `eyes` is n=0. (3) \"angels\" renders on shipped at-tawwab@1's story beat, where they ARGUE OVER A VERDICT; here they carry a report of prayer. STATED LIMIT: neither the phrase pass nor the token pass looks at word order, morphology or paraphrase — a collision expressed in different words is invisible to both. Do not treat a clean token table as a clean bar 3.",
+        "url": "",
+        "verified": "✅ token + phrase passes run over all 24 decks; counts independently reproduced at transcription (425 strings, identical results)",
+        "source_label": "deck construction note"
+      },
+      {
+        "claim": "INSIGHT ENGINE: `reported on in your absence` — you are spoken about, kindly, by watchers who hand you on to the next watchers, and nobody is in a position to perform. Diffed against all 18 spent engines: no match. NEAREST SPENT NEIGHBOUR, disclosed: ar-raheem@1 beat 8 (\"it was being answered the whole time they were unconscious of it\", engine `answered while unaware`) — both have something good happening while the person is not attending to it; held apart by the object, since ar-raheem@1 is a duʿā BEING ANSWERED across three centuries whereas this is BEING THE SUBJECT OF A REPORT one is absent from. Nothing here is answered and nothing is granted; the report changes nothing, which is the point. Ruled not blocking. LIVE NEIGHBOURS: al-baseer@1 b8 (\"Al-Baseer sees what you carry\") is about a BURDEN BEING SEEN — this deck makes no claim that anything is seen and never mentions a burden; al-lateef@1 b8 is `known without words`; al-qayyum@1 b8 asserts continuity of SUSTAINING EXISTENCE, and this deck uses no form of hold/keep/sustain/night off while al-qayyum@1 uses no form of watch.",
+        "url": "",
+        "verified": "⚠️ disclosed — adjacencies named, judged non-blocking",
+        "source_label": "deck construction note"
+      },
+      {
+        "claim": "CATALOGUE FINDINGS FOR IDS 40 AND 18 — FINDINGS ONLY, NO CHANGE RECOMMENDED AND NO REPLACEMENT TEXT PROPOSED. This deck CITES NONE OF THESE FIELDS ON ANY BEAT; no beat moves whichever way the founder decides. (a) id 40 `hadith` duplicates shipped id 46 (Al-Baseer) almost exactly — a shared 20-word run, differing only in the final clause — opens by naming Al-Baseer, carries al-mujeeb@1's claimed Yūnus narrative, and its attribution \"(Ibn Mas'ud)\" names no collection and no number, so as printed it cannot be checked (NOT asserted to be fabricated). Its appended \"recorded every moment of his patience\" is the ledger register this deck refuses on tone grounds. (b) id 40 `meaning` — \"The One who sees every action, thought, and intention\" — uses Al-Baseer's verb and enumerates what is catalogued about you, i.e. the surveillance reading this deck was built to avoid, one tap away. (c) id 40 `lesson` — \"Ar-Raqeeb sees the good you do in secret. Nothing is wasted.\" — same verb, but otherwise the best line on the card; noted for completeness, not as a defect. (d) AL-MUHAYMIN (18) ADJACENCY, RAISED EARLY: id 18's `dua_arabic`/`dua_translation` render \"Your eye that never sleeps\" IN ARABIC on a duʿā beat, adjacent to this deck's verse-beat image; its `lesson` contains \"watchful\", which is catalogue id 40's own english gloss. NOTE FOR WHOEVER DRAFTS ID 18: an earlier revision recorded id 18's `meaning` (\"The One who watches over and protects all things\") as colliding with this deck's beat-8 phrase VERBATIM. That is NO LONGER TRUE — beat 8 was rewritten and the string \"watched over\" now renders on NO beat of this deck. That row is provisionally downgraded pending re-check against these R3 beats; the `dua` and `lesson` adjacencies are untouched and remain real. (e) ḥ-f-ẓ renders in Arabic on this deck's duʿā beat (احْفَظْنِي), which is Al-Hafeez's root (id 39), whose own duʿā uses the same imperative word; the ≥3-word-run computation returned no hit (the overlap is the single word). Non-blocking today; a flag for whoever takes 39, and a catalogue-level fact neither deck can fix. PER THE LEDGER'S STANDING RULE, DO NOT ACTION ANY OF THESE WITHOUT INDEPENDENT RE-VERIFICATION.",
+        "url": "",
+        "verified": "⚠️ findings, not instructions — for independent re-verification",
+        "source_label": "catalogue audit note (collectible_names.json ids 40, 46, 18, 39)"
+      },
+      {
+        "claim": "NARRATIVES FETCHED, CONSIDERED AND REFUSED, recorded so the work is not repeated. This Name's problem is not finding a story; it is that every obvious story teaches a different Name. The three men sealed in the cave (Bukhārī 2215/3465, Muslim 2743) — engine is the rock moving, i.e. ijāba, which is al-mujeeb@1's. Bukhārī 6491 / Muslim 131 (the intention recorded though never acted on) — lands on the spent engine \"the incomplete version counts\" and its frame is bookkeeping. Muslim 2542 (Uways al-Qaranī) — engine is BEING KNOWN, ceded to id 14 this wave. Bukhārī 50 / Muslim 8 (iḥsān, فَإِنَّهُ يَرَاكَ) — head-on collision with shipped al-baseer@1. Bukhārī 458/460 (the woman who swept the mosque) — beautiful and unspent, but the one who notices is the Prophet ﷺ, i.e. human, so bar 1 would rest on nothing. Qur'ān 20:39 (وَلِتُصْنَعَ عَلَىٰ عَيْنِى) — the best \"watched over\" clause in the Qur'ān, GIVEN UP because its successor 20:40 is the ledger's blocked \"a parent's lost child returned\" arc. Qur'ān 11:37 and 54:14 (بِأَعْيُنِنَا, the ark under Our eyes) — both arcs terminate in the drowning; 11:37 carries إِنَّهُم مُّغْرَقُونَ inside the same āyah (bar 5). Qur'ān 20:46 — أَرَىٰ is al-baseer@1's English and أَسْمَعُ is As-Sami (45). Qur'ān 13:11 and 86:4 — the guarding is the angels' and the root is ḥ-f-ẓ (Al-Hafeez, 39). Qur'ān 18:82 (the wall over the orphans' treasure) — double-blocked: Mūsā/al-Khiḍr is ledger-rejected and Sūrat al-Kahf is ar-raheem@1's.",
+        "url": "",
+        "verified": "✅ fetched and refused — quoted on no beat",
+        "source_label": "deck construction note"
+      },
+      {
+        "claim": "WHAT THIS DECK COULD NOT DETERMINE, stated because the founder signs against it. (1) Ḥadīth verification is NOT independent of sunnah.com as a corpus: sunnah.com 403s automated fetching, so Muslim 632a, Bukhārī 555 and Bukhārī 7429 were read from WAYBACK CAPTURES OF SUNNAH.COM ITSELF — the same digitisation, not a second witness. No printed edition and no Arabic-primary database (Shamela, Dorar) was consulted. (2) NO ISNĀD WAS AUDITED; Ṣaḥīḥ al-Bukhārī and Ṣaḥīḥ Muslim were accepted as graded by inclusion. (3) Duʿā provenance is unresolved, not disproven — see the duʿā row. (4) NO TESTS WERE RUN by the drafter; every ship-gate statement was read off test/content/name_stories_ship_gate_test.dart and checked by hand. (5) The root-level r-q-b sweep (all 24 r-q-b words, verbal forms included, reportedly showing every verbal form has a human subject and every فَٱرْتَقِبْ sits inside a punishment passage) is a SECOND PARTY'S FINDING, recorded unconfirmed — the drafter ran only the noun-level enumeration and does not tick it.",
+        "url": "",
+        "verified": "⚠️ stated limits — not verified claims",
+        "source_label": "deck construction note"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
   }
 ]

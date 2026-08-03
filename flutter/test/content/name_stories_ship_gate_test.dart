@@ -66,6 +66,14 @@ void main() {
     'al-afuw@1': 'Sunan Ibn Majah 3850',
     'al-mujeeb@1': "Qur'an 21:87",
     'al-waliyy@1': 'Sahih Muslim 1342',
+    // Wave 1, transcribed 2026-08-03. Same rule: each read off the deck's own
+    // duʿa beat by the agent that transcribed it, never copied from a report.
+    // Both carry a parenthesised qualifier because the catalogue duʿa is a
+    // TRUNCATION of the cited ayah — a bare citation would claim on screen that
+    // the user is reading the whole verse, which is the class of quiet
+    // overclaim this project spent a wave learning to catch.
+    'al-malik@1': "Qur'an 3:26 (opening)",
+    'al-aleem@1': "Jami' at-Tirmidhi 3392 (opening of the supplication)",
     // Deliberately absent, and each verified as absent rather than assumed:
     // al-haleem@1, al-kareem@1, al-qayyum@1, al-qadir@1, al-muid@1 render NO
     // duʿa citation. Their duʿa is the catalogue's own authored invocation, so
