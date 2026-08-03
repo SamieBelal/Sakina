@@ -1542,3 +1542,16 @@ Two agents measured the same bridge opener independently this wave and reported 
 **At 7 of 45 this is no longer a template, it is a house tic**, and the failure it produces is invisible to every check we run: no shared *n*-gram threshold trips, no root collides, no citation repeats. A user meeting four decks in a week just feels that they all start the same way.
 
 **Not ruled here — flagged, with the number, for a founder call.** The options are to cap it (a stated maximum share of decks), to retire it for new decks while leaving shipped ones alone, or to accept it as deliberate house voice. **Whichever is chosen, it needs to be chosen**, because right now it is spreading by default and each drafter clears it individually against a rule written for a corpus a third this size.
+
+### 9bq · A substring root sweep misses the infixed forms — and it fails as a *low* count, which is the direction that looks like a finding
+
+**Ad-Darr's drafter hand-swept all 6,236 āyāt for `ḍ-r-r` and got 60, then 72. `corpus.quran.com` said 74.** It found the cause and named it: **its filter required `ض` immediately followed by `ر`, which misses every Form III and Form VIII form and two participle types, because those carry an alif or another consonant between the two radicals.**
+
+**This is the most dangerous class of error in the whole protocol, and it is dangerous because of its direction.** A missed occurrence makes a root look *rarer* than it is, and rarity is exactly what a bar-4 trade argument wants to prove. The drafter's own words: it *"almost wrote zero before the corpus cross-check caught it."* Whole decks rest on counts like this — §9bn's fifth-pair ruling rests on two of them.
+
+**Rules, both mandatory:**
+
+1. **Never sweep an Arabic root by adjacent-radical substring.** Arabic morphology infixes. Sweep by consonantal skeleton allowing intervening characters, or sweep per-form, and **say in the report which method you used**.
+2. **§9av's corpus cross-check is not a formality.** It exists to catch precisely this, and here it did — a 14-occurrence gap, 19% of the true count, invisible to every other check.
+
+**And report the shape of the answer, not just the number.** The corrected finding was *not* the flat zero the first pass was heading toward: Allah is the finite subject of a `ḍ-r-r` verb **exactly twice** (2:126, 31:24), both the same Form VIII "force to the Fire" clause addressed to deliberate disbelievers — never the ordinary Form I *yaḍurru* (0 of 19). **"Zero" and "twice, both unusable for these stated reasons" support the same decision but are not the same claim**, and only the second survives someone checking it.
