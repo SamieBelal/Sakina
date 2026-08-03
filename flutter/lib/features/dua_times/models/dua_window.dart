@@ -43,9 +43,7 @@ class DuaWindow with _$DuaWindow {
     required DateTime startUtc,
 
     /// Window close instant (absolute UTC). Serialized as epoch millis (int).
-    @JsonKey(name: 'end_utc')
-    @EpochMillisConverter()
-    required DateTime endUtc,
+    @JsonKey(name: 'end_utc') @EpochMillisConverter() required DateTime endUtc,
 
     /// True for all-day/all-night calendar windows (ʿArafah, ʿAshura, White
     /// Days, Eids, Friday day, Ramadan). Renders "today only", never a ticking

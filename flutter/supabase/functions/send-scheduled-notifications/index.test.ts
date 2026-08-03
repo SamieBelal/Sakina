@@ -869,7 +869,15 @@ Deno.test(
         if (name === "get_recent_checkin_names") {
           recentNamesCalledWith = args;
           return Promise.resolve({
-            data: [recentName({ user_id: userId })],
+            // runFixedCadenceLoop uses the real clock, so keep this integration
+            // fixture inside the seven-day recency window regardless of when CI
+            // runs. The pure renderer tests above intentionally use RENDER_NOW.
+            data: [
+              recentName({
+                user_id: userId,
+                checked_in_at: new Date().toISOString(),
+              }),
+            ],
             error: null,
           });
         }

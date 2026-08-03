@@ -55,7 +55,8 @@ class DuaWindowCopyBook {
     ),
     DuaWindowType.dhulHijjah10: DuaWindowCopy(
       title: 'The ten days of Dhul-Hijjah',
-      body: 'No days are more beloved to Allah for good deeds. Make the most of '
+      body:
+          'No days are more beloved to Allah for good deeds. Make the most of '
           'them with duʿā.',
     ),
     DuaWindowType.laylatAlQadr: DuaWindowCopy(
@@ -65,7 +66,8 @@ class DuaWindowCopyBook {
     ),
     DuaWindowType.ramadan: DuaWindowCopy(
       title: 'The blessed month of Ramadan',
-      body: 'A month of mercy and answered duʿā. Keep your heart close to Allah '
+      body:
+          'A month of mercy and answered duʿā. Keep your heart close to Allah '
           'today.',
     ),
     DuaWindowType.eid: DuaWindowCopy(

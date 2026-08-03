@@ -8,6 +8,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_event_names.dart';
 import '../../../services/analytics_provider.dart';
+import '../../dua_times/providers/dua_window_provider.dart';
 import '../content/onboarding_widgets.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -92,17 +93,63 @@ class _WidgetOfferScreenState extends ConsumerState<WidgetOfferScreen> {
     _emitPreview(index);
   }
 
-  void _onCta() {
+  Future<void> _onCta() async {
+    final option = onboardingWidgetOptions[_index];
     ref.read(analyticsProvider).track(
       AnalyticsEvents.onboardingWidgetCtaTapped,
-      properties: {
-        AnalyticsEvents.propWidgetKind: onboardingWidgetOptions[_index].kind,
-      },
+      properties: {AnalyticsEvents.propWidgetKind: option.kind},
     );
-    showModalBottomSheet<void>(
+
+    // The Duʿā Times widget cannot work without location, and a widget
+    // extension can never ask for it — so the tap that says "I want that one"
+    // is the only point of use the app can reach. Anywhere later is too late:
+    // the user ends up with a widget that silently never works.
+    if (option.kind == kDuaTimesWidgetKind) {
+      await _askForLocation();
+      if (!mounted) return;
+    }
+
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _HowToSheet(option: onboardingWidgetOptions[_index]),
+      builder: (_) => _HowToSheet(option: option),
+    );
+    if (!mounted) return;
+    // Advance once the how-to closes. Without this the only way off this page
+    // was "Not now", so everyone who followed the instructions was recorded as
+    // having skipped — a dead end that also poisoned the skip metric.
+    widget.onNext();
+  }
+
+  /// Show the pre-alert primer, then the real OS dialog.
+  ///
+  /// The primer follows `notification_screen.dart`'s `_PermissionPrimer`: a
+  /// recognisable diagram of the system sheet, drawn in Sakina's own palette,
+  /// carrying no tap targets. A convincing fake would be a dark pattern; a
+  /// diagram is a courtesy — and the single biggest predictor of granting is
+  /// knowing which button to press before the sheet opens.
+  ///
+  /// It has exactly ONE button and cannot be swiped away. Apple's pre-alert
+  /// rules name location explicitly ("include only one button… don't include
+  /// an option to cancel"), unlike notifications, so the "Not now" pattern from
+  /// the notification screen is not safe to copy here.
+  Future<void> _askForLocation() async {
+    final proceed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      // The diagram makes this the tallest sheet in onboarding; without
+      // scroll control it overflows a small device.
+      isScrollControlled: true,
+      builder: (_) => const _LocationPrimerSheet(),
+    );
+    if (!mounted || proceed != true) return;
+    final outcome = await ref.read(duaWindowProvider.notifier).promptLocation();
+    if (!mounted) return;
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.onboardingLocationResult,
+      properties: {AnalyticsEvents.propOutcome: outcome.name},
     );
   }
 
@@ -289,6 +336,143 @@ class _HowToSheet extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pre-alert primer for the location ask.
+///
+/// Mirrors `_PermissionPrimer` on the notification screen, with one difference
+/// that is the whole reason this exists: the location sheet has **three**
+/// buttons, not two, and the middle one is the only one that lasts. "Allow
+/// Once" is revoked on the next cold launch, and picking it is what put most
+/// users in the re-prompt loop this whole change is fixing. So the diagram
+/// points at "While Using the App" before the real sheet appears.
+///
+/// Deliberately NOT pixel-faithful — a convincing fake of a system dialog is a
+/// dark pattern; a recognisable diagram of one is a courtesy. It carries no tap
+/// targets, and it has a single button with no cancel (Apple's pre-alert rules
+/// name location explicitly).
+class _LocationPrimerSheet extends StatelessWidget {
+  const _LocationPrimerSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Duʿā Times needs your location',
+              style: AppTypography.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimaryLight,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Only roughly, and only on your phone — it is how the prayer times '
+              'behind each duʿā window are worked out. It never leaves your device.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondaryLight,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Semantics(
+              label: 'Next, iOS will ask for your location. '
+                  'Choose While Using the App.',
+              child: const _DialogDiagram(),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            OnboardingContinueButton(
+              label: 'Continue',
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// An inert drawing of the iOS location sheet, with the durable option marked.
+class _DialogDiagram extends StatelessWidget {
+  const _DialogDiagram();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        border: Border.all(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          Text(
+            'Allow “Sakina” to use your location?',
+            textAlign: TextAlign.center,
+            style: AppTypography.labelMedium
+                .copyWith(color: AppColors.textPrimaryLight),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (final option in const [
+            ('Allow Once', false),
+            ('Allow While Using App', true),
+            ('Don’t Allow', false),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.sm, horizontal: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: option.$2
+                      ? AppColors.primaryLight
+                      : AppColors.surfaceAltLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                  border: option.$2
+                      ? Border.all(color: AppColors.primary, width: 1.5)
+                      : null,
+                ),
+                child: Text(
+                  option.$1,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: option.$2
+                        ? AppColors.primary
+                        : AppColors.textTertiaryLight,
+                    fontWeight: option.$2 ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Choose the middle one — “Allow Once” stops working when you '
+            'next open Sakina.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              height: 1.4,
             ),
           ),
         ],

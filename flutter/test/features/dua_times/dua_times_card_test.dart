@@ -5,11 +5,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:sakina/core/widget_deep_link.dart';
 import 'package:sakina/features/dua_times/models/dua_window.dart';
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
 import 'package:sakina/features/dua_times/widgets/dua_times_card.dart';
+import 'package:sakina/features/dua_times/widgets/dua_times_copy.dart';
+import 'package:sakina/features/dua_times/widgets/precise_paused_notice.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
@@ -199,6 +202,13 @@ GoRouter _router(List<String> navLog) => GoRouter(
             return const Scaffold(body: Text('BUILD DUA SCREEN'));
           },
         ),
+        GoRoute(
+          path: kFixLocationRoute,
+          builder: (c, s) {
+            navLog.add(kFixLocationRoute);
+            return const Scaffold(body: Text('PRECISE TIMES SCREEN'));
+          },
+        ),
       ],
     );
 
@@ -285,6 +295,237 @@ void main() {
     expect(
         analytics.events.contains(AnalyticsEvents.duaTimesCardImpression),
         isFalse);
+  });
+
+  // ── The 2026-08 re-nag fix ────────────────────────────────────────────────
+  // A user who already tapped "Turn on" must NEVER meet that pitch again, no
+  // matter what the OS has done to their grant since. They get one quiet notice
+  // per lapse instead, and then silence.
+
+  testWidgets(
+      'lapsed after opting in → the one-time notice, NEVER the pitch',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    // Location gone (no lat), but this user has answered before.
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pump();
+
+    expect(find.byKey(kPrecisePausedNoticeKey), findsOneWidget);
+    expect(find.text(DuaTimesCopy.enablePreciseTitle), findsNothing,
+        reason: 'THE bug — the pitch must not return for someone who answered');
+    // And it names the fix that actually ends the iOS "Allow Once" loop.
+    expect(find.textContaining('While Using the App'), findsOneWidget);
+  });
+
+  testWidgets('notice spent → the card is silent for the same state',
+      (tester) async {
+    // The notice claims itself, so "already spent" is expressed the way the app
+    // expresses it: the claim key already holds this state.
+    SharedPreferences.setMockInitialValues({
+      'dua_times_precise_notice_state': 'permission_lapsed',
+    });
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pump();
+
+    // The widget mounts but claims nothing (already spent), so it stays at zero
+    // height — assert on the copy, which is what the user would see.
+    expect(find.text(DuaTimesCopy.precisePausedPermission), findsNothing);
+    expect(find.text(DuaTimesCopy.enablePreciseTitle), findsNothing);
+    expect(find.text('Build your duʿā'), findsNothing,
+        reason: 'no active window + nothing to say → collapse entirely');
+  });
+
+  // The device-QA finding (2026-08-03): with a 6s auto-fade and dismiss-on-any-
+  // tap, a tester actively looking for the notice never saw it, then found
+  // "Paused" in Settings and concluded the feature was broken. The notice now
+  // waits for an explicit ✕ — so it must NOT disappear on its own.
+  testWidgets('the notice persists — no auto-fade, no tap-anywhere dismiss',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    // Settle the entrance first: the notice lives in a SizeTransition, so a
+    // half-open one is zero-height and swallows nothing.
+    await tester.pumpAndSettle();
+    expect(find.byKey(kPrecisePausedNoticeKey), findsOneWidget);
+
+    // Well past the 6s the old auto-fade used, plus a tap somewhere else.
+    await tester.pump(const Duration(seconds: 30));
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump();
+
+    expect(find.text(DuaTimesCopy.precisePausedPermission), findsOneWidget,
+        reason: 'only the ✕ closes it — that is the whole point of the change');
+  });
+
+  testWidgets('the ✕ dismisses it and does not navigate', (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text(DuaTimesCopy.precisePausedPermission), findsOneWidget);
+
+    await tester.tap(find.byKey(kPrecisePausedNoticeDismissKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text(DuaTimesCopy.precisePausedPermission), findsNothing);
+    expect(navLog, isEmpty, reason: 'dismissing is not a request to go anywhere');
+    expect(analytics.events, contains(AnalyticsEvents.duaTimesPreciseNoticeShown));
+    expect(
+        analytics.events, contains(AnalyticsEvents.duaTimesPreciseNoticeAction));
+  });
+
+  // The HIG constraint made structural: the notice carries a ✕, so its tap must
+  // NOT front the system location dialog. It navigates to the steps instead,
+  // and PreciseTimesScreen is the one-button pre-alert view.
+  testWidgets('tapping the notice goes to the steps, not the OS dialog',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(DuaTimesCopy.precisePausedPermission));
+    await tester.pumpAndSettle();
+
+    expect(navLog, contains(kFixLocationRoute));
+    expect(analytics.events, isNot(contains(AnalyticsEvents.duaTimesLocationPrompt)),
+        reason: 'the prompt is fired by the screen, not by the notice');
+  });
+
+  // The bug the reviewer caught: claiming in rebuild() spent the notice while
+  // the card sat under the opaque DailyLaunchOverlay — which is up on exactly
+  // the cold starts where a lapse is detected. TickerMode is how the widget
+  // knows it is off-screen, and it is inherited, so the claim happens when the
+  // overlay goes away rather than never.
+  testWidgets('offscreen (TickerMode off) → does not spend the notice',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    // No router here — this harness mounts the card directly under a disabled
+    // TickerMode, so there is nowhere to navigate.
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.permissionLapsed,
+    );
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        duaWindowProvider.overrideWith((ref) => notifier),
+        analyticsProvider.overrideWithValue(analytics),
+      ],
+      child: MaterialApp(
+        home: TickerMode(
+          enabled: false,
+          child: Scaffold(body: const DuaTimesCard()),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.text(DuaTimesCopy.precisePausedPermission), findsNothing,
+        reason: 'nothing is visible behind an opaque route');
+    // …and crucially the claim is UNSPENT, so it still fires once on screen.
+    expect(await notifier.claimLapseNotice(PreciseTimesState.permissionLapsed),
+        isTrue,
+        reason: 'an offscreen frame must never burn the one notice');
+  });
+
+  testWidgets('never asked → still gets the full pitch (the only on-ramp)',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.neverAsked,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    // The card body carries a flutter_animate entrance, so settle rather than
+    // pump — a bare pump leaves its Timer pending and trips !timersPending.
+    await tester.pumpAndSettle();
+
+    expect(find.text(DuaTimesCopy.enablePreciseTitle), findsOneWidget);
+    expect(find.byKey(kPrecisePausedNoticeKey), findsNothing);
+  });
+
+  testWidgets('unresolved renders nothing — it resolves in seconds',
+      (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(null);
+    notifier.debugSetSchedule(
+      _betweenSchedule(),
+      preciseState: PreciseTimesState.unresolved,
+    );
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pump();
+
+    expect(find.byKey(kPrecisePausedNoticeKey), findsNothing);
+    expect(find.text(DuaTimesCopy.enablePreciseTitle), findsNothing);
   });
 
   testWidgets('tapping the CTA fires cta_tap analytics + navigates to /duas',

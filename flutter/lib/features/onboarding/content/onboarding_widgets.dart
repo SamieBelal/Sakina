@@ -48,6 +48,11 @@ class OnboardingWidgetOption {
   final String previewAsset;
 }
 
+/// The one option whose widget cannot work without location. A widget extension
+/// can never request it, so choosing this card is the only point of use the app
+/// can reach to ask.
+const String kDuaTimesWidgetKind = 'dua_times';
+
 const List<OnboardingWidgetOption> onboardingWidgetOptions = [
   OnboardingWidgetOption(
     kind: 'dua_times',

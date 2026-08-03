@@ -8,6 +8,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/core/constants/discovery_quiz.dart';
+import 'package:sakina/core/widget_deep_link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
@@ -1489,7 +1490,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         value: _duaWindowsEnabled,
         onChanged: subTogglesEnabled ? _setDuaWindowsEnabled : null,
       ),
+      _buildDivider(),
+      _buildPreciseTimesRow(),
     ]);
+  }
+
+  /// The permanent home for precise-times status.
+  ///
+  /// The card only ever says this ONCE, as a self-retiring notice on the open
+  /// after a lapse — that is what stops it becoming the nag it replaced. A
+  /// *state* still has to live somewhere the user can go and look, and without
+  /// this row there was no route back to precise times anywhere in the product
+  /// once the card's banner was dismissed.
+  ///
+  /// Note it is deliberately NOT part of `getNotificationPreferences()`: that
+  /// map is backed by `user_notification_preferences` columns and a new key
+  /// there would need a migration. This is a local status, not a preference.
+  Widget _buildPreciseTimesRow() {
+    final state = ref.watch(duaWindowProvider).preciseState;
+    final on = state == PreciseTimesState.working ||
+        state == PreciseTimesState.unresolved;
+    return _buildSettingsRow(
+      icon: on ? Icons.my_location_rounded : Icons.location_off_rounded,
+      label: on ? 'Precise duʿā times · On' : 'Precise duʿā times · Paused',
+      onTap: () => context.push(kFixLocationRoute),
+    );
   }
 
   Widget _buildDivider() {
