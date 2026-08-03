@@ -12,6 +12,11 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
+import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/journal_themes.dart';
+import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
+import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
@@ -20,6 +25,7 @@ import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/reflection_story_page.dart';
@@ -51,6 +57,30 @@ final _journalStatsProvider =
 // runs (skipLoadingOnRefresh), so re-entering the tab doesn't flicker.
 final _achievementsProvider = FutureProvider<Set<String>>((ref) async {
   return getUnlockedAchievements();
+});
+
+// ---------------------------------------------------------------------------
+// Today's local day (Wave E)
+// ---------------------------------------------------------------------------
+
+/// The user's own calendar day, for the three resurfacing surfaces.
+///
+/// `resolveUserLocalDay()` and not `DateTime.now()`, for the reason Wave B
+/// wrote the column that way: `entry_local_day` is the user's LOCAL day, and a
+/// device-clock date computed in a different zone lands "On This Night" on the
+/// wrong night — near midnight, by a whole day.
+///
+/// `autoDispose` so re-entering the Journal after a rollover re-resolves. A
+/// keep-alive provider would pin the day the app was launched on and quietly
+/// stop matching the anchors after midnight.
+final journalLocalDayProvider = FutureProvider.autoDispose<String?>((ref) async {
+  try {
+    return (await resolveUserLocalDay()).dateString;
+  } catch (_) {
+    // Every Wave E surface treats a null day as "show nothing", so an
+    // unresolvable timezone costs the cards and never the archive.
+    return null;
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -201,6 +231,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     List<_JournalEntry> allEntries,
     int totalCount,
   ) {
+    // Wave E's strip, resolved HERE so its `ref.watch` calls happen during
+    // build. See [_buildResurfacingStrip].
+    final resurfacing = _buildResurfacingStrip(reflections);
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
       // D3 — the one primary control. It sits on the Scaffold rather than
@@ -223,7 +257,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               child: IndexedStack(
                 index: _tab.index,
                 children: [
-                  _buildAllFeed(allEntries),
+                  _buildAllFeed(allEntries, resurfacing),
                   _buildReflectionsTab(reflections),
                   _buildDuasTab(builtDuas, savedDuas),
                   _buildAchievementsTab(),
@@ -358,107 +392,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Inline stats ───────────────────────────────────────────────────────────
 
-  // Keyword → theme bucket mapping
-  static const _themeBuckets = <String, List<String>>{
-    'Anxiety & Worry': [
-      'anxious',
-      'anxiety',
-      'stressed',
-      'stress',
-      'worry',
-      'worried',
-      'nervous',
-      'fear',
-      'scared',
-      'overwhelmed',
-      'panic'
-    ],
-    'Relationships': [
-      'family',
-      'friend',
-      'friends',
-      'wife',
-      'husband',
-      'mother',
-      'father',
-      'parents',
-      'sister',
-      'brother',
-      'relationship',
-      'people',
-      'nosy',
-      'marriage'
-    ],
-    'Work & Career': [
-      'job',
-      'work',
-      'career',
-      'business',
-      'money',
-      'salary',
-      'boss',
-      'interview',
-      'study',
-      'school',
-      'exam',
-      'university'
-    ],
-    'Sadness & Grief': [
-      'sad',
-      'sadness',
-      'grief',
-      'loss',
-      'lost',
-      'cry',
-      'crying',
-      'depressed',
-      'depression',
-      'lonely',
-      'alone',
-      'hurt'
-    ],
-    'Gratitude': [
-      'grateful',
-      'gratitude',
-      'thankful',
-      'blessed',
-      'blessing',
-      'alhamdulillah',
-      'happy',
-      'joy',
-      'peace'
-    ],
-    'Guidance': [
-      'confused',
-      'decision',
-      'istikhara',
-      'guidance',
-      'direction',
-      'know',
-      'should',
-      'proceed',
-      'unsure',
-      'doubt'
-    ],
-  };
-
-  String? _topTheme(List<SavedReflection> reflections) {
-    if (reflections.length < 3) return null;
-    final counts = <String, int>{};
-    for (final r in reflections) {
-      final text = r.userText.toLowerCase();
-      for (final entry in _themeBuckets.entries) {
-        for (final kw in entry.value) {
-          if (text.contains(kw)) {
-            counts[entry.key] = (counts[entry.key] ?? 0) + 1;
-            break;
-          }
-        }
-      }
-    }
-    if (counts.isEmpty) return null;
-    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-  }
+  /// The lifetime theme line's source. Shared with the Wave E weekly recap via
+  /// `journal_themes.dart` — the keyword list used to live here as a private
+  /// constant, and a second copy of it for the recap would have been a copy free
+  /// to disagree with this one the moment either gained a word.
+  String? _topTheme(List<SavedReflection> reflections) =>
+      journalTopTheme(reflections);
 
   Widget _buildInlineStats(List<SavedReflection> reflections, int duasCount) {
     final statsAsync = ref.watch(_journalStatsProvider);
@@ -467,6 +406,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final uniqueNames = reflections.map((r) => r.name).toSet().length;
 
     final topTheme = _topTheme(reflections);
+
+    // E2. The recap wins the slot when the week has something in it; the
+    // lifetime line is the fallback. See [WeeklyRecapCard] for why they never
+    // render together.
+    final recap = resolveWeeklyRecap(
+      entries: reflections,
+      todayLocalDay: _todayLocalDay,
+    );
 
     return statsAsync
         .when(
@@ -525,8 +472,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   ),
                 ),
 
-                // ── Theme insight card (3+ reflections) ──
-                if (topTheme != null) ...[
+                // ── E2 weekly recap, else the lifetime theme line ──
+                if (recap != null) ...[
+                  const SizedBox(height: 10),
+                  WeeklyRecapCard(recap: recap),
+                ] else if (topTheme != null) ...[
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
@@ -647,7 +597,80 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── All feed ────────────────────────────────────────────────────────────────
 
-  Widget _buildAllFeed(List<_JournalEntry> entries) {
+  // ── Resurfacing (Wave E) ────────────────────────────────────────────────────
+
+  /// Today, in the user's own timezone. Null until [journalLocalDayProvider]
+  /// resolves (one frame) and on a device whose zone cannot be resolved at all.
+  String? get _todayLocalDay =>
+      ref.watch(journalLocalDayProvider).value;
+
+  /// The strip above the All feed: at most two cards, often none.
+  ///
+  /// **Order is the product decision.** The answered-duʿā prompt sits above
+  /// "On This Night" because it is the only one of the three that asks the user
+  /// for anything, and burying an ask under a reminiscence is how it gets
+  /// missed and then repeated. Everything else in Wave E is passive.
+  ///
+  /// This is also the ceiling. Two is the most the archive may ever open with —
+  /// the point of a journal is the entries, and a third card would make the
+  /// first screen of it a briefing.
+  ///
+  /// **Built eagerly in [_buildScaffold], not inside the feed's `itemBuilder`.**
+  /// It is item 0 of a `ListView.builder`, and an `itemBuilder` runs during
+  /// LAYOUT — `ref.watch` there is outside the build phase, so the subscription
+  /// it creates is not one the element reliably owns.
+  Widget _buildResurfacingStrip(List<SavedReflection> reflections) {
+    final onThisNight = resolveOnThisNight(
+      entries: reflections,
+      todayLocalDay: _todayLocalDay,
+    );
+    final duasState = ref.watch(duasProvider);
+    final prompt = selectAnsweredDuaPrompt(
+      duas: duasState.savedBuiltDuas,
+      now: DateTime.now(),
+      snoozedUntil: duasState.answeredPromptSnoozedUntil,
+    );
+
+    if (onThisNight == null && prompt == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (prompt != null)
+          AnsweredDuaCard(
+            prompt: prompt,
+            onAnswered: () => _markDuaAnswered(prompt.dua.id),
+            onNotYet: () => ref
+                .read(duasProvider.notifier)
+                .snoozeAnsweredDuaPrompt(prompt.dua.id),
+          ),
+        if (onThisNight != null)
+          OnThisNightCard(
+            onThisNight: onThisNight,
+            // The same door the calendar uses for a lit night: the story when
+            // there is one, the detail page otherwise.
+            onOpen: () => _openReflection(onThisNight.entry),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _markDuaAnswered(String id) async {
+    final ok = await ref
+        .read(duasProvider.notifier)
+        .setBuiltDuaAnswered(id, answered: true);
+    if (!ok || !mounted) return;
+    // A quiet confirmation, once. The undo lives on the duʿā itself rather than
+    // in this snackbar — a mis-tap the user notices tomorrow still has to be
+    // reversible, and a toast is gone in four seconds.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(JournalResurfacingCopy.answeredConfirmation),
+      ),
+    );
+  }
+
+  Widget _buildAllFeed(List<_JournalEntry> entries, Widget resurfacing) {
     if (entries.isEmpty) {
       final action = _composeAction;
       // Register the tour anchor on the empty hero as a fallback — the
@@ -675,12 +698,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 96),
-      itemCount: entries.length,
+      // +1 for the Wave E resurfacing strip, which scrolls with the feed rather
+      // than pinning above it: it is something the archive OFFERS, not a banner
+      // the archive is wearing, and a user who wants their entries can scroll
+      // past it and never see it again.
+      itemCount: entries.length + 1,
       itemBuilder: (context, index) {
-        final card = _animatedCard(index, _buildEntryCard(entries[index]));
+        if (index == 0) return resurfacing;
+        final card =
+            _animatedCard(index - 1, _buildEntryCard(entries[index - 1]));
         // Wrap only the first entry with the tour anchor so step 12 can
         // target it.
-        if (index == 0) {
+        if (index == 1) {
           return TourAnchor(
             surface: TourSurface.journal,
             anchorId: 'firstEntry',
@@ -1108,7 +1137,32 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   )),
         );
       },
-      topLeft: _typeChip('Personal Dua', AppColors.secondary),
+      // E3's undo, and it lives HERE rather than only in the snackbar that
+      // follows the mark: a mis-tap noticed a day later still has to be
+      // reversible, and a toast is gone in four seconds.
+      //
+      // `leadingAction` and NOT the `expanded` block below, which on this card
+      // is unreachable: `_ExpandableCard` renders `expanded` only when `onTap`
+      // is null, and all three card builders on this screen pass one. That is a
+      // pre-existing dead branch (the Remove buttons in all three `expanded`
+      // blocks are unreachable too) — noted, not fixed here, because reviving it
+      // changes the tap behaviour of every card in the archive.
+      leadingAction: !d.isAnswered
+          ? null
+          : _cardTextAction(
+              icon: Icons.undo_rounded,
+              label: JournalResurfacingCopy.answeredUndo,
+              onTap: () => ref
+                  .read(duasProvider.notifier)
+                  .setBuiltDuaAnswered(d.id, answered: false),
+            ),
+      // The chip is the only permanent trace of the answer, and it is a
+      // statement, not a score: no date arithmetic, no "answered in 4 months",
+      // nothing that turns a duʿā into a case that closed.
+      topLeft: d.isAnswered
+          ? _typeChip(
+              JournalResurfacingCopy.answeredChip, AppColors.primary)
+          : _typeChip('Personal Dua', AppColors.secondary),
       topRight: _dateLabel(date),
       summary: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

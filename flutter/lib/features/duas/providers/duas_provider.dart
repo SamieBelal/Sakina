@@ -19,6 +19,23 @@ const String _builtDuasKey = 'saved_built_duas';
 const String _relatedDuasKey = 'saved_related_duas';
 const String _browseDuaIdsKey = 'saved_browse_dua_ids';
 
+/// Where *"Not yet"* is remembered (Wave E, E3).
+///
+/// Local prefs and nothing else: a dismissal is not a fact about the duʿā, it is
+/// a fact about this moment on this device, and it must not become a server row
+/// with a history. It also means the snooze costs no migration and no sync key.
+const String _answeredPromptSnoozeKey = 'answered_dua_prompt_snoozed';
+
+/// How long *"Not yet"* buys. Long enough that the same duʿā cannot become a
+/// recurring question, short enough that a duʿā answered in the meantime still
+/// gets its moment.
+const Duration answeredDuaSnoozeDuration = Duration(days: 60);
+
+/// `user_built_duas.status`. Mirrors the CHECK in
+/// `20260803000000_built_dua_answered_status.sql` — two values, and only two.
+const String builtDuaStatusOpen = 'open';
+const String builtDuaStatusAnswered = 'answered';
+
 typedef FindDuasLoader = Future<FindDuasResponse> Function(String need);
 typedef BuildDuaLoader = Future<BuiltDuaResponse> Function(String need);
 typedef DuaNow = DateTime Function();
@@ -65,6 +82,17 @@ class SavedBuiltDua {
   final String transliteration;
   final String translation;
 
+  /// [builtDuaStatusOpen] or [builtDuaStatusAnswered] (Wave E, E3). Rows written
+  /// before the migration read back as `open` via the column default, so there
+  /// is no backfill.
+  final String status;
+
+  /// When the user *marked* it — never a claim about when it was answered, which
+  /// is not ours to know. Null exactly when [status] is open; the server
+  /// constrains the pair together (`user_built_duas_answered_at_agrees`), so a
+  /// row that disagrees is refused rather than stored.
+  final String? answeredAt;
+
   const SavedBuiltDua({
     required this.id,
     required this.savedAt,
@@ -72,7 +100,42 @@ class SavedBuiltDua {
     required this.arabic,
     required this.transliteration,
     required this.translation,
+    this.status = builtDuaStatusOpen,
+    this.answeredAt,
   });
+
+  bool get isAnswered => status == builtDuaStatusAnswered;
+
+  /// The one place this object is rebuilt. Named-merge shaped, like
+  /// `SavedReflection.copyWith` and for the same reason: a field this method
+  /// does not mention survives by construction, so adding a column cannot
+  /// silently drop one.
+  ///
+  /// [answeredAt] is cleared by [clearAnsweredAt] rather than by passing null,
+  /// because null is also "leave it alone" — and an undo that leaves a stale
+  /// timestamp behind is refused by the server CHECK, so the local row and the
+  /// server row would diverge with no error surface.
+  SavedBuiltDua copyWith({
+    String? id,
+    String? savedAt,
+    String? need,
+    String? arabic,
+    String? transliteration,
+    String? translation,
+    String? status,
+    String? answeredAt,
+    bool clearAnsweredAt = false,
+  }) =>
+      SavedBuiltDua(
+        id: id ?? this.id,
+        savedAt: savedAt ?? this.savedAt,
+        need: need ?? this.need,
+        arabic: arabic ?? this.arabic,
+        transliteration: transliteration ?? this.transliteration,
+        translation: translation ?? this.translation,
+        status: status ?? this.status,
+        answeredAt: clearAnsweredAt ? null : (answeredAt ?? this.answeredAt),
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -81,6 +144,10 @@ class SavedBuiltDua {
         'arabic': arabic,
         'transliteration': transliteration,
         'translation': translation,
+        // Wave E. Kept in lockstep with `toSupabaseRow` and both parsers below —
+        // a field present in one and missing from another is silent data loss.
+        'status': status,
+        'answeredAt': answeredAt,
       };
 
   factory SavedBuiltDua.fromJson(Map<String, dynamic> json) => SavedBuiltDua(
@@ -90,6 +157,10 @@ class SavedBuiltDua {
         arabic: json['arabic'] as String,
         transliteration: json['transliteration'] as String,
         translation: json['translation'] as String,
+        // A cache blob written before Wave E has neither key — it reads back as
+        // an open duʿā, which is exactly what it is.
+        status: json['status'] as String? ?? builtDuaStatusOpen,
+        answeredAt: json['answeredAt'] as String?,
       );
 
   Map<String, dynamic> toSupabaseRow(String userId) => {
@@ -100,6 +171,8 @@ class SavedBuiltDua {
         'arabic': arabic,
         'transliteration': transliteration,
         'translation': translation,
+        'status': status,
+        'answered_at': answeredAt,
       };
 
   factory SavedBuiltDua.fromSupabaseRow(Map<String, dynamic> row) =>
@@ -110,6 +183,8 @@ class SavedBuiltDua {
         arabic: row['arabic'] as String? ?? '',
         transliteration: row['transliteration'] as String? ?? '',
         translation: row['translation'] as String? ?? '',
+        status: row['status'] as String? ?? builtDuaStatusOpen,
+        answeredAt: row['answered_at'] as String?,
       );
 }
 
@@ -211,6 +286,12 @@ class DuasState {
   final List<SavedBuiltDua> savedBuiltDuas;
   final List<SavedRelatedDua> savedRelatedDuas;
 
+  /// Duʿā id → when the answered-duʿā prompt may ask about it again (E3).
+  ///
+  /// *"Not yet"* writes here and nowhere else. Local, expiring, and carrying no
+  /// meaning beyond "not now" — see [_answeredPromptSnoozeKey].
+  final Map<String, DateTime> answeredPromptSnoozedUntil;
+
   /// Set when build-a-dua attempt was blocked by the gating layer. UI reads
   /// this to render the right paywall sheet, then clears via
   /// [DuasNotifier.dismissBuildGate].
@@ -245,6 +326,7 @@ class DuasState {
     this.error,
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
+    this.answeredPromptSnoozedUntil = const {},
     this.buildGateResult,
     this.buildWarmupJustExhausted,
     this.buildResultSaveHandled = false,
@@ -266,6 +348,7 @@ class DuasState {
     String? Function()? error,
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
+    Map<String, DateTime>? answeredPromptSnoozedUntil,
     GateResult? buildGateResult,
     GatedFeature? buildWarmupJustExhausted,
     bool? buildResultSaveHandled,
@@ -288,6 +371,8 @@ class DuasState {
       error: error != null ? error() : this.error,
       savedBuiltDuas: savedBuiltDuas ?? this.savedBuiltDuas,
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
+      answeredPromptSnoozedUntil:
+          answeredPromptSnoozedUntil ?? this.answeredPromptSnoozedUntil,
       buildGateResult: clearBuildGateResult
           ? null
           : (buildGateResult ?? this.buildGateResult),
@@ -755,6 +840,93 @@ class DuasNotifier extends StateNotifier<DuasState>
     }
   }
 
+  // ── Answered duʿā (Wave E, E3) ──────────────────────────────
+
+  /// Marks a built duʿā answered, or puts it back to open.
+  ///
+  /// **This is the whole of E3's write side, and it is deliberately not an
+  /// economy event.** Nothing here grants XP, moves a streak, claims a reward,
+  /// consumes an allowance or emits an analytics event. A user recording that
+  /// Allah answered them is not a metric, and the moment it earns something it
+  /// stops being that and starts being a thing to farm.
+  ///
+  /// Optimistic, with the same rollback contract as [removeSavedBuiltDua]: local
+  /// state and the prefs cache move first so the card responds instantly, and a
+  /// refused server write puts both back and surfaces an error. Without the
+  /// rollback the local row diverges silently and the next batch sync reverts it
+  /// with no explanation — which on this surface would read as the app forgetting
+  /// something the user just told it.
+  ///
+  /// Returns true when the transition is committed (including the no-op case
+  /// where it was already in the requested state).
+  Future<bool> setBuiltDuaAnswered(
+    String id, {
+    required bool answered,
+    DateTime? at,
+  }) async {
+    final index = state.savedBuiltDuas.indexWhere((d) => d.id == id);
+    if (index < 0) return false;
+    final current = state.savedBuiltDuas[index];
+    if (current.isAnswered == answered) return true;
+
+    final updated = answered
+        ? current.copyWith(
+            status: builtDuaStatusAnswered,
+            // The moment they MARKED it. Not a claim about when it was answered.
+            answeredAt: (at ?? _dependencies.now()).toIso8601String(),
+          )
+        : current.copyWith(
+            status: builtDuaStatusOpen,
+            // Cleared explicitly: the server CHECK refuses an open row that
+            // still carries a timestamp, so leaving it would fail the write and
+            // roll the whole undo back.
+            clearAnsweredAt: true,
+          );
+
+    final next = List<SavedBuiltDua>.from(state.savedBuiltDuas)..[index] = updated;
+    state = state.copyWith(savedBuiltDuas: next, error: () => null);
+    await _persistBuiltDuas(next);
+
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return true;
+
+    final ok = await supabaseSyncService.upsertRawRow(
+      'user_built_duas',
+      updated.toSupabaseRow(userId),
+      onConflict: 'id',
+    );
+    if (ok) return true;
+
+    // Re-read `state` rather than reusing the pre-await list: an unrelated save
+    // or delete may have landed during the round-trip, and restoring a snapshot
+    // taken before it would discard that write. Same hazard as
+    // `state = state.copyWith(x: await …)`, one step further out.
+    final rollback = List<SavedBuiltDua>.from(state.savedBuiltDuas);
+    final at2 = rollback.indexWhere((d) => d.id == id);
+    if (at2 >= 0) rollback[at2] = current;
+    state = state.copyWith(
+      savedBuiltDuas: rollback,
+      error: () => "Couldn't save that just now. Please try again.",
+    );
+    await _persistBuiltDuas(rollback);
+    return false;
+  }
+
+  /// *"Not yet"* — hides the prompt for this duʿā until
+  /// [answeredDuaSnoozeDuration] has passed.
+  ///
+  /// Local only. No server row, no analytics event, and nothing about the duʿā
+  /// itself changes: it is still open, still asked. The one thing that changes
+  /// is that the app stops bringing it up.
+  Future<void> snoozeAnsweredDuaPrompt(String id, {DateTime? now}) async {
+    final until = (now ?? _dependencies.now()).add(answeredDuaSnoozeDuration);
+    final updated =
+        Map<String, DateTime>.from(state.answeredPromptSnoozedUntil);
+    updated[id] = until;
+    state = state.copyWith(answeredPromptSnoozedUntil: updated);
+    await _persistAnsweredPromptSnoozes(updated);
+  }
+
   bool isBuiltDuaSaved() {
     final result = state.buildResult;
     if (result == null) return false;
@@ -833,7 +1005,49 @@ class DuasNotifier extends StateNotifier<DuasState>
       if (browseIds != null) {
         state = state.copyWith(savedDuaIds: browseIds.toSet());
       }
+      final snoozes = await _readAnsweredPromptSnoozes(prefs);
+      if (snoozes.isNotEmpty) {
+        state = state.copyWith(answeredPromptSnoozedUntil: snoozes);
+      }
     } catch (_) {}
+  }
+
+  /// Reads the E3 snooze map, dropping anything unparseable.
+  ///
+  /// Expired entries are dropped on read rather than swept on a schedule: the
+  /// map is only ever consulted by [selectAnsweredDuaPrompt], which compares
+  /// against `now` anyway, so an expired entry is already inert and pruning it
+  /// here keeps the blob from growing by one key per dismissal forever.
+  Future<Map<String, DateTime>> _readAnsweredPromptSnoozes(
+    SharedPreferences prefs,
+  ) async {
+    final raw = prefs.getString(
+        supabaseSyncService.scopedKey(_answeredPromptSnoozeKey));
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final now = _dependencies.now();
+      final out = <String, DateTime>{};
+      decoded.forEach((id, value) {
+        final until = DateTime.tryParse(value as String? ?? '');
+        if (until != null && until.isAfter(now)) out[id] = until;
+      });
+      return out;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<void> _persistAnsweredPromptSnoozes(
+    Map<String, DateTime> snoozes,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_answeredPromptSnoozeKey),
+      jsonEncode(
+        snoozes.map((id, until) => MapEntry(id, until.toIso8601String())),
+      ),
+    );
   }
 
   // ── Persistence helpers ────────────────────────────────────

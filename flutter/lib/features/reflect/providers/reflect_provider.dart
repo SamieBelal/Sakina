@@ -899,13 +899,33 @@ int threadJsonBytes(List<ReflectionThreadEntry> thread) =>
 Future<SavedReflection?> findMuhasabahTimeMachineAnchor(
   String entryLocalDay, {
   List<int> offsets = muhasabahTimeMachineOffsets,
-}) async {
+}) async =>
+    selectTimeMachineAnchor(
+      await _readCachedReflections(),
+      entryLocalDay,
+      offsets: offsets,
+    );
+
+/// The anchor RULE, over an already-loaded list.
+///
+/// [findMuhasabahTimeMachineAnchor] is this function plus a read of the prefs
+/// cache, and Wave E's journal-side "On This Night" card is this function plus a
+/// read of `ReflectState.savedReflections` — which is the same data, hydrated
+/// into memory. Splitting the rule out is the whole point: two surfaces now
+/// resurface "your entry from a month / a year ago", and a second hand-written
+/// lookup would be free to drift on the exact-day question, on the empty-text
+/// filter, or on the nearest-first ordering. There is one rule and both callers
+/// are it.
+SavedReflection? selectTimeMachineAnchor(
+  List<SavedReflection> entries,
+  String entryLocalDay, {
+  List<int> offsets = muhasabahTimeMachineOffsets,
+}) {
   final today = parseLocalDayString(entryLocalDay);
   if (today == null) return null;
-  final cached = await _readCachedReflections();
   for (final offset in offsets) {
     final target = formatLocalDay(today.subtract(Duration(days: offset)));
-    for (final r in cached) {
+    for (final r in entries) {
       if (r.isMuhasabah &&
           r.entryLocalDay == target &&
           r.userText.trim().isNotEmpty) {
