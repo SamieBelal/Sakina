@@ -1598,3 +1598,37 @@ A drafter stopped work and escalated, reading §6e's duplicate-duʿā list as a 
 2. **Two decks must not spend all four Names' viable ground.** When a root sweep returns few usable occurrences, **name the ones you are deliberately leaving for the group's undrafted members** and record it in the claim files. This is a real selection constraint and it had never been written down.
 
 **And keep the two questions apart.** A shared duʿā is not an argument for a must-pair ruling: **two decks sharing a duʿā screen is precisely what a pair already is**, so pairing buys nothing on that axis. A must-pair ruling has to rest on the text or the register, the way all five existing ones do.
+
+### 9bt · An agent declared the corpus unreachable and quoted it anyway
+
+**Two decks quarantined 2026-08-03: `al-bari` (20) and `al-musawwir` (21).** Not for a bad selection — for the failure this entire protocol exists to prevent.
+
+The drafter's own method-limits section is the confession:
+
+> *Cannot reach in this environment: api.quran.com · corpus.quran.com · sunnah.com*
+
+**And then it wrote the deck.** Full āyah quotations, Arabic strings, root counts, a successor sweep described as *"reasoned from known Quranic structure"* — all produced from memory, and all presented in the report inside a five-bars table with green ticks.
+
+**The endpoints were up.** The coordinator ran `api.quran.com/api/v4/verses/by_key/3:6` and `corpus.quran.com` from the same machine minutes later: correct `text_uthmani` returned, HTTP 200 returned. **The agent quoted §9bc at me** — *a negative tool result is a claim about the tool, not the world* — **while committing the exact error it names.** A tool that fails for you is a fact about your attempt.
+
+**What the unfetched work actually contained**, found by reading it against the real text:
+
+| Claim | Reality |
+|---|---|
+| claim file: 82:7–8 *"carries the ب-ر-أ root"* | it does not — that āyah carries `خ-ل-ق`, `ص-و-ر`, `ع-د-ل` |
+| claim file: 40:64 as `أَحْسَنَ تَصْوِيرَكُمْ` | the text reads `فَأَحْسَنَ صُوَرَكُمْ` |
+| claim file: *"Muslim 2612 **or** Bukhārī 5179"*, *"Muslim 2643 **or related narration**"* | a gesture, not a citation |
+| claim files reserve 29:19–20, 82:7–8, 59:24, 40:64 | the decks cite 18:23–24, 19:9, 22:5, 35:11, 3:6, 15:28–29 — **zero overlap with what was claimed** |
+| root counts *"11–15"* and *"18–24"* | **a range is not a count.** The report calls its own method *"estimation"* and offers that *"20% variance would be within noise"* |
+| *"Decks swept: 24"* | the asset holds **45**. It counted the ledger's §1 index instead of the file, after being told in the task to count the file |
+
+**And the part that makes this a rule rather than an incident** — the report closed with a section headed *"What this does NOT mean"*, arguing that the decks are **not** unreliable, that the limits are *"environmental, not foundational"*, and that only *"independent verification"* was missing, not the reasoning.
+
+**No. Unfetched scripture is not a verified deck with a verification caveat. It is not a deck.** An agent may not grade its own limits down. The five bars are not satisfiable by reasoning about texts you did not open, and a method-limits section is a disclosure, not a waiver.
+
+**Standing rules:**
+
+1. **If a fetch fails, STOP and report the failure. Do not proceed to write the quotation.** A deck with three beats and an honest gap outranks eight beats of recalled scripture.
+2. **Before reporting any endpoint as unreachable, prove it** — post the exact command and the exact response. §9bc cuts both ways: it protects you from over-claiming absence *and* forbids you from using a failed call as licence.
+3. **A range is not a count.** *"11–15"* means no sweep was run. Report the integer you counted and the integer the corpus reports, or report that you did not sweep.
+4. **Never write a "what this does not mean" section.** State the limit and stop. The reader decides what it means.

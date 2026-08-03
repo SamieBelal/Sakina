@@ -19,6 +19,14 @@ Qurʾān-only (see "why no ḥadīth" below).
 **Implementation note (binding):** Arabic / transliteration / translation are separate fields.
 Verse beat is English-only (`arabic: ""`), per plan §7's convention for new decks.
 
+**Personalisation note (§9br, founder decision 2026-08-03):** the beat spine is now `bridge →
+name_intro → story ×3 → verse → dua → takeaway → reflection`. The `bridge` and the new trailing
+`reflection` are AI-personalised at runtime; what is authored below in those two slots is the
+FALLBACK a user reads offline, on model failure, or outside the personalised tier — not a
+placeholder. Neither slot carries `source` or `arabic`. The `takeaway` stays fixed; this deck's
+bar-3 surface-(c) separation argument lands there and on the fixed story beats, never on the
+bridge.
+
 ---
 
 ## Deck `al-wahid@1` — Al-Wahid — The One
@@ -89,6 +97,13 @@ note on locked-duʿā decks):*
 > One. **Al-Ahad — the second Name of your answer — is why that One has no equal to be compared
 > against.**
 
+**Beat 9 · reflection** *(new, optional, trailing — authored, no scripture, no `source`/`arabic`;
+AI-personalised at runtime per §9br; the text below is the offline/model-failure fallback, written
+to stand alone)*:
+> Where in your life right now do you keep negotiating with something as if it had a real vote?
+> What would this week look like if you stopped treating it like a rival for control, and let it
+> be what it actually is — nothing?
+
 ---
 
 ### The five bars, one by one
@@ -126,8 +141,13 @@ Qurʾānic ground reserved for Al-Qahhar (id 22) — none of the six is spent he
 The remaining 24 `wāḥid` occurrences are either indefinite/generic ("one gate," "one soul," "one
 community") or the predicate form `إِلَٰهٌ وَاحِدٌ` ("a god, one" / "one God") at 2:163, 5:73, 6:19,
 9:31, 14:52, 16:22, 16:51, 18:110, 21:108, 22:34, 29:46, 37:4, 41:6, 4:171. Of those fourteen,
-**six are `قُلْ`-governed** (6:19, 18:110, 21:108, 41:6, plus 6:19's own repetition) and therefore
-share the rejected-class problem; the rest are bare declaratives with no demonstrative continuation
+**four are `قُلْ`-governed** (6:19, 18:110, 21:108, 41:6) and therefore share the rejected-class
+problem. **Corrected**: an earlier pass counted this as "six," crediting 6:19 with a second,
+non-existent occurrence of the phrase. A live fetch of 6:19's `text_uthmani` confirms `إِلَٰهٌ
+وَٰحِدٌ` occurs **once** in that āyah (`...قُلْ إِنَّمَا هُوَ إِلَـٰهٌ وَٰحِدٌ...`), not twice — there
+is no repetition to count. This does not touch the load-bearing 6/6 compact-epithet finding above,
+which is a separate, independently confirmed sweep. The remaining ten are bare declaratives with no
+demonstrative continuation
 in the immediately adjacent āyāt (checked: 2:164 is the nearest exception, a signs-of-creation list
 that never repeats the root, so it does not rescue 2:163 as a root-bearing *and* demonstrative
 choice). **16:51 is the one non-`قُلْ` declarative whose continuation (16:52–53, "whatever you have
@@ -145,22 +165,36 @@ bar 1/2 have already been carried by beat 4.
 | **16:51 (n−1) = 16:49–50** | Creatures and angels prostrating to Allah, fearing their Lord, doing as commanded. | clean, no contradiction. |
 | **16:51 — the excerpt's own tail** | `فَإِيَّايَ فَارْهَبُونِ` — *"so fear only Me."* | **cut, with a visible ellipsis on the beat.** Not a bar-5 rescue (it is not a punishment clause) — a register choice: "fear" reads harshly against the app's comfort register when the demonstration itself (beat 4) has already done the persuasive work. Disclosed rather than silently dropped. |
 | **16:51 (n+1) = 16:52–53** | *"And to Him belongs whatever is in the heavens and the earth, and to Him is [due] worship constantly… And whatever you have of favor - it is from Allah. Then when adversity touches you, to Him you cry for help."* | **clean and warm.** Not rendered (beat 6 is complete), but confirms the cut was for register, not to hide a problem — the continuation the deck avoided (16:51's own tail) is a single clause, and what follows it (16:52–53) is reassuring, not a trap. |
-| **Sūrah-level, 21** | **Sūrat al-Anbiyāʾ now carries three decks**: shipped `ash-shafi@1` (21:83–84), drafted `al-mujeeb@1` (21:87–88), and this deck (21:21–23). Gaps: 21:22→21:83 is **61 āyāt**; 21:22→21:87 is **65 āyāt**. | **disclosed.** Three decks in one sūrah is the precedent already accepted for Āl ʿImrān (`al-wakeel@1`, `al-malik@1`, `al-aleem@1`) — treated there as the acceptable ceiling, with a fourth flagged as "the ash-Shūrā shape." This deck is Anbiyāʾ's third, at a wider separation than either existing pair in that sūrah. |
-| **Sūrah-level, 16** | **Sūrat an-Naḥl is touched by no other deck in the ledger.** Fresh ground, single citation, no crowding. | clean |
+| **Sūrah-level, 21** | **Corrected — Sūrat al-Anbiyāʾ carries four decks once this ships, not three.** `ash-shafi@1` (21:83–84) and `al-mujeeb@1` (21:87–88) are both **shipped**, not drafted, and a fourth deck the earlier version of this draft never mentioned — `al-wahhab@1`, **shipped**, citing 21:71 and 21:72 — also lives here. This deck (21:21–23) is Anbiyāʾ's fourth. Gaps: 21:22→21:71 is **49 āyāt**; 21:22→21:83 is **61 āyāt**; 21:22→21:87 is **65 āyāt**. | **disclosed, framing corrected.** This draft's own stated ceiling — three decks, read off Āl ʿImrān's `al-wakeel@1`/`al-malik@1`/`al-aleem@1` — is broken here. This is the **second** sūrah in this project past that ceiling (`al-jami@1`'s draft puts a fourth deck in Āl ʿImrān too, ruled **forced**, because that deck's catalogue duʿā *is* Qurʾān 3:9 verbatim — there was no alternative sūrah to choose). **This deck's fourth-in-Anbiyāʾ is chosen, not forced**: id 73's duʿā is catalogue-authored and unpinned, with no scripture citation and no tie to any sūrah (shared with Al-Ahad) — nothing about it points to al-Anbiyāʾ. 21:21–22 was selected on its own merits as the "shown, not stated" passage, from a field the drafter was free to range across. |
+| **Sūrah-level, 16** | **Corrected — Sūrat an-Naḥl is not untouched.** Shipped `al-baqi@1` cites 16:96 in its verse beat. 16:51→16:96 is **45 āyāt** apart. | **disclosed, not damaging.** No shared root, no shared rendered string, no shared move (`al-baqi@1`'s move is *what outlasts you*, unrelated to this deck's rival-governance argument) — but the sūrah carries two decks, not zero; the earlier "fresh ground" claim was false as written. |
 
-### Bar 3 — the three surfaces, run against all 34 shipped decks AND against Al-Ahad
+### Bar 3 — the three surfaces, run against all 45 shipped decks AND against Al-Ahad
 
 **1. Arabic roots.** Quoted text carries: `ʾ-l-h` (god/deity — 21:21, 21:22, 16:51, ubiquitous),
-`f-s-d` (ruin/corruption — 21:22, **appears in NO other deck's quoted text**), `s-b-ḥ` (exalted —
+`f-s-d` (ruin/corruption — 21:22), `s-b-ḥ` (exalted —
 21:22, shared only with `al-jabbar@1`'s duʿā and a handful of other decks' generic "Glory be to
 Allah" register, not a Name-specific collision), `w-ḥ-d` (16:51 only — the Name's own root, traded
 off the story). No `r-ḥ-m`, `gh-f-r`, `ʿ-f-w`, `ḥ-l-m`, `sh-f-y`, `w-k-l`, `b-ṣ-r`, `q-d-r`, `h-d-y`,
-`j-w-b`, `ṣ-m-d`, `ʾ-ḥ-d` appears anywhere in this deck's quoted text. **`f-s-d` is spent by no
-other deck in the 34-deck corpus** (checked programmatically against `name_stories.json`).
+`j-w-b`, `ṣ-m-d`, `ʾ-ḥ-d` appears anywhere in this deck's quoted text. **Corrected — `f-s-d` is not
+unique to this deck.** The "corruption" token-frequency correction above traces to the same root:
+`al-khafid@1`'s verse beat quotes 28:83, `وَلَا فَسَادًا` ("…or corruption"), which is the same `f-
+s-d` root as this deck's `لَفَسَدَتَا` at 21:22. Disclosed, not blocking — different register (a
+warning against seeking status/corruption on earth vs. this deck's counterfactual about rival
+gods), no shared clause, no shared move. ("Ruined," al-ghafur@1's other corrected token, is an
+English rendering of a ḥadīth phrase for perishing/being found out — not this root — so it does not
+add a second collision.) `f-s-d` is spent by exactly **one** other deck in the current 45-deck
+corpus (checked programmatically against `name_stories.json`, re-checked 2026-08-03).
 
-**2. Token frequency across every rendered `primary`/`label`/`translation`/`source` string, all 34
-decks, checked 2026-08-03.** "ruined," "corruption," "rival(s)," "held together" → **zero** hits
-outside this deck. "one" appears constantly across the corpus as ordinary generic address for
+**2. Token frequency across every rendered `primary`/`label`/`translation`/`source` string, swept
+against the current **45-deck** shipped corpus (`name_stories.json`), re-checked 2026-08-03.**
+**Corrected — two tokens reported as zero are actually 1:** "ruined" → **1** hit, `al-ghafur@1`'s
+story beat (a Judgment-Day confession scene — Allah screening a believer's sins before naming them
+once); "corruption" → **1** hit, `al-khafid@1`'s verse beat (Qurʾān 28:83, "…do not desire
+superiority upon the earth or corruption…"). Both incidental to this deck's argument and different
+register from it (a ḥadīth narration and an unrelated verse's closing clause), from decks that
+shipped after this draft was first written — a stale count corrected, not a false alarm reversed.
+"rival(s)" and "held together" remain **zero** hits outside this deck on the same re-sweep. "one"
+appears constantly across the corpus as ordinary generic address for
 Allah (dozens of hits — `al-wakeel@1`, `al-lateef@1`, `al-baseer@1`, `al-kareem@1`, `al-mumin@1`,
 and more) but **"The One" as a `name_intro` primary/gloss appears in no other deck** (§4a of the
 ledger lists all 24 pre-existing `name_intro` primaries; none is "The One"; checked the 10 wave-1
@@ -187,6 +221,27 @@ No rendered string longer than the unavoidable `Allah`/`إِلَٰه` is shared.
 differently if either one is removed, which is the test the ledger's §9an/§9aq entries use for "the
 move," not just the words.
 
+**Disclosed, not blocking — a 4-word doxological overlap with Al-Ahad, undisclosed until now.**
+This deck's beat 5 renders 21:22's second clause, *"So exalted is Allah, Lord of the Throne, above
+what they describe"*; Al-Ahad's beat 3 renders 6:100's closing clause, *"…Exalted is He and high
+above what they describe."* Both are Saheeh International's rendering of the recurring tasbīḥ
+formula `عَمَّا يَصِفُونَ`, a closing exaltation the Qurʾān repeats at several points rather than a
+claim specific to either passage. Per §9o, a doxological set phrase is shared scripture, not a
+taught insight, and is **not blocking** — but per the same rule it must be **disclosed**, not
+silently rendered on both twins. It is disclosed here and on Al-Ahad's draft.
+
+**On the bridge and the separation argument (§9br).** The bridge beat is now the AI-personalisation
+slot; the runtime overwrites it per user, so it cannot carry any part of a bar-3 argument. Checked
+directly: this deck's separation from Al-Ahad rests on the **story engine** (beats 3–5, fixed —
+rival *rulers* vs. Al-Ahad's rival *in kind*) and on **beat 8's takeaway** (fixed — "not divided
+between rivals" vs. Al-Ahad's "nothing shares what He is"), both of which are pre-authored and
+render identically every time. The bridge row in the diff table above is descriptive of what the
+fallback currently says, not load-bearing evidence — removing or personalising the bridge changes
+nothing about whether the two decks are told apart. **§9bp is retired**: the shared "This is the
+Name for…" opener both bridges currently use was flagged as a house-tic risk when bridges were
+fixed text; now that the bridge is a personalised fallback most users will not read, it is not
+worth engineering around, and no further change is made to it here.
+
 ### Why no ḥadīth
 
 Catalogue id 73's own `hadith` field ("When Bilāl (RA) was tortured, he kept saying 'Aḥad, Aḥad'…
@@ -207,19 +262,28 @@ the Qurʾān carried both bar 1 and bar 2 cleanly, so none was needed.
 | 6.1 | Beat 6, partial, ellipsis on the beat: *"…And Allah has said, 'Do not take for yourselves two deities. He [i.e., Allah] is but one God…'"* | Saheeh International, with the closing clause cut | [Qur'an 16:51](https://quran.com/16/51) | Qurʾān | ✅ verified — live fetch 2026-08-03. `text_uthmani`: `وَقَالَ ٱللَّهُ لَا تَتَّخِذُوٓا۟ إِلَـٰهَيْنِ ٱثْنَيْنِ ۖ إِنَّمَا هُوَ إِلَـٰهٌ وَٰحِدٌ ۖ فَإِيَّـٰىَ فَٱرْهَبُونِ`. **Quoted region ends at `وَٰحِدٌ`; `فَإِيَّـٰىَ فَٱرْهَبُونِ` ("so fear only Me") is cut, register reason recorded above, and the beat's own leading "…" plus trailing "…" mark both the mid-passage entry and the cut. Translator's brackets (footnote marker after "two"; `[i.e., Allah]` before "is but one God") — footnote marker stripped, `[i.e., Allah]` retained.** |
 | 7.1 | Beat 7 duʿā | catalog id 73 — no scripture citation claimed | catalog only | n/a | ✅ verified byte-identical to catalog across `dua_arabic`/`dua_transliteration`/`dua_translation` — Python string equality against id 73's fields, 2026-08-03. **UNPINNED, `source` empty.** |
 | 8.1 | Beat 8 takeaway | — | authored | n/a | ✅ honest label — authored copy. Traces: "world…held together" → beat 4 (21:22); "not divided between rivals" → the counterfactual's own logic; "answers to One" → beat 6 (16:51). |
+| 9.1 | Beat 9 reflection | — | authored | n/a | ✅ honest label — authored copy, no scripture claim. No `source`/`arabic` field, per §9br's ship-gate requirement. AI-personalised at runtime; this is the fallback text, written to stand alone. |
 
 ### Disclosed adjacencies (recorded, not blocking)
 
 - **Al-Qahhar (id 22) is undrafted but its entire likely ground (the six `الْوَاحِدُ الْقَهَّارُ`
   āyāt) is now explicitly reserved, not merely avoided.** A future Al-Qahhar drafter inherits a
   clean field.
-- **Sūrat al-Anbiyāʾ now carries three decks** (see the sūrah-level row above) — disclosed at the
-  density already accepted for Āl ʿImrān.
+- **Sūrat al-Anbiyāʾ carries four decks once this ships** (see the corrected sūrah-level row
+  above) — past this draft's own stated Āl ʿImrān ceiling, disclosed as such. **Chosen, not
+  forced** (see above) — unlike `al-jami@1`'s forced fourth deck in Āl ʿImrān.
+- **Sūrat an-Naḥl carries a second deck**: shipped `al-baqi@1` at 16:96, 45 āyāt from this deck's
+  16:51 — disclosed, not damaging (no shared root, string, or move).
 - **`al-wakeel@1`** (shipped) — different move (personal trust after real harm vs. a cosmological
   argument about rival governance); zero shared rendered strings beyond "Allah."
 - **`al-mumin@1`** (drafted this project) renders "The Guardian of Faith — the One who grants
   safety" — uses "the One" as a generic gloss extension, not a Name-defining claim; not a collision
   under the §9as vocative test (different Name being described).
+- **`al-khafid@1`** (shipped) — its verse beat (28:83) shares this deck's `f-s-d` root ("corruption"
+  vs. this deck's "ruined"/`لَفَسَدَتَا`); different register, no shared clause, no shared move.
+- **`al-ghafur@1`** (shipped) — its story beat (a Judgment-Day confession scene) is the sole other
+  hit for the English word "ruined"; a different Arabic root (a perishing/being-found-out sense,
+  not `f-s-d`), disclosed for completeness only.
 
 ### Method limits
 
@@ -285,11 +349,16 @@ recorded as the hardest bar-3 pair drafted in this project so far.** The separat
    shares a parent's). Both are "shown, not stated" arguments, and neither could stand in for the
    other's passage without changing what is being proven.
 2. **Different sūrahs for both story and verse beats**, with disclosed but non-blocking co-tenancy
-   in each (Anbiyāʾ at three decks, matching the accepted Āl ʿImrān density; An-Naḥl fresh; Al-Anʿām
-   fresh for this pair, shared only with two other decks' single verse-beat citations, see Al-Ahad's
-   draft).
-3. **Zero shared rendered vocabulary beyond `Allah`/`إِلَٰه`**, diffed both directions (table above).
-4. **The one place they are NOT separated is the duʿā screen**, which is catalogue-locked and
+   in each (Anbiyāʾ now at **four** decks, past this draft's own stated ceiling — chosen, not
+   forced, see above; An-Naḥl carries one other deck, `al-baqi@1` at 16:96, 45 āyāt from this
+   deck's 16:51, not damaging; Al-Anʿām fresh for this pair, shared only with two other decks'
+   single verse-beat citations, see Al-Ahad's draft).
+3. **No shared rendered vocabulary beyond `Allah`/`إِلَٰه` and one disclosed 4-word doxological
+   set phrase** — "above what they describe," the shared Saheeh International rendering of the
+   recurring tasbīḥ formula `عَمَّا يَصِفُونَ` (Al-Wahid beat 5, 21:22; Al-Ahad beat 3, 6:100). Per
+   §9o this is shared scripture, not a taught insight, and is not blocking — disclosed in both
+   drafts' bar-3 sections rather than concealed. Diffed both directions otherwise (table above).
+4. **The other place they are NOT separated is the duʿā screen**, which is catalogue-locked and
    disclosed in both drafts rather than concealed.
 
 **This is not a refusal.** Both Names clear bars 1, 2, 3 (against the whole corpus and against each
