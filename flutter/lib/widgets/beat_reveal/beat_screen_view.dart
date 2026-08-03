@@ -97,6 +97,54 @@ class BeatScreenView extends StatelessWidget {
           ],
         );
 
+      // The archive cover (Wave D): the night's date in small caps, then the
+      // words the user wrote that night as a pull quote. `source` carries the
+      // Name in Latin script — never concatenated with the Arabic, which the
+      // Name hero on the next beat renders in its own direction (CLAUDE.md).
+      case BeatKind.entryCover:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (screen.label.isNotEmpty) ...[
+              Text(
+                screen.label.toUpperCase(),
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.secondary,
+                  letterSpacing: 1.6,
+                ),
+                textDirection: TextDirection.ltr,
+              ),
+              const SizedBox(height: 18),
+            ],
+            if (screen.primary.isEmpty)
+              // A night with a Name but no typed answer (the discover path can
+              // produce one). Say so plainly rather than open on a blank card.
+              Text(
+                'You met a Name this night.',
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.sacredInkSoft,
+                  height: 1.45,
+                  fontSize: 20,
+                ),
+                textDirection: TextDirection.ltr,
+              )
+            else
+              _quoteText('“${screen.primary}”', 24, reduce),
+            if (screen.source.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              Text(
+                screen.source,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.sacredInkSoft,
+                  fontStyle: FontStyle.italic,
+                ),
+                textDirection: TextDirection.ltr,
+              ),
+            ],
+          ],
+        );
+
       case BeatKind.reframe:
         return Text(
           screen.primary,

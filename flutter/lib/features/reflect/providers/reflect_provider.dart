@@ -81,6 +81,46 @@ const int _threadAtMaxChars = 64;
 /// is ~40KB"*.
 const int _threadMaxBytes = 40960;
 
+/// How many entries the device keeps — in the prefs blob and in the notifier's
+/// in-memory list (Wave D, D5).
+///
+/// The local cache is **one JSON string** under a single SharedPreferences key:
+/// every save re-encodes and rewrites the whole list, and every launch decodes
+/// it on the platform thread before the Journal can paint. That was harmless
+/// while a free user could hold five entries for life and a premium user rarely
+/// passed a few dozen. Wave A removed the cap that kept it small, and Wave B
+/// added a row a night — a daily journaler now produces ~365 a year, so an
+/// uncapped blob grows without bound and the cost lands on app start.
+///
+/// 500 ≈ sixteen months of nightly entries. Beyond it the OLDEST entries fall
+/// out of the device cache; the server keeps every row and a full sync
+/// rehydrates the newest 500 again. The one honest caveat: a user who never
+/// signs in has no server copy, so for them this is deletion rather than
+/// eviction — which is why the number is generous rather than tight.
+const int maxCachedReflections = 500;
+
+/// Newest-first, then truncated to [maxCachedReflections].
+///
+/// Sorting first is the load-bearing half. Truncating an unsorted list drops
+/// whatever happens to sit at the end, which for `hydrateReflectionCacheFromRows`
+/// is whatever order PostgREST returned — i.e. it could throw away this week
+/// and keep last year.
+@visibleForTesting
+List<SavedReflection> capReflections(List<SavedReflection> reflections) {
+  if (reflections.length <= maxCachedReflections) return reflections;
+  final sorted = [...reflections]..sort((a, b) {
+      final da = DateTime.tryParse(a.date);
+      final db = DateTime.tryParse(b.date);
+      // An unparseable date sorts last rather than throwing — a corrupt row
+      // must not be able to decide which good ones survive.
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+  return sorted.take(maxCachedReflections).toList();
+}
+
 /// `user_reflections.source` values — a closed set of two, matching the server
 /// CHECK. Wire strings rather than an enum because they are both a column value
 /// and a persisted prefs format: a value written by another build has to
@@ -718,7 +758,9 @@ Future<void> _prependToReflectionCache(SavedReflection reflection) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(
     supabaseSyncService.scopedKey(_reflectionsKey),
-    jsonEncode([reflection, ...current].map((r) => r.toJson()).toList()),
+    jsonEncode(
+      capReflections([reflection, ...current]).map((r) => r.toJson()).toList(),
+    ),
   );
 }
 
@@ -1009,9 +1051,9 @@ Future<void> hydrateReflectionCacheFromRows(
   await prefs.setString(
     supabaseSyncService.scopedKey(_reflectionsKey),
     jsonEncode(
-      remoteRows
-          .map((r) => SavedReflection.fromSupabaseRow(r).toJson())
-          .toList(),
+      capReflections(
+        remoteRows.map(SavedReflection.fromSupabaseRow).toList(),
+      ).map((r) => r.toJson()).toList(),
     ),
   );
 }
@@ -1426,7 +1468,8 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       return;
     }
     state = state.copyWith(
-      savedReflections: [reflection, ...state.savedReflections],
+      savedReflections:
+          capReflections([reflection, ...state.savedReflections]),
     );
   }
 
@@ -1584,7 +1627,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       }
     }
 
-    final updated = [reflection, ...state.savedReflections];
+    final updated = capReflections([reflection, ...state.savedReflections]);
     state = state.copyWith(savedReflections: updated);
     await _persistReflections(updated);
 
@@ -1602,9 +1645,9 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         _reflectionsKey,
       );
       if (json != null) {
-        final list = (jsonDecode(json) as List)
+        final list = capReflections((jsonDecode(json) as List)
             .map((e) => SavedReflection.fromJson(e as Map<String, dynamic>))
-            .toList();
+            .toList());
         state = state.copyWith(savedReflections: list);
       }
     } catch (_) {}
@@ -1614,7 +1657,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       supabaseSyncService.scopedKey(_reflectionsKey),
-      jsonEncode(reflections.map((r) => r.toJson()).toList()),
+      jsonEncode(capReflections(reflections).map((r) => r.toJson()).toList()),
     );
   }
 }
