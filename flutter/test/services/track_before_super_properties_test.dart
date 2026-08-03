@@ -19,6 +19,8 @@
 // tests. Same shape as `shouldEmitAbandonment` in onboarding_screen.dart — the
 // shipping predicate and the tested one are the same code.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/services/analytics_service.dart';
 
@@ -141,6 +143,44 @@ void main() {
       expect(reapplied['install_id'], 'install-abc');
       expect(reapplied['onboarding_flow'], 'reel_v1',
           reason: 'the late arrival must join the durable set, not replace it');
+    });
+
+    // Wave H (2026-08-02) — the plan asks for the durable set to be
+    // RE-VERIFIED against each new wave's callers, because the failure above
+    // was found by a caller nobody re-checked. Doing it by hand once is worth
+    // nothing to the next wave; this is the same audit, run by CI.
+    //
+    // The census, at the time of writing: exactly ONE call site
+    // (`registerBootstrapAnalytics`). Waves A–E of the journaling plan added
+    // none — the `onboarding_flow` hook that caused the P0 was moved OFF this
+    // method entirely (it is user-scoped, so it is a plain
+    // `setSuperProperties` and is correctly wiped on sign-out).
+    //
+    // A new call site is not forbidden. It has to be a deliberate decision:
+    // does this property belong to the DEVICE (survives a user switch) or to
+    // the USER (must not)? Getting that wrong is the other half of the same
+    // bug, and it is why this fails on an unexpected caller rather than
+    // counting them.
+    test('the durable-set call sites are the audited ones', () {
+      final callers = <String>[];
+      for (final file in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        final src = file.readAsStringSync();
+        // The declaration itself lives in analytics_service.dart; a CALL has a
+        // receiver in front of it.
+        if (RegExp(r'\w\.cacheDeviceSuperProperties\s*\(').hasMatch(src)) {
+          callers.add(file.path.replaceAll(r'\', '/'));
+        }
+      }
+
+      expect(callers, ['lib/services/analytics_events.dart'],
+          reason: 'a new caller of the DURABLE device set changes what every '
+              'event carries for the NEXT user on a shared device. If this is '
+              'intentional, decide device-scoped vs user-scoped first (see '
+              'onboarding_flow, which had to move OFF this method), then add '
+              'the file here.');
     });
 
     test('a later call OVERWRITES its own key rather than duplicating', () {

@@ -2423,6 +2423,47 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // runs, so a refused or unreachable journal write costs a row and nothing
     // else. See [_persistMuhasabahEntry].
     await _persistMuhasabahEntry();
+    _emitCompletionShown();
+  }
+
+  /// One event per completed night (Wave H) — the denominator every other Wave
+  /// C number is read against.
+  ///
+  /// Emitted from here rather than from `_buildCompleted`'s build method for
+  /// the obvious reason (a screen rebuilds; a night completes once) and from
+  /// AFTER [_persistMuhasabahEntry] rather than inside it for a less obvious
+  /// one: that method returns early when there is nothing to save, and a
+  /// completion that produced no artifact is precisely the case
+  /// [AnalyticsEvents.propHasEntry] exists to count.
+  ///
+  /// Reads state, so it carries the entry and anchor the persist step just
+  /// resolved. Nothing here touches the user's words.
+  void _emitCompletionShown() {
+    try {
+      final entry = state.tonightEntry;
+      final anchor = state.timeMachineEntry;
+      final offset = _anchorOffsetDays(entry, anchor);
+      onAnalyticsEvent?.call(AnalyticsEvents.muhasabahCompletionShown, {
+        AnalyticsEvents.propHasEntry: entry != null,
+        AnalyticsEvents.propHasTimeMachine: anchor != null,
+        if (offset != null) AnalyticsEvents.propOffsetDays: offset,
+        AnalyticsEvents.propThreadLength: entry?.thread.length ?? 0,
+        AnalyticsEvents.propHasAzm: (entry?.azm ?? '').trim().isNotEmpty,
+      });
+    } catch (_) {
+      // Best-effort, like every other emit on this path: telemetry must never
+      // sit between the user finishing the night and the screen saying so.
+    }
+  }
+
+  /// Nights between tonight and the resurfaced anchor — 30, 90 or 365, or null
+  /// when either day is missing or unparseable.
+  static int? _anchorOffsetDays(
+      SavedReflection? tonight, SavedReflection? anchor) {
+    final today = parseLocalDayString(tonight?.entryLocalDay ?? '');
+    final then = parseLocalDayString(anchor?.entryLocalDay ?? '');
+    if (today == null || then == null) return null;
+    return today.difference(then).inDays;
   }
 
   /// Writes tonight's muḥāsabah as a durable journal entry (Wave B).
@@ -2521,7 +2562,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// Returns false, without throwing, when there is nothing to append to, when
   /// the text is blank, when tonight's twenty appends are used up, or when the
   /// server refuses the write.
-  Future<bool> appendToTonight(String text) async {
+  /// [surface] is telemetry only — [AnalyticsEvents.surfaceMuhasabah] for the
+  /// completion screen, [AnalyticsEvents.surfaceJournal] for D3's compose
+  /// sheet. It changes nothing about the write; it is how "does the Journal's
+  /// compose control get used" stops being a guess.
+  Future<bool> appendToTonight(
+    String text, {
+    String surface = AnalyticsEvents.surfaceMuhasabah,
+  }) async {
     if (text.trim().isEmpty) return false;
     try {
       final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
@@ -2532,6 +2580,20 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       );
       if (updated == null) return false;
       state = state.copyWith(tonightEntry: updated);
+      // AFTER the commit and only on a committed one — a blank line, a
+      // rolled-over day with no row, an exhausted budget and a server refusal
+      // all return above, and none of them is an append.
+      //
+      // `thread.length` and never the text. The count is the shape of the
+      // night; the words are the user's and stay on their own row.
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.muhasabahThreadAppended, {
+          AnalyticsEvents.propSurface: surface,
+          AnalyticsEvents.propThreadLength: updated.thread.length,
+        });
+      } catch (_) {
+        // Telemetry never costs the append.
+      }
       return true;
     } catch (e) {
       debugPrint('[daily_loop] append to tonight not written: $e');
@@ -2547,6 +2609,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// over — an ʿazm is a resolve, not a submission.
   Future<bool> setTonightAzm(String azm) async {
     try {
+      // Read BEFORE the awaits. This is the "was there already a resolve on
+      // tonight" question, and answering it from post-await state would answer
+      // it about the row this call just wrote.
+      final previous = (state.tonightEntry?.azm ?? '').trim();
       final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
       final updated = await setMuhasabahAzm(
         entryLocalDay: localDay.dateString,
@@ -2554,6 +2620,25 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       );
       if (updated == null) return false;
       state = state.copyWith(tonightEntry: updated);
+      final next = updated.azm.trim();
+      // `setMuhasabahAzm` returns the entry UNCHANGED when the text is already
+      // what is stored — a re-save of the same line is not an edit, and
+      // counting it would make the ʿazm look re-worked by anyone who tapped
+      // save twice.
+      if (next != previous) {
+        try {
+          onAnalyticsEvent?.call(AnalyticsEvents.muhasabahAzmSet, {
+            AnalyticsEvents.propFirstTime: previous.isEmpty,
+            AnalyticsEvents.propCleared: next.isEmpty,
+            // Bucketed length, never the line. Same rule and the same helper as
+            // the daily question's answer — `charCountBucket` takes an int
+            // precisely so no refactor can hand it the String.
+            AnalyticsEvents.propCharCountBucket: charCountBucket(next.length),
+          });
+        } catch (_) {
+          // Telemetry never costs the resolve.
+        }
+      }
       return true;
     } catch (e) {
       debugPrint('[daily_loop] azm not written: $e');

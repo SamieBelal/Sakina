@@ -28,6 +28,7 @@ import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
 
@@ -48,9 +49,18 @@ class _StubLoop extends DailyLoopNotifier {
 
   final List<String> appends = [];
 
+  /// Wave H — the surface the append was filed under. See the note on the
+  /// completion screen's stub: this argument is the only thing that separates a
+  /// Journal append from a muḥāsabah one in the data.
+  final List<String> appendSurfaces = [];
+
   @override
-  Future<bool> appendToTonight(String text) async {
+  Future<bool> appendToTonight(
+    String text, {
+    String surface = AnalyticsEvents.surfaceMuhasabah,
+  }) async {
     appends.add(text);
+    appendSurfaces.add(surface);
     return true;
   }
 }
@@ -247,6 +257,10 @@ void main() {
 
       expect(loop.appends, ['one more thing'],
           reason: 'the sheet must reuse appendToTonight, not reimplement it');
+      // Wave H. Same write, second surface — and the argument is the only thing
+      // that tells them apart in the data. A call site that forgets it files a
+      // Journal append under the muḥāsabah and D3's control looks unused.
+      expect(loop.appendSurfaces, [AnalyticsEvents.surfaceJournal]);
     });
 
     testWidgets('a full thread → free write, and it routes to Reflect',

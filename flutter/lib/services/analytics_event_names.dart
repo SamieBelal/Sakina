@@ -789,6 +789,141 @@ abstract final class AnalyticsEvents {
   static const String entryTypeSavedDua = 'saved_dua';
   static const String entryTypeReflection = 'reflection';
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Journaling (Wave H, 2026-08-02). See
+  // docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// `source` on [journalEntryCreated] — WHICH WRITER of `user_reflections`
+  /// produced the row, mirroring the column of the same name that Wave B added.
+  ///
+  /// **The event was extended, not forked** (plan Wave H, design §12.1): the
+  /// nightly muḥāsabah is a journal entry like any other, and a sibling event
+  /// would have split every historical journal chart in two at T0.
+  ///
+  /// Present **only when `entry_type = reflection`** — the two duʿā entry types
+  /// are rows in `user_built_duas`, which has no `source` column and no
+  /// muḥāsabah concept, and inventing a third value for them would make
+  /// `source` mean "surface" on some events and "table column" on others. Break
+  /// down by `entry_type` first; `source` splits the reflection slice.
+  ///
+  /// The key itself is [propSource], reused (its value space is per-event
+  /// already — cf. the widget vs. reel-source values above).
+  static const String journalSourceReflect = 'reflect';
+  static const String journalSourceMuhasabah = 'muhasabah';
+
+  /// Once per completed night, at `completeDeeper()` — the denominator for
+  /// every other Wave C event and the only thing that answers "did the night
+  /// leave an artifact at all".
+  ///
+  /// Props: [propHasEntry] (a row was written / already existed for the day —
+  /// false means an offline night, a refused write, or a legacy blob restore),
+  /// [propHasTimeMachine] + [propOffsetDays] (C3's anchor: 30 / 90 / 365, or
+  /// absent), [propThreadLength] and [propHasAzm] (what the night already
+  /// carried when it completed — non-zero only on a re-completion).
+  static const String muhasabahCompletionShown = 'muhasabah_completion_shown';
+
+  /// One durable append (C1). Fires only on a COMMITTED write, so a blank line,
+  /// a rolled-over day with no row, an exhausted twenty-append budget and a
+  /// server refusal are all silent — the event counts what the journal kept.
+  ///
+  /// Props: [propSurface] ([surfaceMuhasabah] = the completion screen,
+  /// [surfaceJournal] = D3's compose sheet — the one number that says whether
+  /// the Journal's compose control earns its place), [propThreadLength] (the
+  /// count AFTER the append, so "appended once" is separable from "kept going"
+  /// without a session aggregate).
+  static const String muhasabahThreadAppended = 'muhasabah_thread_appended';
+
+  /// The night's forward resolve was written or changed (C4).
+  ///
+  /// Aggregated by outcome rather than emitted per keystroke-save: an ʿazm is
+  /// editable until the day rolls over, so a save that changes nothing is
+  /// silent, and [propFirstTime] separates the night's first resolve from a
+  /// later edit of it. [propCleared] marks an ʿazm emptied back out.
+  ///
+  /// [propCharCountBucket] and NEVER the line itself — same rule, and the same
+  /// helper, as the daily question's answer.
+  static const String muhasabahAzmSet = 'muhasabah_azm_set';
+
+  /// The Journal's one primary control (D3), tapped. [propAction] is the
+  /// meaning it had at the moment of the tap
+  /// ([composeActionStartTonight] | [composeActionAddToTonight] |
+  /// [composeActionFreeWrite]) and [propEntryPoint] is which of its two
+  /// renderings was used ([composeEntryFab] | [composeEntryEmptyState]) — the
+  /// empty-state copy is aimed at a user with nothing in the archive yet, and
+  /// its conversion is a different question from the FAB's.
+  static const String journalComposeTapped = 'journal_compose_tapped';
+
+  /// An archived entry was opened for re-reading (D2/D4/E1) — the whole point
+  /// of Wave D, and unmeasurable before it.
+  ///
+  /// One event with three segments rather than three events: [propOrigin]
+  /// ([originJournalFeed] | [originJournalCalendar] | [originOnThisNight]),
+  /// [propFormat] ([entryFormatStory] = the tap-through beats, [entryFormatDetail]
+  /// = the page), and [propSource] (`muhasabah` | `reflect`, the same value
+  /// space as [journalEntryCreated]) so "people re-read their nights" is
+  /// separable from "people re-read their Reflect saves".
+  static const String journalEntryOpened = 'journal_entry_opened';
+
+  /// The Month of Light calendar was opened as the Journal's browse control
+  /// (D4). The denominator for `journal_entry_opened{origin: journal_calendar}`
+  /// — without it, a calendar nobody converts from is indistinguishable from a
+  /// calendar nobody opens.
+  static const String journalBrowseOpened = 'journal_browse_opened';
+
+  /// **Session-aggregated, once per Journal visit**, and deliberately not three
+  /// per-card `shown` events: all three Wave E surfaces are passive, they are
+  /// resolved in the same build, and the question is always "what did the
+  /// archive open with", never "which card rendered first".
+  ///
+  /// Props: [propOnThisNight], [propWeeklyRecap], [propAnsweredPrompt] (booleans
+  /// — every resolver returns null far more often than not, so the all-false
+  /// row is the common case and is the honest denominator), plus
+  /// [propOffsetDays] when "On This Night" resolved.
+  ///
+  /// **The answered-duʿā boolean records that the APP ASKED, never what the user
+  /// answered.** Marking a duʿā answered emits nothing, by an explicit Wave E
+  /// decision pinned by a test — see `duas_provider.setBuiltDuaAnswered`.
+  static const String journalResurfacingShown = 'journal_resurfacing_shown';
+
+  /// [surfaceMuhasabah]'s sibling for the Journal — which of the two surfaces
+  /// an append came from.
+  static const String surfaceJournal = 'journal';
+
+  static const String propHasEntry = 'has_entry';
+  static const String propHasTimeMachine = 'has_time_machine';
+
+  /// How many nights back a resurfaced entry came from — 30, 90 or 365, never a
+  /// fuzzy window (see `selectTimeMachineAnchor`). On
+  /// [muhasabahCompletionShown] and [journalResurfacingShown].
+  static const String propOffsetDays = 'offset_days';
+  static const String propThreadLength = 'thread_length';
+  static const String propHasAzm = 'has_azm';
+  static const String propFirstTime = 'first_time';
+  static const String propCleared = 'cleared';
+  static const String propAction = 'action';
+  static const String propEntryPoint = 'entry_point';
+  static const String propFormat = 'format';
+  static const String propOnThisNight = 'on_this_night';
+  static const String propWeeklyRecap = 'weekly_recap';
+  static const String propAnsweredPrompt = 'answered_prompt';
+
+  static const String composeActionStartTonight = 'start_tonight';
+  static const String composeActionAddToTonight = 'add_to_tonight';
+  static const String composeActionFreeWrite = 'free_write';
+  static const String composeEntryFab = 'fab';
+  static const String composeEntryEmptyState = 'empty_state';
+
+  static const String entryFormatStory = 'story';
+  static const String entryFormatDetail = 'detail';
+
+  /// [propOrigin] values for [journalEntryOpened]. Namespaced `journal_*` where
+  /// the surface is ambiguous, because `origin` already carries the paywall's
+  /// values on a different event.
+  static const String originJournalFeed = 'journal_feed';
+  static const String originJournalCalendar = 'journal_calendar';
+  static const String originOnThisNight = 'on_this_night';
+
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
   // quest events are emitted directly from AppShell (has Riverpod ref).
