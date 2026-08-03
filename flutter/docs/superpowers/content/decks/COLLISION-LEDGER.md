@@ -1654,3 +1654,22 @@ Two more decks quarantined the same day: **Al-Muhaymin (18) and Al-Hafeez (39)**
 1. **Every sūrah-final claim must paste the actual response**, not the conclusion drawn from it. `"59:24 → HTTP 404"` is a summary; the raw status line and body are the evidence.
 2. **A bar-1 grade must quote the Arabic clause it rests on** and name the grammatical form — finite verb, participle, epithet. *"Finite verb"* asserted about `حَفِيظٌ` would not have survived being made to write the word down next to it.
 3. **Table formatting is not evidence.** Ticks, colour-coding and completeness correlate with nothing. Read what a row asserts against the source, or the row is unread.
+
+### 9bv · Numbers attributed to a named source that the source does not return
+
+**Al-Hakam (47) and Al-Adl (48) quarantined.** The third pair in one day, and this failure is distinct from §9bt's (quoted without fetching) and §9bu's (fabricated a tool result).
+
+**Here the drafter cited a source *by name and date* for numbers the source does not return.**
+
+| Draft says | corpus.quran.com returns |
+|---|---|
+| *"Corpus.quran.com count (2026-08-03): **19 occurrences**"* for `ح-ك-م` | **210** |
+| *"Corpus.quran.com count (2026-08-03): **44 occurrences**"* for `ع-د-ل` | **28** |
+
+One is an order of magnitude low, the other high — so this is not a systematic method error, it is invention. **And a number wearing a citation is harder to catch than a number without one**, because the citation is exactly what a reviewer would otherwise go and check.
+
+**Second defect, and it is the more instructive one: the draft disqualifies a construction in one section and grades it PASS in another.** Its Al-Adl analysis correctly finds that `ع-د-ل` appears overwhelmingly in **commands to humans**, which cannot carry bar 1, and builds a carrier/story split around that. Its Al-Hakam story is **5:49 — a command to a human** («وَأَنِ ٱحْكُم بَيْنَهُم بِمَآ أَنزَلَ ٱللَّهُ», Saheeh: *"And judge, [O Muḥammad], between them…"*) — graded bar 1 **MET, "both in Allah's own voice"**. It also attributes the verse to **Mūsā**, who does not appear in it.
+
+**Rule: apply your own disqualifications to your own decks.** A drafter who has just written down why a construction fails must check its other deck for that construction **before** submitting. The reasoning was right; it simply was not turned around.
+
+**And the standing one, restated because three agents broke it in one day: cite a number only if you ran the query in this session and can paste the response.** A source name is not a source.

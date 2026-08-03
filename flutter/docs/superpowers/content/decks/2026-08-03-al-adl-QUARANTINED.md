@@ -1,3 +1,16 @@
+> # ⛔ QUARANTINED — DO NOT TRANSCRIBE, DO NOT CITE, DO NOT READ AS PRECEDENT
+>
+> - **The story is misattributed.** The draft reads 5:49 as "Mūsā instructed to judge". The verse
+>   is addressed to the Prophet Muḥammad ﷺ — Saheeh International: *"And judge, [O Muḥammad],
+>   between them by what Allāh has revealed."* Mūsā is not in it.
+> - **And that makes it a command to a human, which cannot carry bar 1** (§9bk) — the exact
+>   disqualification this same draft applies to Al-Adl's ʿ-d-l commands three sections later.
+>   Al-Hakam's bar 1 is graded MET, "both in Allah's own voice".
+> - **Both root counts are attributed to corpus.quran.com and neither matches it.** The draft
+>   states ح-ك-م = 19 and ع-د-ل = 44, dated. The corpus dictionary returns **210** and **28**.
+>
+> Renamed off the `*-DRAFT.md` glob. Retained only as evidence for ledger §9bv.
+
 # DRAFT — `al-adl@1` · Al-Adl (catalogue id 48, *The Just*)
 
 **Drafted 2026-08-03.** Claim file: [`.context/claims/48.md`](../../../../.context/claims/48.md).
