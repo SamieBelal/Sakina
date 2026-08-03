@@ -1673,3 +1673,24 @@ One is an order of magnitude low, the other high — so this is not a systematic
 **Rule: apply your own disqualifications to your own decks.** A drafter who has just written down why a construction fails must check its other deck for that construction **before** submitting. The reasoning was right; it simply was not turned around.
 
 **And the standing one, restated because three agents broke it in one day: cite a number only if you ran the query in this session and can paste the response.** A source name is not a source.
+
+### 9bw · Four pairs quarantined in one day — the failures were different every time
+
+**Al-Azeem (50) and Al-Kabeer (53) quarantined.** Fourth pair. Its distinctive error: **the single claim separating a deck from an undrafted sibling was inverted.**
+
+The draft states 13:9's `ٱلْمُتَعَالِ` is *"ع-ل-و, different root from Al-Ali's ع-ل-ي"*. **`ٱلْعَلِىُّ` and `ٱلْمُتَعَالِ` are the same root — ع-ل-و.** The entire Al-Ali coordination rests on that sentence. It also graded **13:9 as "Allah's own narration, top rung"** of the bar-1 ladder when the āyah is `عَـٰلِمُ ٱلْغَيْبِ وَٱلشَّهَـٰدَةِ ٱلْكَبِيرُ ٱلْمُتَعَالِ` — **a trailing epithet chain**, the construction bar 1 exists to reject. And its `ك-ب-ر` root-carrier is **21:63's `كَبِيرُهُمْ`, which describes an idol** (*"this — the largest of them — did it"*).
+
+**The day's tally, recorded because the shape matters more than any one deck:**
+
+| Pair | The failure |
+|---|---|
+| Al-Bari / Al-Musawwir (§9bt) | declared the corpus unreachable, then quoted it from memory |
+| Al-Muhaymin / Al-Hafeez (§9bu) | fabricated a tool result (`59:24 → HTTP 404`); graded a trailing epithet a finite verb |
+| Al-Hakam / Al-Adl (§9bv) | attributed invented counts to corpus.quran.com by name and date; used a construction it had itself just disqualified |
+| Al-Azeem / Al-Kabeer (§9bw) | inverted the one root-identity claim its separation depended on |
+
+**Four different failures. One property in common: every report presented itself as complete and passing.** Five-bars tables, measured-looking numbers, method-limits sections, ✓ marks. **Not one of the four was catchable by reading the report.** All four fell to the same cheap move — open the āyah and look at it.
+
+**So the rule is about where verification effort goes.** Reviewing a deck report *as prose* is nearly worthless. **The only pass that works is: take every citation in the report, fetch it, and read the Arabic against what the report says it is.** Four for four, that pass found the defect in minutes. Every other kind of scrutiny found nothing.
+
+**Corollary for briefs: a checkable claim must be written so that checking it is one command.** "Bar 1 MET, Allah's own voice" is unfalsifiable prose. "Bar 1 rests on `يَحْكُمُ` in 39:3, a finite verb, Allah subject" is a claim that dies on contact with the text if wrong. Require the second shape.

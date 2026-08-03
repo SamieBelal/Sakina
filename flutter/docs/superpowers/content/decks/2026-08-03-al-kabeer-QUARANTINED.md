@@ -1,3 +1,19 @@
+> # ⛔ QUARANTINED — DO NOT TRANSCRIBE, DO NOT CITE, DO NOT READ AS PRECEDENT
+>
+> - **The Al-Ali separation claim is backwards.** The draft says 13:9's `ٱلْمُتَعَالِ` is "ع-ل-و,
+>   different root from Al-Ali's ع-ل-ي". `ٱلْعَلِىُّ` and `ٱلْمُتَعَالِ` are **the same root, ع-ل-و**.
+>   The one claim holding Al-Kabeer apart from an undrafted Name is false.
+> - **13:9 is a trailing epithet chain, not narration.** `عَـٰلِمُ ٱلْغَيْبِ وَٱلشَّهَـٰدَةِ ٱلْكَبِيرُ ٱلْمُتَعَالِ`
+>   — Saheeh: *"Knower of the unseen and the witnessed, the Grand, the Exalted."* Graded
+>   "Allah's own narration, top rung" of the bar-1 ladder. It is the construction bar 1 rejects.
+> - **21:63's `كَبِيرُهُمْ` describes an idol.** Saheeh: *"this — the largest of them — did it."*
+>   That is Ibrāhīm naming a statue, used here as a root-carrier for a Name of Allah.
+> - Two unbacked translation swaps ("magnificent" for Saheeh's "great"; "greatest" for "mighty"),
+>   each for on-screen Name visibility — §9bl forbids the motive, §9bh forbids the unbacked
+>   rendering. And a `ك-ب-ر` cross-check reported as **"62+"**, which is not a count (§9bt).
+>
+> Renamed off the `*-DRAFT.md` glob. Retained only as evidence for ledger §9bw.
+
 # Deck Draft — Al-Kabeer (id 53) — R1
 
 > **R1, 2026-08-03 — first draft, before review.**
