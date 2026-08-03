@@ -1441,3 +1441,30 @@ Aḍ-Ḍārr/An-Nāfiʿ · Al-Qābiḍ/Al-Bāsiṭ · Al-Khāfiḍ/Ar-Rāfiʿ ·
 **This is now a shipping-blocker in waiting, not a note.** Four Names are ruled unsafe or incoherent to meet alone, and the app can currently serve any of them alone. **Either these pairs get `chip_keys` so the existing pair machinery applies, or a `requires_deck`-style constraint is needed.** Engineering decision, founder's to make — recorded before ship time rather than discovered at it.
 
 **One catalogue finding added, no change recommended:** the catalogue's own `dua_translation` renders `dh-l-l` as **"humiliate"** while Saheeh International's 3:26 renders the same root as **"humble"** — a real English inconsistency **across two beats the same user sees on one deck.** Disclosed, not fixed; the verse beat quotes the fetched translation as-is.
+
+### 9bh · A composite of two translations is not a translation
+
+**Ruled 2026-08-03, on al-jami@1's beat 6.** A drafter rendered 64:9 by taking Abdel Haleem's *"gather"* and Saheeh International's *"bad deeds / Gardens / supreme triumph"* and joining them into one string. It reads well. It is also **a string that appears in no published translation of 64:9**, presented on screen as a translation of 64:9.
+
+**Rejected. Paste one translator whole.** The user cannot tell a composite from a translation, and neither can the next drafter who reads the deck as precedent. This is a small instance of the exact failure that put 19 fabricated quotations into this app's production build — a plausible sentence assembled from real materials and then attributed.
+
+**The line, stated so it is not re-litigated:**
+
+| Move | Permitted? | Why |
+|---|---|---|
+| Quote one published translation verbatim | **yes** | the default |
+| Re-render from the Arabic **and name a published translation that agrees** | **yes** | sourcing decision with a citable backstop — see al-barr@1's *"the Good"* over Saheeh's *"the Beneficent"*, adopted the same day |
+| Truncate with a visible ellipsis | **yes** | long-standing; signals the cut |
+| **Splice two translations into one rendered string** | **NO** | the result is attributable to nobody |
+
+**And take the cost rather than routing around it.** In al-jami@1's case losing *"gather"* on the verse beat costs nothing real, because bar 4 was already carried by the duʿā's own `جَامِعُ`. **When a bar is already carried elsewhere in the deck, a beat does not need to carry it twice — and "I needed this word" is usually the smell of a bar being paid for a second time.**
+
+### 9bi · Sweep the asset as it is now, not as it was when you started
+
+**Two agents in the same wave measured bar 3's token surface against a 24-deck and a 34-deck corpus while the shipped asset stood at 45.** Neither was careless; both read the asset at the start of a run that lasted long enough for two merge commits to land underneath them.
+
+**The failure is silent and it always reads as a pass** — a sweep over a smaller corpus returns *fewer* collisions, never more. So a stale sweep never fails loudly; it just quietly under-reports, and its "0 hits" is indistinguishable from a real 0 hits in the report.
+
+**Rule: re-run surface (b) against `assets/content/name_stories.json` immediately before writing the report, and state the deck count you swept as a number in the report.** *"Checked against all shipped decks"* is not a measurement (§9ak); *"checked against 45 decks"* is one, and it is the number that lets a reader spot the staleness the drafter couldn't.
+
+**Corollary for whoever is coordinating:** when you merge decks mid-wave, the in-flight drafters' bar-3 numbers are now stale by construction. **Say so to them.** Do not wait for a verifier to find it — the verifier is usually sweeping the same stale copy, because it was briefed from the same starting state.
