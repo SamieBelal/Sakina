@@ -94,6 +94,16 @@ Mechanics worth keeping: **a 404 from `verses/by_key/{s}:{n+1}` is the sūrah-fi
 
 **The sweep is not optional and not merit-based.** Its first run found that `al-afuw@1` — the deck the pipeline called its cleanest — has 42:26 ending on *"the disbelievers will have a severe punishment"*, structurally the same shape that disqualified Al-Ḥalīm rev 2. It is not blocking there, because it contradicts no beat. But a batch cannot enforce a rule against one deck and leave it unexamined on another.
 
+#### Two checks earned by batch 2 (2026-08-03)
+
+Batch 2's adversarial pass found scripture authenticity clean on all five decks and still returned two rejects. Every failure was reasoning, collision, disclosure or elision — which is where the remaining risk now lives.
+
+1. **Bar 3 needs an English pass, not only an Arabic-root pass.** Both collisions found in batch 2 were invisible to the root sweep because they are collisions in *rendered English*: `al-muid@1`'s "The Restorer" against shipped `al-jabbar@1`'s "Restorer of the Broken", and `al-mujeeb@1`'s "He asked for nothing" against shipped `ash-shafi@1`'s "He demanded nothing" — same sūrah, four āyāt apart. The drafter marked the latter "✖ none" because it compared **takeaway to takeaway**; the collision is beat-to-beat. Diff every rendered English string against every shipped deck's, not just the takeaways.
+
+2. **A partial quotation carries a visible ellipsis ON THE BEAT.** Three of five decks silently dropped clauses from inside quoted supplications — one while calling the remainder "one sentence", one having recorded "no word is changed, added, dropped or reordered". A disclosure in a verification table is not a disclosure: the user never sees the table. If the beat does not show the elision, the beat is claiming a completeness it does not have.
+
+**And the id-51 shape recurred.** `al-qayyum@1` told the founder a catalogue duʿā had no single-narration source and recommended migrating its citation — when the full string *is* a single narration, the route it called "a different narrator entirely" carries the same narrator, and the citation it proposed covers eight of the duʿā's words and duplicates another Name's. The correct action was again the opposite of the one proposed. **A drafter's confident recommendation to change catalogue data is the highest-risk artifact this pipeline produces**, and it has now been wrong in both batches. Never act on one without independent verification.
+
 #### One schema fact that bar 3 depends on
 
 `story` and `verse` beats carry `arabic: ""` in **all 14 shipped decks** — only `name_intro` and `dua` beats render Arabic. So a sibling root inside a story quotation's *Arabic* never reaches a screen, while one in a `name_intro` or duʿā always does. Bar 3 should be judged against what renders, and the check must be run over the Arabic strings that actually ship.
