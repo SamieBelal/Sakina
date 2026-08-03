@@ -1583,3 +1583,18 @@ Two agents measured the same bridge opener independently this wave and reported 
 ### 9bp — RETIRED
 
 The "This is the Name for…" opener sat at 7 of 45 decks and was flagged for a founder ruling on whether a house template had become a house tic. **§9br moots it:** the bridge is now an AI-personalised slot, and the authored opener is the offline fallback most users will never read. **Write a good fallback; stop engineering around the template.** Retained above rather than deleted, because the measurement (7 of 45, found independently by two agents) is what a future "is this becoming a tic?" question should be measured against.
+
+### 9bs · §6e says "cannot be bar-3 clean", not "must not ship" — a drafter blocked on this
+
+A drafter stopped work and escalated, reading §6e's duplicate-duʿā list as a gate: *"all 30 Names in the 14 duplicate-duʿā groups cannot get a bar-3-clean deck while the catalogue stands."* It concluded its two Names might be undraftable.
+
+**Wrong reading, and the fix is one word.** §6e describes a **permanent, disclosed defect**, not a stop condition. The catalogue is locked; the duʿā screen is what it is; **the alternative to shipping is 30 Names with no deck**, which is not on the table. Every deck already shipped from a duplicate group shipped *with* the collision disclosed — `al-qabid@1`/`al-basit@1`, `al-khafid@1`/`ar-rafi@1`, and this wave `al-wahid@1`/`al-ahad@1`, `al-muqaddim@1`/`al-muakhkhir@1`, `al-qawiyy@1`/`al-mateen@1`.
+
+**Disclose, escalate to the catalogue track, keep drafting.**
+
+**But the drafter surfaced something nobody had: the groups are not all pairs.** Its group is **four** Names — 47 Al-Hakam, 48 Al-Adl, 55 Al-Haseeb, 90 Al-Muqsit — on one duʿā, and 55 and 90 are undrafted. Two consequences that generalise to every group of >2:
+
+1. **A twin-diff is necessary but not sufficient.** Diffing the two Names in hand says nothing about the two who will arrive later wanting the same āyāt.
+2. **Two decks must not spend all four Names' viable ground.** When a root sweep returns few usable occurrences, **name the ones you are deliberately leaving for the group's undrafted members** and record it in the claim files. This is a real selection constraint and it had never been written down.
+
+**And keep the two questions apart.** A shared duʿā is not an argument for a must-pair ruling: **two decks sharing a duʿā screen is precisely what a pair already is**, so pairing buys nothing on that axis. A must-pair ruling has to rest on the text or the register, the way all five existing ones do.
