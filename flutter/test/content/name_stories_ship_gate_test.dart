@@ -57,6 +57,20 @@ void main() {
     'as-salam@1': 'Sahih Muslim 591',
     'al-wakeel@1': "Qur'an 3:173",
     'ash-shafi@1': 'cf. Sahih al-Bukhari 5743',
+    // Batch 1 + 2, transcribed 2026-08-03. Each pin was read off the deck's own
+    // duʿa beat by the agent that transcribed it, never copied from a report —
+    // al-waliyy@1's was reported stale twice, and a pin that happens to match
+    // for the wrong reason ships a wrong citation silently rather than loudly.
+    'ar-raheem@1': "Qur'an 18:10",
+    'al-ghafur@1': 'Sunan Abi Dawud 1516',
+    'al-afuw@1': 'Sunan Ibn Majah 3850',
+    'al-mujeeb@1': "Qur'an 21:87",
+    'al-waliyy@1': 'Sahih Muslim 1342',
+    // Deliberately absent, and each verified as absent rather than assumed:
+    // al-haleem@1, al-kareem@1, al-qayyum@1, al-qadir@1, al-muid@1 render NO
+    // duʿa citation. Their duʿa is the catalogue's own authored invocation, so
+    // a pin here would assert a provenance the text does not have — which is
+    // the exact fabrication this map's other direction exists to catch.
   };
 
   late List<dynamic> decks;

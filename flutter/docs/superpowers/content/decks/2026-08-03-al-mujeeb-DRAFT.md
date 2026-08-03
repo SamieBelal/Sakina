@@ -76,7 +76,9 @@ All scripture verified at draft time by live fetch: Qur'ān via `api.quran.com` 
 
 **The greater one, found by the independent verifier and fixed here, is in English.** `ash-shafi@1` ships today with the story beat *"He stated the pain and named the Mercy. **He demanded nothing.**"* Revision 1 of this deck proposed *"There is nothing asked for in it."* on beat 4 and *"**He asked for nothing.**"* on beat 8 — the same observation about the same shape of prayer, one sūrah apart, to the same user. Revision 1's own insight table recorded `ash-shafi@1` as ✖ *"that insight is about the content of the answer, this one about the form of the asking"* — **which is false, because `ash-shafi@1`'s middle story beat is itself about the form of the asking.** The comparison had been run takeaway-to-takeaway and never beat-to-beat.
 
-**Fix taken:** both strings are gone. Beat 4 now ends on the quotation with no authored tail; beat 5's tail and beat 8 both stand on `وَكَذَٰلِكَ نُنجِى ٱلْمُؤْمِنِينَ` — the clause 21:84 does not have. **English pass re-run 2026-08-03** over every rendered `primary` / `label` / `source` string in all 14 shipped decks plus both draft batches: *"one fish"*, *"does not stop with him"* and *"last words are about the believers"* return **zero** hits outside this file; *"asked for nothing"* now returns zero, and *"demanded nothing"* remains `ash-shafi@1`'s alone.
+**Fix taken:** both strings are gone. Beat 4 now ends on the quotation with no authored tail; beat 5's tail and beat 8 both stand on `وَكَذَٰلِكَ نُنجِى ٱلْمُؤْمِنِينَ` — the clause 21:84 does not have. **English pass re-run 2026-08-03** over every rendered `primary` / `label` / `source` string in all 14 shipped decks plus both draft batches: *"one fish"*, *"does not stop with him"* and *"last words are about the believers"* return **zero** hits outside this file; *"demanded nothing"* remains `ash-shafi@1`'s alone.
+
+> **Corrected 2026-08-03.** This paragraph previously also claimed *"asked for nothing" now returns zero*. **That was false when written** — the phrase survived in this very file at four lines, one of which (the insight-check header) asserted it as current beat content. The claim was true of the *rendered beat strings*, which is what ships, and false of the file. Corrected rather than deleted, because the shape matters: an English-pass assertion scoped to beats was written as though scoped to the document, and it took a transcribing agent reading the file end-to-end to notice. **No rendered beat in the R2 block contains the phrase**; that part always held.
 
 The citation proximity below is disclosed at full strength anyway, because it is real and the founder may still price it.
 
@@ -156,7 +158,11 @@ Rebuilt from `assets/content/name_stories.json` (every `sources[].url` plus ever
 
 **Verified negative, run programmatically over the rebuilt inventory:** **21:87, 21:88, 2:186, Jami\` at-Tirmidhi 3505** appear in **no** shipped deck and **no** batch-1 draft. Complete shipped ḥadīth set: Bukhārī 2731, 3364, 3470, 3653, 4172, 4563, 4833, 5743, 5999, 6309, 7507 · Muslim 591, 2747a · Tirmidhī 2344 · Ibn Mājah 188. Complete shipped Qur'ān set: 1:6, 2:37, 2:286, 3:172–174, 7:156, 9:40, 11:90, 12:15/18/20/42/84/86/87/94/96/100, 13:28, 19:2–7, **21:83, 21:84**, 22:54, 26:80, 28:15/21/22/23, 35:2, 39:53, 42:19, 48:1, 55:1, 58:1, 59:23, 65:2/3, 67:13, 112:2.
 
-**Insight-level check.** Beat 8 — *"He asked for nothing. He said who Allah is, and who he had been — and that was enough to be answered."*
+**Insight-level check.** Beat 8 — *"He was one man inside one fish. The āyah does not stop with him — its last words are about the believers."*
+
+> **Corrected 2026-08-03 at transcription.** This header previously quoted the **revision-1** beat 8 (*"He asked for nothing…"*) unqualified, as though it were current — the one place in this file the fix round missed. The beat block and sources row 1.8 both carry the R2 string above; this header now matches them. Caught by the transcribing agent, which stopped rather than guessing which of the three locations was authoritative.
+>
+> **Read the table below with that in mind:** its verdicts were scored against the R1 string. They are retained because every one of them clears, and because the R1→R2 rewrite *moved away from* the only insight that collided — `ash-shafi@1`'s "form of the asking" — onto `وَكَذَٰلِكَ نُنجِى ٱلْمُؤْمِنِينَ`, the clause 21:84 does not have. A row that cleared for R1 on grounds unrelated to that collision clears for R2 unchanged. The `ash-shafi@1` row specifically is superseded by the "Fix taken" narrative above.
 
 | checked against | its insight | verdict |
 |---|---|---|

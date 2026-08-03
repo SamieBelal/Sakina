@@ -23,7 +23,18 @@ void main() {
 
     test('loads every approved deck', () async {
       final decks = await service.decks();
-      expect(decks, hasLength(14));
+
+      // Counted from the asset, not hardcoded. The literal 14 that used to sit
+      // here was really two claims wearing one number: "the loader drops
+      // nothing" (the point of this test) and "there are 14 decks" (a fact
+      // about content that changes every batch). Only the first belongs here,
+      // and pinning the second meant a content-only change turned this file
+      // red for a reason that had nothing to do with the loader.
+      final rawCount = (jsonDecode(realAsset()) as List).length;
+      expect(rawCount, greaterThan(0), reason: 'the asset itself is empty');
+      expect(decks, hasLength(rawCount),
+          reason: 'the loader dropped a deck the asset carries');
+
       expect(decks.every((d) => d.reviewVerdict == 'good'), isTrue);
     });
 

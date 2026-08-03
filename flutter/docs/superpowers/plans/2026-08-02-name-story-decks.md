@@ -106,7 +106,15 @@ Batch 2's adversarial pass found scripture authenticity clean on all five decks 
 
 #### One schema fact that bar 3 depends on
 
-`story` and `verse` beats carry `arabic: ""` in **all 14 shipped decks** — only `name_intro` and `dua` beats render Arabic. So a sibling root inside a story quotation's *Arabic* never reaches a screen, while one in a `name_intro` or duʿā always does. Bar 3 should be judged against what renders, and the check must be run over the Arabic strings that actually ship.
+**CORRECTED 2026-08-03.** This section previously stated that `story` and `verse` beats carry `arabic: ""` in all 14 shipped decks. **That is false for `verse` beats.** Counted programmatically over `name_stories.json`: `dua` 14/14 and `name_intro` 14/14 carry Arabic as stated, `story` 0/42 and `bridge`/`takeaway` 0/14 as stated — but **`verse` is 3 with Arabic and 11 without** (`al-hadi@1`, `al-lateef@1`, `as-samad@1` carry it).
+
+So the safe claim is narrower: **`story` beats never render Arabic; `verse` beats sometimes do.** A sibling root inside a story quotation's Arabic never reaches a screen. One in a `name_intro` or duʿā always does. One in a *verse* beat reaches a screen **in the decks that populate it**, so bar 3 must be judged per-deck against that deck's actual `arabic` fields, not against a blanket rule.
+
+This mattered: bar 3 is explicitly "judged against what renders", and the wrong version of this fact would have exempted verse-beat Arabic from the sibling-root sweep on three shipped decks. Found when a transcribing agent noticed the new decks and the shipped ones disagreed and asked which was right — the answer was that *both* patterns already ship.
+
+**Convention for new decks:** English-only verse beats, matching the 11/14 majority and the drafts as written. Do not retro-fit Arabic onto the three that have it, and do not add it to new ones — but never assume its absence when running bar 3.
+
+**One more convention, from the same check:** rendered `source` strings use ASCII **`Qur'an`** in all 35 shipped occurrences — **zero** use the macron form `Qurʾān`. Deck *prose* uses the macron freely; the rendered field must not. Normalise at transcription.
 
 ## 8. Batches
 Five at a time, adversarially reviewed, founder-signed. ~85 decks remain (14 of 99 exist). Then the pack question bank under the same discipline.

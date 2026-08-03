@@ -1634,5 +1634,1319 @@
     "reviewed_by": "founder",
     "reviewed_at": "2026-07-25",
     "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-afuw@1",
+    "name_id": 86,
+    "transliteration": "Al-Afuw",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You can be told you are forgiven and still feel the thing sitting there. There is a Name for wanting it gone, not just excused.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 86, verbatim",
+        "primary": "The Pardoner",
+        "arabic": "الْعَفُوُّ",
+        "transliteration": "Al-Afuw",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "what ʿĀʾisha was told to ask for",
+        "primary": "ʿĀʾisha asked the Prophet ﷺ: if I come upon Laylat al-Qadr, what should I say?",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "what ʿĀʾisha was told to ask for",
+        "primary": "One night the Qur'ān calls better than a thousand months — and a thousand things a person could ask for on it.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "what ʿĀʾisha was told to ask for",
+        "primary": "He taught her one sentence, and what it asks for is to be pardoned. Not relief. Not provision. Pardon.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And it is He who accepts repentance from His servants and pardons misdeeds, and He knows what you do.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 42:25"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 86, verbatim in full — the sentence from the story, in the wording of Sunan Ibn Mājah 3850",
+        "primary": "O Allah, You are the Pardoner, You love to pardon, so pardon me.",
+        "arabic": "اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي",
+        "transliteration": "Allahumma innaka 'afuwwun tuhibbul-'afwa fa'fu 'anni",
+        "translation": "",
+        "source": "Sunan Ibn Majah 3850"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Of every request available on the best night of the year, she was taught to ask for the erasing. It is still the sentence.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: ʿĀʾisha's question about what to say if she comes upon Laylat al-Qadr",
+        "url": "https://sunnah.com/ibnmajah:3850",
+        "verified": "✅ verified (archive)",
+        "source_label": "Sunan Ibn Majah 3850 (sahih — Darussalam grade shown on the page)"
+      },
+      {
+        "claim": "Same, corroborating narration",
+        "url": "https://sunnah.com/tirmidhi:3513",
+        "verified": "✅ verified (archive)",
+        "source_label": "Jami' at-Tirmidhi 3513 (hasan sahih; Darussalam grade line: sahih)"
+      },
+      {
+        "claim": "Beat 4, first clause: \"The Night of Decree is better than a thousand months.\" — Saheeh International (resource_id 20), byte-exact substring of the fetched string; Abdel Haleem (85) fetched and compared, Saheeh International kept as the closer gloss on al-Qadr",
+        "url": "https://quran.com/97/3",
+        "verified": "✅ verified",
+        "source_label": "Qur'ān 97:3"
+      },
+      {
+        "claim": "Beat 4, second clause: \"and a thousand things a person could ask for on it\" — AUTHORED rhetoric, not a source claim. No source says it; it is a rhetorical mirror of 97:3's \"thousand months\" and asserts nothing about the night that the Qur'ān does not, and nothing about the narration.",
+        "url": "",
+        "verified": "authored — labelled, not verified",
+        "source_label": "authored copy"
+      },
+      {
+        "claim": "Beat 5: the taught supplication asks for pardon — beat states only what the narration contains; no invented dialogue",
+        "url": "https://sunnah.com/ibnmajah:3850",
+        "verified": "✅ verified (archive)",
+        "source_label": "Sunan Ibn Majah 3850 (sahih)"
+      },
+      {
+        "claim": "Verse anchor, verbatim: \"And it is He who accepts repentance from His servants and pardons misdeeds, and He knows what you do.\" — Saheeh International (resource_id 20), byte-exact substring, no footnote marker; Abdel Haleem (85) fetched and compared and not used (opens lower-case mid-sentence, hyphen for a dash)",
+        "url": "https://quran.com/42/25",
+        "verified": "✅ verified",
+        "source_label": "Qur'ān 42:25"
+      },
+      {
+        "claim": "Beat 2 `name_intro`, and the duʿā's transliteration and translation fields — byte-identical to catalog id 86 across arabic / transliteration / english and dua_transliteration / dua_translation",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 86"
+      },
+      {
+        "claim": "Duʿā text (catalog id 86) is the Arabic of Ibn Mājah 3850 — identical in words and diacritics; identical as a string after Unicode NFC normalisation, not as raw bytes (Wayback capture 20260304165817; raw → False, NFC → True)",
+        "url": "https://sunnah.com/ibnmajah:3850",
+        "verified": "✅ verified programmatically (NFC)",
+        "source_label": "Sunan Ibn Majah 3850 (sahih)"
+      },
+      {
+        "claim": "SUCCESSOR-SWEEP DISCLOSURE (n+1 of the verse beat): 42:26 reads \"And He answers [the supplication of] those who have believed and done righteous deeds and increases [for] them from His bounty. But the disbelievers will have a severe punishment.\" One āyah after the verse beat the passage turns to a severe-punishment clause — structurally the same shape that disqualified al-haleem@1 revision 2's 16:61. It contradicts no beat (pardon is conditioned on repentance, which is the beat's own content) and is not blocking on the merits; disclosed so bar 5 is applied evenly across the batch.",
+        "url": "https://quran.com/42/26",
+        "verified": "⚠️ disclosed — verified, non-blocking",
+        "source_label": "Qur'ān 42:26"
+      },
+      {
+        "claim": "PREDECESSOR DISCLOSURE (n−1 of the verse beat): 42:25 opens with a conjunction and grammatically continues 42:24 — \"Or do they say, 'He has invented about Allāh a lie'? But if Allāh willed, He could seal over your heart…\" — which is why Abdel Haleem lower-cases it. The quotation is mid-passage and its predecessor is a rebuke about lying against Allāh. Non-blocking. Additional note, flagged for evenness with the al-haleem@1 sibling-root standard: 42:23, two āyāt before the verse beat, closes on Al-Ghafūr's Name (sibling deck al-ghafur@1). Not on screen.",
+        "url": "https://quran.com/42/24",
+        "verified": "⚠️ disclosed — verified, non-blocking",
+        "source_label": "Qur'ān 42:24"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-ghafur@1",
+    "name_id": 51,
+    "transliteration": "Al-Ghafur",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "The fear underneath guilt is usually not the punishment. It is being found out.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 51, verbatim",
+        "primary": "The Forgiving",
+        "arabic": "الْغَفُورُ",
+        "transliteration": "Al-Ghafur",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "the private conversation (an-najwā)",
+        "primary": "A man came in front of Ibn ʿUmar as he walked and asked him what he had heard the Prophet ﷺ say about an-najwā — the private conversation on the Day of Judgement.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 2441"
+      },
+      {
+        "kind": "story",
+        "label": "the private conversation (an-najwā)",
+        "primary": "He said: \"Allah will bring the believer near, and place His covering over him, and screen him, and say: Do you know such-and-such a sin? Do you know such-and-such a sin? He will say: Yes, my Lord.\" He is asked until he has acknowledged all of them and sees within himself that he is ruined.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Sahih al-Bukhari 2441"
+      },
+      {
+        "kind": "story",
+        "label": "the private conversation (an-najwā)",
+        "primary": "Then: \"I screened them for you in the world, and today I forgive them for you.\" — and he is given the book of his good deeds.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Sahih al-Bukhari 2441"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And whoever does a wrong or wrongs himself but then seeks forgiveness of Allāh will find Allāh Forgiving and Merciful.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 4:110"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 51, verbatim in full — these are the words Ibn ʿUmar counted the Prophet ﷺ saying a hundred times in a single sitting",
+        "primary": "My Lord, forgive me and accept my repentance. Indeed, You are At-Tawwab, Ar-Rahim.",
+        "arabic": "رَبِّ اغْفِرْ لِي وَتُبْ عَلَيَّ إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ",
+        "transliteration": "Rabbighfir li wa tub 'alayya innaka anta't-Tawwabu'r-Rahim",
+        "translation": "",
+        "source": "Sunan Abi Dawud 1516"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Al-Ghafur is not only the forgiving — it is the covering. In that account every sin is named once, in private, to the One who already knew, and no one else is ever told.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Whole story, beats 3–5: the question about an-najwa, the covering, the doubled question, the acknowledgement, \"I screened them for you in the world, and today I forgive them for you\", the book of good deeds. The English on screen is THE APP'S OWN RENDERING, made from the Arabic on the cited page — not sunnah.com's published English, which says \"Did you commit\" where a-taʿrifu says \"Do you know\", and prints once a question the Arabic asks twice.",
+        "url": "https://sunnah.com/bukhari:2441",
+        "verified": "✅ verified via Wayback capture 20260215224255 of the exact URL, 2026-08-02 — English AND Arabic both read off the archived page. Narrator Ṣafwan b. Muḥriz al-Mazini from Ibn ʿUmar; isnad: Musa b. Ismaʿil ← Hammam ← Qatada ← Ṣafwan. This row is deliberately NOT a \"quoted verbatim from a published translation\" claim: the Arabic is verified; the English is ours. Full clause-by-clause table in the draft.",
+        "source_label": "Sahih al-Bukhari 2441 (sahih — the collection's own condition)"
+      },
+      {
+        "claim": "Beat 3's staging: \"came in front of Ibn ʿUmar as he walked\" — paraphrase, not quoted on screen",
+        "url": "https://sunnah.com/bukhari:2441",
+        "verified": "✅ verified — the archived page reads: \"While I was walking with Ibn 'Umar holding his hand, a man came in front of us and asked…\" Revision 1's \"in the street\" was not in the source and is dropped.",
+        "source_label": "Sahih al-Bukhari 2441"
+      },
+      {
+        "claim": "Deliberate omission: the narration continues about disbelievers and hypocrites being exposed publicly and closes on a curse. Omitted for register; the beats are marked as an excerpt, not the full narration. It is also the narration's own contrast — public exposure there, private covering here — which is what beat 8's \"no one else is ever told\" reports.",
+        "url": "https://sunnah.com/bukhari:2441",
+        "verified": "✅ verified — omitted tail on the archived page: \"Regarding infidels and hypocrites (their evil acts will be exposed publicly) and the witnesses will say: These are the people who lied against their Lord. Behold! The Curse of Allah is upon the wrongdoers.\"",
+        "source_label": "Sahih al-Bukhari 2441"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim: \"And whoever does a wrong or wrongs himself but then seeks forgiveness of Allāh will find Allāh Forgiving and Merciful.\"",
+        "url": "https://quran.com/4/110",
+        "verified": "✅ verified — live fetch api.quran.com verses/by_key/4:110?translations=20,85, 2026-08-02; byte-exact substring of the fetched Saheeh International string, no footnote marker. Arabic ghafuran rahima — the Name in-text. Abdel Haleem (85) fetched and rejected: it says \"God\" and lower-cases the Name this beat exists to show.",
+        "source_label": "Qur'an 4:110 (Saheeh International)"
+      },
+      {
+        "claim": "DISCLOSURE FOLDED IN AT TRANSCRIPTION — backwards context for beat 6. 4:110 sits inside the Ṭuʿma b. Ubayriq rebuke passage (4:105–112). The preceding ayah, 4:109, reads: \"Here you are - those who argue on their behalf in [this] worldly life - but who will argue with Allah for them on the Day of Resurrection…?\", and 4:105 opens the passage \"…do not be for the deceitful an advocate.\" A founder who opens quran.com/4/110 and scrolls up finds rebuke material. 4:110 is a general conditional and is universally quoted standalone, so the beat is safe — non-blocking. The same disclosure al-haleem@1 already models for 35:42–44.",
+        "url": "https://quran.com/4/109",
+        "verified": "⚠️ disclosed at transcription. Saheeh International text as fetched by the Wave-G successor sweep, 2026-08-02; not independently re-fetched by the transcriber. Forwards context is clean: 4:111–112 carry no contradiction and no punishment turn.",
+        "source_label": "Qur'an 4:109 (← 4:110)"
+      },
+      {
+        "claim": "Duʿa beat carries source: Sunan Abi Dawud 1516. The catalog id 51 duʿa is the Abu Dawud route's wording.",
+        "url": "https://sunnah.com/abudawud:1516",
+        "verified": "✅ verified by fetch, 2026-08-02 — Wayback capture 20260607195027 of the exact URL. Isnad: al-Ḥasan b. ʿAli ← Abu Usama ← Malik b. Mighwal ← Muḥammad b. Suqa ← Nafiʿ ← Ibn ʿUmar. Token comparison against catalog id 51: 8 of 9 tokens byte-identical after NFC; 1 orthographic variant ('alayya written with ya' in the catalog and with alif maqṣura in the printed edition). Whole-string substring test is False raw and False after NFC, and the deck does not claim otherwise. Precedent for citing a non-byte-identical match: shipped ash-shafi@1's \"cf. Sahih al-Bukhari 5743\". ⚠️ SEE THE ENGLISH-MISMATCH DISCLOSURE ROW BELOW BEFORE OPENING THIS URL.",
+        "source_label": "Sunan Abi Dawud 1516 (sahih — Al-Albani)"
+      },
+      {
+        "claim": "G1 — the founder's own URL check will not match on Sunan Abi Dawud 1516, and that is expected. The archived page's published ENGLISH reads: \"We counted that the Messenger of Allah would say a hundred times during a meeting: 'My Lord, forgive me and pardon me; Thou art the Pardoning and forgiving One'.\" Beat 7 prints the catalog rendering: \"My Lord, forgive me and accept my repentance. Indeed, You are At-Tawwab, Ar-Rahim.\" They do not match and the citation is still correct: the divergence is entirely in the English (the published translator renders wa-tub 'alayya as \"and pardon me\" and at-Tawwab ar-Rahim as \"the Pardoning and forgiving One\", a loose gloss that drops both Names). The page's Arabic is at-Tawwab ar-Rahim, and the Arabic is what the citation attaches to.",
+        "url": "https://sunnah.com/abudawud:1516",
+        "verified": "⚠️ disclosed — open founder option: \"cf. Sunan Abi Dawud 1516\" instead of the plain form. It changes only the beat's source and the renderedDuaSources string, which are asserted for equality.",
+        "source_label": "Sunan Abi Dawud 1516"
+      },
+      {
+        "claim": "The OTHER route, verified rather than repeated second-hand: same chain from Ibn ʿUmar via Nafiʿ via Muḥammad b. Suqa, diverging at Malik b. Mighwal's students. It ends at-Tawwab AL-GHAFUR — which is catalog id 11's duʿa (shipped al-ghaffar@1's Name), not this one's.",
+        "url": "https://sunnah.com/tirmidhi:3434",
+        "verified": "✅ verified by fetch, 2026-08-02 — Wayback capture 20260125085148. Grade: Sahih (Darussalam); Tirmidhi's own words on the page: hasan sahih gharib.",
+        "source_label": "Jami' at-Tirmidhi 3434 (sahih — Darussalam)"
+      },
+      {
+        "claim": "Beat 2 name_intro, and the duʿa's three fields",
+        "url": "",
+        "verified": "✅ verified byte-identical to collectible_names.json id 51 across arabic / transliteration / english and dua_arabic / dua_transliteration / dua_translation, re-checked programmatically 2026-08-02; the ship gate enforces both independently.",
+        "source_label": "catalog id 51"
+      },
+      {
+        "claim": "Catalog-level flag ① (not fixable by a deck): this duʿa is a near-duplicate of one that ships today. Catalog id 31 — shipped at-tawwab@1 — differs from id 51 only in Allahumma vs Rabbi. Two decks in the same forgiveness cluster hand the user effectively the same sentence. A catalog decision, not a deck defect.",
+        "url": "",
+        "verified": "catalog flag",
+        "source_label": "catalog id 31 vs id 51"
+      },
+      {
+        "claim": "Catalog-level flag ② (not fixable by a deck): the catalog contradicts this deck's own distinction. Beat 8 teaches ghafr = covering against al-afuw@1's 'afw = erasing, but catalog id 51's lesson reads \"Al-Ghafur does not just forgive — He erases the sin as if it never happened\", which is id 86 (Al-Afuw)'s distinctive. Same distinctive, different string (substring test False both directions, 2026-08-02 — the earlier \"verbatim\" claim was wrong). Founder decision: does the id 51 lesson line move? If it does not, beat 8 should probably be softened.",
+        "url": "",
+        "verified": "catalog flag",
+        "source_label": "catalog id 51 vs id 86"
+      },
+      {
+        "claim": "Open founder decision K3 — on-screen attribution. The story beats' source renders \"Sahih al-Bukhari 2441\", and anyone who opens that URL now finds different English under the same reference. The draft recommends putting the signal on the beat (source: \"rendered from the Arabic of Sahih al-Bukhari 2441\") in this deck and al-kareem@1 together. NOT applied at transcription: it is an unanswered founder decision, and the plain shipped-convention form is used until it is answered.",
+        "url": "",
+        "verified": "open decision",
+        "source_label": "K3"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-haleem@1",
+    "name_id": 29,
+    "transliteration": "Al-Haleem",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You already know what you did. What you are actually carrying is how long it gets held against you.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 29, verbatim",
+        "primary": "The Forbearing",
+        "arabic": "الْحَلِيمُ",
+        "transliteration": "Al-Haleem",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The words He hears",
+        "primary": "The Qur'ān records what creation does when a certain thing is said about Allah: \"The heavens almost rupture therefrom and the earth splits open and the mountains collapse in devastation — That they attribute to the Most Merciful a son.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The words He hears",
+        "primary": "Of the people who say it, the Prophet ﷺ said: \"None is more patient than Allah against the harmful and annoying words He hears (from the people): They ascribe children to Him,…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The words He hears",
+        "primary": "\"…yet He bestows upon them health and provision.\" The words are heard. The provision does not stop.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "And if Allāh were to impose blame on the people for what they have earned, He would not leave upon it [i.e., the earth] any creature. But He defers them for a specified term. And when their time comes, then indeed Allāh has ever been, of His servants, Seeing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 35:45"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 29, verbatim in full",
+        "primary": "O Allah, I ask You for patience and I seek refuge in You from anxiety and distress.",
+        "arabic": "اللَّهُمَّ إِنِّي أَسْأَلُكَ الصَّبْرَ وَأَعُوذُ بِكَ مِنَ الْجَزَعِ",
+        "transliteration": "Allahumma inni as'alukas-sabra wa a'udhu bika minal-jaza'",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "Forbearance is not approval, and it is not forgetting. It is the distance between what a thing has earned and what is actually done about it. Every hour anyone has ever been given was inside that distance.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 quotation, verbatim: \"The heavens almost rupture therefrom and the earth splits open and the mountains collapse in devastation — That they attribute to the Most Merciful a son.\" — Saheeh International (resource_id 20), each half a byte-exact substring. Typographic disclosure: the two āyāt are consecutive and are one sentence in the Arabic; the beat joins them with an em dash at the āyah boundary. No word is changed, added, dropped or reordered, and the capital \"That\" is the translation's own.",
+        "url": "https://quran.com/19/90",
+        "verified": "✅ verified",
+        "source_label": "Qur'ān 19:90–91"
+      },
+      {
+        "claim": "Beats 4–5 quotation, verbatim across two beats: \"None is more patient than Allah against the harmful and annoying words He hears (from the people): They ascribe children to Him,… / …yet He bestows upon them health and provision.\" — sunnah.com's published English, quoted as printed, deliberately NOT re-rendered from the Arabic. Narrator: Abū Mūsā al-Ashʿarī. Disclosures: (a) the split point between beats 4 and 5 is mid-sentence at the comma after \"Him\", marked with an ellipsis on both sides; (b) the archived page prints a stray space before the final period and omits the closing quotation mark. No word is changed.",
+        "url": "https://sunnah.com/bukhari:7378",
+        "verified": "✅ verified (archive, capture 20260315140757)",
+        "source_label": "Sahih al-Bukhari 7378 (sahih)"
+      },
+      {
+        "claim": "Beat 5's closing line: \"The words are heard. The provision does not stop.\" — AUTHORED copy, not a source claim. It restates the clause quoted immediately above it in the same beat and asserts nothing the narration does not carry.",
+        "url": "",
+        "verified": "authored — labelled, not verified",
+        "source_label": "authored copy"
+      },
+      {
+        "claim": "Beat 3's opening line: \"The Qur'ān records what creation does when a certain thing is said about Allah:\" — AUTHORED framing, not a source claim. It is a pointer to the quotation that follows in the same beat and makes no claim beyond it.",
+        "url": "",
+        "verified": "authored — labelled, not verified",
+        "source_label": "authored copy"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim in full — Saheeh International (resource_id 20), byte-exact substring, no footnote marker. The [i.e., the earth] bracket is the translator's own, present in the fetched string, retained rather than silently dropped. Position verified: this is the final āyah of Sūrat Fāṭir — 36:1 was fetched to confirm there is no 35:46. No ḥ-l-m form in this āyah — the criterion-(2) miss, disclosed.",
+        "url": "https://quran.com/35/45",
+        "verified": "✅ verified",
+        "source_label": "Qur'ān 35:45"
+      },
+      {
+        "claim": "Duʿā text — catalog id 29, no scripture citation claimed anywhere in this deck; presented as a catalog invocation. Byte-identical to catalog across dua_arabic / dua_transliteration / dua_translation.",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 29"
+      },
+      {
+        "claim": "Beat 2 `name_intro` — byte-identical to catalog id 29 across arabic / transliteration / english",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 29"
+      },
+      {
+        "claim": "The Qur'ān's other statement of the attribute, QUOTED IN NO BEAT — the near-twin of 35:45, retained as the deck's second doctrinal warrant. Not used: its own ending turns to \"they will not remain behind an hour\" and 16:62 turns to the Fire.",
+        "url": "https://quran.com/16/61",
+        "verified": "✅ verified — not used",
+        "source_label": "Qur'ān 16:61"
+      },
+      {
+        "claim": "The old verse beat, QUOTED IN NO BEAT, kept verified so the founder's alternative is one line away. Dropped because its closing epithet carries Al-Ghafūr — catalog id 51, a sibling deck in this batch — not for any verification failure.",
+        "url": "https://quran.com/35/41",
+        "verified": "✅ verified — not used",
+        "source_label": "Qur'ān 35:41"
+      },
+      {
+        "claim": "SUCCESSOR SWEEP: 19:90–91 → 19:92–96, the local arc runs toward \"the Most Merciful will appoint for them affection\"; clean. Disclosed anyway: the sūrah's own last āyah, seven āyāt later, is 19:98. Bukhārī 7378 is a free-standing narration with no continuation and no consequence clause. 35:45 has no successor at all (35:46 returns 404). Looking backwards, 35:42–44 do carry warning material — 35:44 is \"Have they not traveled through the land and observed how was the end of those before them?\" — and 35:45 is the passage's own resolution of it.",
+        "url": "https://quran.com/35/44",
+        "verified": "⚠️ disclosed — verified, non-blocking",
+        "source_label": "Qur'ān 19:92–96 / 35:42–44"
+      },
+      {
+        "claim": "BAR-4 DISCLOSURE (deliberate, do not \"fix\"): no form of gh-f-r and no form of ʿ-f-w appears in any beat, in Arabic or in English. One lexical relation is named rather than hidden: the verb rendered \"health\" in Bukhārī 7378 is form III of the same triliteral as ʿafw; its sense here is ʿāfiya — bodily well-being — and the published English carries no pardon sense. The cost of this construction is that no beat carries the Name-noun ḥalīm in its source text; the sweep proving no āyah can carry it while clearing bars 3 and 5 is recorded in the draft.",
+        "url": "",
+        "verified": "⚠️ disclosed — deliberate trade",
+        "source_label": "deck construction note"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-kareem@1",
+    "name_id": 30,
+    "transliteration": "Al-Kareem",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "It is late, and asking again feels like too much to ask. This is the Name for the hour you are in.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 30, verbatim",
+        "primary": "The Most Generous",
+        "arabic": "الْكَرِيمُ",
+        "transliteration": "Al-Kareem",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "the last third of the night",
+        "primary": "Abū Hurayra narrated what the Prophet ﷺ said happens in the last third of every night.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 1145"
+      },
+      {
+        "kind": "story",
+        "label": "the last third of the night",
+        "primary": "\"Our Lord — Blessed and Exalted is He — descends every night to the lowest heaven, when the last third of the night remains, saying: Who calls upon Me, that I may answer him?\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Sahih al-Bukhari 1145"
+      },
+      {
+        "kind": "story",
+        "label": "the last third of the night",
+        "primary": "\"Who asks Me, that I may give him? Who seeks My forgiveness, that I may forgive him?\" Three questions, and every one of them is an offer.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "rendered from the Arabic of Sahih al-Bukhari 1145"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "\"…And whoever is grateful — his gratitude is only for [the benefit of] himself. And whoever is ungrateful — then indeed, my Lord is Free of need and Generous.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 27:40"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 30, verbatim in full",
+        "primary": "O Most Generous, by Your mercy, rescue me.",
+        "arabic": "يَا كَرِيمُ بِرَحْمَتِكَ أَغِثْنِي",
+        "transliteration": "Ya Karimu birahmatika aghithni",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "You are not drawing on a supply that runs down. The One being asked is Free of need — the asking costs Him nothing at all.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:1145",
+        "verified": "sahih — verified via Wayback capture 20260422043007 of the exact URL, 2026-08-02. Isnad on the page reaches Abu Hurayra. Beats 4-5 are the app's own rendering made from the Arabic on the cited page, not the published English; full clause-by-clause justification in the deck draft.",
+        "source_label": "Bukhari 1145"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/27/40",
+        "verified": "✅ Saheeh International (resource_id 20), live fetch 2026-08-02; word-for-word exact with one disclosed typographic normalisation (two spaced hyphens rendered as em dashes)",
+        "source_label": "Qur'an 27:40"
+      },
+      {
+        "claim": "",
+        "url": "https://sunnah.com/bukhari:4684",
+        "verified": "sahih, verified via Wayback archive of the exact URL, 2026-08-02 — support for the takeaway's phrasing, quoted in no beat",
+        "source_label": "Bukhari 4684"
+      },
+      {
+        "claim": "",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog id 30 across dua_arabic / dua_transliteration / dua_translation and arabic / transliteration / english — no scripture citation claimed",
+        "source_label": "collectible_names.json id 30"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-muid@1",
+    "name_id": 68,
+    "transliteration": "Al-Muid",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "Something was taken from you. There are words for that moment, and meaning them is a different thing from saying them.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 68 verbatim, plus one authored gloss line",
+        "primary": "The Restorer — the One who brings back what is finished",
+        "arabic": "الْمُعِيدُ",
+        "transliteration": "Al-Muid",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Umm Salama",
+        "primary": "He taught what to say the moment something is taken: \"We belong to Allah and to Him shall we return; O Allah, reward me for my affliction and give me something better than it in exchange for it…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 918a"
+      },
+      {
+        "kind": "story",
+        "label": "Umm Salama",
+        "primary": "When Abu Salama died she said: \"What Muslim is better than Abu Salama whose family was the first to emigrate to the Messenger of Allah…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 918a"
+      },
+      {
+        "kind": "story",
+        "label": "Umm Salama",
+        "primary": "Then she said the words anyway — and in her own account, Allah gave her the Messenger of Allah ﷺ in exchange.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih Muslim 918a"
+      },
+      {
+        "kind": "verse",
+        "label": "excerpt, marked — the Name's own root is the operative verb, and the beat's source line says what the āyah is about",
+        "primary": "And it is He who begins creation; then He repeats it, and that is [even] easier for Him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 30:27 — the Name's own verb, spoken of creation itself"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 68, verbatim in full",
+        "primary": "O Restorer, return to me what was taken or replace it with something better.",
+        "arabic": "يَا مُعِيدُ أَعِدْ إِلَيَّ مَا أَخَذْتَهُ مِنِّي أَوْ أَبْدِلْنِي خَيْرًا مِنْهُ",
+        "transliteration": "Ya Mu'id, a'id ilayya ma akhadhtahu minni aw abdilni khayran minh",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "She asked out loud who could be better than him — and then said the words anyway. The narration keeps both, in that order.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3 quotation, verbatim: \"We belong to Allah and to Him shall we return; O Allah, reward me for my affliction and give me something better than it in exchange for it…\" — istirjāʿ restored, visible trailing ellipsis marks where the quotation stops (before the promise clause, deliberately left off screen)",
+        "url": "https://sunnah.com/muslim:918",
+        "verified": "✅ verified (archive) — byte-exact substring after whitespace normalisation",
+        "source_label": "Sahih Muslim 918a (sahih)"
+      },
+      {
+        "claim": "Beat 4 quotation, verbatim excerpt: \"What Muslim is better than Abu Salama whose family was the first to emigrate to the Messenger of Allah…\" — cut with a marked ellipsis before the published honorific parenthesis; \"she said\" matches ḳāla/qultu",
+        "url": "https://sunnah.com/muslim:918",
+        "verified": "✅ verified (archive) — byte-exact substring after whitespace normalisation",
+        "source_label": "Sahih Muslim 918a (sahih)"
+      },
+      {
+        "claim": "Beat 5: she then said the words, and Allah gave her the Messenger of Allah ﷺ in exchange — deliberate paraphrase, because the published English renders the title \"God's Messenger\" here",
+        "url": "https://sunnah.com/muslim:918",
+        "verified": "✅ verified — labelled paraphrase",
+        "source_label": "Sahih Muslim 918a (sahih)"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim excerpt: \"And it is He who begins creation; then He repeats it, and that is [even] easier for Him.\" (Saheeh International; bracket is the translator's own)",
+        "url": "https://quran.com/30/27",
+        "verified": "✅ verified — live fetch, byte-exact substring, no footnote marker",
+        "source_label": "Qur'ān 30:27"
+      },
+      {
+        "claim": "Duʿa text — catalog id 68, byte-identical. NOT the narrated wording: Sahih Muslim 918a's taught sentence is a different Arabic wording, so this deck claims no scripture citation for its duʿa and ships UNPINNED. No beat says the two are the same.",
+        "url": "",
+        "verified": "⚠️ verified byte-identical to catalog — no scripture citation claimed",
+        "source_label": "collectible_names.json id 68"
+      },
+      {
+        "claim": "Beat 2 name_intro — arabic and transliteration byte-identical to catalog id 68; primary is catalog `english` (\"The Restorer\") plus an authored clause compressed from catalog id 68's own `meaning` field, to differentiate on screen from shipped al-jabbar@1's \"The Compeller — Restorer of the Broken\" (precedent: al-wakeel@1)",
+        "url": "",
+        "verified": "⚠️ catalog + one authored gloss clause, disclosed",
+        "source_label": "collectible_names.json id 68"
+      },
+      {
+        "claim": "Beat 8: authored copy reporting the two events the narration records and their order, and nothing else. Makes no promise to the reader.",
+        "url": "https://sunnah.com/muslim:918",
+        "verified": "✅ honest label — authored copy",
+        "source_label": "Sahih Muslim 918a (sahih)"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-mujeeb@1",
+    "name_id": 37,
+    "transliteration": "Al-Mujeeb",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You have said it more than once and nothing has moved. This is the Name for what happens to a sentence after it leaves you.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 37, verbatim",
+        "primary": "The Responsive",
+        "arabic": "الْمُجِيبُ",
+        "transliteration": "Al-Mujeeb",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Inside the fish",
+        "primary": "A prophet went off in anger, and ended up inside the fish.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:87 + Jami' at-Tirmidhi 3505"
+      },
+      {
+        "kind": "story",
+        "label": "Inside the fish",
+        "primary": "He called out within the darknesses: \"There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:87"
+      },
+      {
+        "kind": "story",
+        "label": "Inside the fish",
+        "primary": "\"So We responded to him and saved him from the distress. And thus do We save the believers.\" The sentence does not stop at him.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 21:88"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "\"…indeed I am near. I respond to the invocation of the supplicant when he calls upon Me.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:186"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 37, verbatim in full — the words of Qur'an 21:87",
+        "primary": "There is no god but You, glory be to You; indeed I have been of the wrongdoers.",
+        "arabic": "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
+        "transliteration": "La ilaha illa anta subhanaka inni kuntu minaz-zalimin",
+        "translation": "",
+        "source": "Qur'an 21:87"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "He was one man inside one fish. The āyah does not stop with him — its last words are about the believers.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "",
+        "url": "https://quran.com/21/87",
+        "verified": "✅ Saheeh International (resource_id 20), live fetch 2026-08-03. Beat 4 quotation is a byte-exact substring of the raw, unstripped translation; all three footnote markers fall before the quoted region. Beat 3 is a labelled paraphrase (\"when he went off in anger\").",
+        "source_label": "Qur'an 21:87"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/21/88",
+        "verified": "✅ Saheeh International, live fetch 2026-08-03 — byte-exact substring, no footnote marker in the fetched string",
+        "source_label": "Qur'an 21:88"
+      },
+      {
+        "claim": "",
+        "url": "https://quran.com/2/186",
+        "verified": "✅ Saheeh International, live fetch 2026-08-03 — byte-exact substring, marked as an excerpt on the beat",
+        "source_label": "Qur'an 2:186"
+      },
+      {
+        "claim": "",
+        "url": "https://sunnah.com/tirmidhi:3505",
+        "verified": "sahih (Darussalam) — verified via Wayback capture 20260217090443 of the exact URL, 2026-08-03. Narrator Sa'd b. Abi Waqqas; the narration's own words carry \"inside the fish\". Its promise of response is deliberately kept off every beat.",
+        "source_label": "Jami' at-Tirmidhi 3505"
+      },
+      {
+        "claim": "",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog id 37 across dua_arabic / dua_transliteration / dua_translation and arabic / transliteration / english. The dua is the closing clause of Qur'an 21:87; it differs from quran.com's imlaei text only in orthographic convention (dagger alif, nun-sukun spelling) and from the Tirmidhi page only in the ordering of fatha and alif — no word-level difference, and byte-identity is not claimed.",
+        "source_label": "collectible_names.json id 37"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-qadir@1",
+    "name_id": 75,
+    "transliteration": "Al-Qadir",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You believe it. You just cannot feel it, and that gap is its own kind of tired. Someone said that out loud once.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 75, verbatim",
+        "primary": "The Capable",
+        "arabic": "الْقَادِرُ",
+        "transliteration": "Al-Qadir",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Four birds",
+        "primary": "Ibrāhīm asked to be shown something he already believed.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:260"
+      },
+      {
+        "kind": "story",
+        "label": "Four birds",
+        "primary": "He said: \"My Lord, show me how You give life to the dead.\" Allah said: \"Have you not believed?\" He said: \"Yes, but [I ask] only that my heart may be satisfied.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:260"
+      },
+      {
+        "kind": "story",
+        "label": "Four birds",
+        "primary": "Allah said: \"Take four birds and commit them to yourself. Then [after slaughtering them] put on each hill a portion of them; then call them - they will come [flying] to you in haste.\" He was not corrected. He was given something to do, and told what would happen.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:260"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "\"Is not that [Creator] Able to give life to the dead?\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 75:40"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 75, verbatim",
+        "primary": "O Capable, nothing is beyond Your power. Fulfill my need and help me with what has left me helpless.",
+        "arabic": "يَا قَادِرُ لَا يَعْجِزُكَ شَيْءٌ فَاقْضِ لِي حَاجَتِي وَأَعِنِّي عَلَى مَا أَعْجَزَنِي",
+        "transliteration": "Ya Qadir, la ya'jizuka shay' faqdhi li hajati wa-a'inni 'ala ma a'jazani",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "He already believed. He asked to be shown anyway — and what came back was not a rebuke, it was four birds and a hill.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beats 3-5: Ibrāhīm's request, the exchange, and the instruction of the four birds",
+        "url": "https://quran.com/2/260",
+        "verified": "✅ (Saheeh International; the bracketed [after slaughtering them] and [I ask] are the translator's own)",
+        "source_label": "Qur'ān 2:260"
+      },
+      {
+        "claim": "Beat 6 verse anchor: the Name's own root, `bi-qādir`, in the final āyah of Sūrat al-Qiyāmah",
+        "url": "https://quran.com/75/40",
+        "verified": "✅ (Saheeh International; verses/by_key/75:41 returns HTTP 404)",
+        "source_label": "Qur'ān 75:40"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-qayyum@1",
+    "name_id": 16,
+    "transliteration": "Al-Qayyum",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "There was a stretch where you stopped doing the thing you used to do. Something in you decided that meant you had been dropped.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "catalog id 16, verbatim",
+        "primary": "The Self-Sustaining",
+        "arabic": "الْقَيُّومُ",
+        "transliteration": "Al-Qayyum",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "The night nobody woke",
+        "primary": "They stopped to sleep on the road, and Bilāl was the one who said he would keep them awake. \"Bilal rested his back against his Rahila and he too was overwhelmed (by sleep) and slept.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 595"
+      },
+      {
+        "kind": "story",
+        "label": "The night nobody woke",
+        "primary": "They woke to the sun already up. Bilāl said: \"I have never slept such a sleep.\" The Prophet ﷺ said: \"Allah captured your souls when He wished, and released them when He wished.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Sahih al-Bukhari 595"
+      },
+      {
+        "kind": "story",
+        "label": "The night nobody woke",
+        "primary": "The Qur'ān says it of every sleeper: \"Allāh takes the souls at the time of their death, and those that do not die [He takes] during their sleep. Then He keeps those for which He has decreed death and releases the others for a specified term…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 39:42"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "\"Allāh - there is no deity except Him, the Ever-Living, the Self-Sustaining. Neither drowsiness overtakes Him nor sleep.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 2:255"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog 16, verbatim",
+        "primary": "O Ever-Living, O Self-Sustaining, in Your mercy I seek help. Rectify all my affairs and do not leave me to myself even for the blink of an eye.",
+        "arabic": "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ",
+        "transliteration": "Ya Hayyu Ya Qayyum, bi-rahmatika astagheeth, aslih li sha'ni kullahu wa la takilni ila nafsi tarfata 'ayn",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "The gap was in what you were doing, not in what was holding you up. Nothing that keeps you has ever needed a night off.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beats 3-4: the night on the road, Bilāl's watch, and the Prophet ﷺ naming who held their souls",
+        "url": "https://sunnah.com/bukhari:595",
+        "verified": "✅ (ṣaḥīḥ — Ṣaḥīḥ al-Bukhārī; Book 9, Hadith 70)",
+        "source_label": "Sahih al-Bukhari 595"
+      },
+      {
+        "claim": "Beat 5: Allāh takes the souls in sleep, keeps some and releases the others",
+        "url": "https://quran.com/39/42",
+        "verified": "✅ (Saheeh International; excerpt marked on the beat)",
+        "source_label": "Qur'ān 39:42"
+      },
+      {
+        "claim": "Beat 6 verse anchor: the Name itself, and the denial of drowsiness and sleep",
+        "url": "https://quran.com/2/255",
+        "verified": "✅ (Saheeh International; excerpt marked on the beat)",
+        "source_label": "Qur'ān 2:255"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "al-waliyy@1",
+    "name_id": 64,
+    "transliteration": "Al-Waliyy",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "You are far from the people who would notice, and the people you left are far from you. Both halves of that have one Name.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 64, verbatim",
+        "primary": "The Protecting Friend",
+        "arabic": "الْوَلِيُّ",
+        "transliteration": "Al-Waliyy",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Setting out",
+        "primary": "Whenever the Prophet ﷺ set out on a journey and mounted his camel, he said the same words.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 3438"
+      },
+      {
+        "kind": "story",
+        "label": "Setting out",
+        "primary": "\"O Allah You are the companion on the journey, and the caretaker for the family, O Allah, accompany us with Your protection, and return us in security…\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 3438"
+      },
+      {
+        "kind": "story",
+        "label": "Setting out",
+        "primary": "\"…O Allah, I seek refuge in You from the difficulties of the journey, and from returning in great sadness.\"",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Jami' at-Tirmidhi 3438"
+      },
+      {
+        "kind": "verse",
+        "label": "the act is Allah's own, and the person it is done to is the one person guaranteed to have no protector",
+        "primary": "Did He not find you an orphan and give [you] refuge?",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 93:6"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 64, verbatim in full — the opening clause of the narration above",
+        "primary": "O Allah, You are my companion in travel and the guardian over my family.",
+        "arabic": "اللَّهُمَّ أَنْتَ الصَّاحِبُ فِي السَّفَرِ وَالْخَلِيفَةُ فِي الْأَهْلِ",
+        "transliteration": "Allahumma anta's-sahibu fi's-safar wa'l-khalifatu fi'l-ahl",
+        "translation": "",
+        "source": "Sahih Muslim 1342"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "One half of that sentence is about where you are. The other half is about the people you are not with. And the Prophet ﷺ, who taught it, had been an orphan himself.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: the Prophet ﷺ said these words whenever he set out and mounted — paraphrase of both narrations",
+        "url": "https://sunnah.com/tirmidhi:3438",
+        "verified": "✅ verified (archive)",
+        "source_label": "Jami' at-Tirmidhi 3438 (hasan) · Sahih Muslim 1342 (sahih)"
+      },
+      {
+        "claim": "Beat 4 quotation: \"O Allah You are the companion on the journey, and the caretaker for the family, O Allah, accompany us with Your protection, and return us in security…\" — published English quoted as printed, ellipsis marks that the quotation runs on",
+        "url": "https://sunnah.com/tirmidhi:3438",
+        "verified": "✅ verified (archive) — byte-exact substring after whitespace normalisation",
+        "source_label": "Jami' at-Tirmidhi 3438 (hasan, Darussalam)"
+      },
+      {
+        "claim": "Beat 5 quotation: \"…O Allah, I seek refuge in You from the difficulties of the journey, and from returning in great sadness.\" — opening ellipsis marks that it continues beat 4's quotation",
+        "url": "https://sunnah.com/tirmidhi:3438",
+        "verified": "✅ verified (archive) — byte-exact substring after whitespace normalisation",
+        "source_label": "Jami' at-Tirmidhi 3438 (hasan, Darussalam)"
+      },
+      {
+        "claim": "Beat 6, verse anchor, verbatim in full: \"Did He not find you an orphan and give [you] refuge?\" (Saheeh International; bracket is the translator's own)",
+        "url": "https://quran.com/93/6",
+        "verified": "✅ verified — live fetch, zero footnote markers; verses/by_key/93:12 returns HTTP 404, i.e. no punishment anywhere in the surah",
+        "source_label": "Qur'ān 93:6"
+      },
+      {
+        "claim": "Duʿa text (catalog id 64) is the Arabic of Sahih Muslim 1342 — same letters, same words; the catalogue is one diacritic more fully vowelled than the archived page (consonantal skeleton matches; byte-identity is not claimed)",
+        "url": "https://sunnah.com/muslim:1342",
+        "verified": "⚠️ verified programmatically with a disclosed caveat",
+        "source_label": "Sahih Muslim 1342 (sahih)"
+      },
+      {
+        "claim": "Beat 2 name_intro, and the duʿa's transliteration and translation fields",
+        "url": "",
+        "verified": "✅ verified byte-identical to catalog",
+        "source_label": "collectible_names.json id 64"
+      },
+      {
+        "claim": "Beat 8: authored copy over one fetched fact — 93:6 addresses the Prophet ﷺ and says \"Did He not find you an orphan\"",
+        "url": "https://quran.com/93/6",
+        "verified": "✅ honest label — authored copy over one fetched fact",
+        "source_label": "Qur'ān 93:6"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
+  },
+  {
+    "deck_id": "ar-raheem@1",
+    "name_id": 3,
+    "transliteration": "Ar-Raheem",
+    "chip_keys": [],
+    "position_in_pair": 0,
+    "beats": [
+      {
+        "kind": "bridge",
+        "label": "",
+        "primary": "There is a mercy that keeps everyone alive. And there is a mercy that answers. This is the Name for the second one.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "name_intro",
+        "label": "from `collectible_names.json` id 3, verbatim",
+        "primary": "The Most Merciful",
+        "arabic": "الرَّحِيمُ",
+        "transliteration": "Ar-Raheem",
+        "translation": "",
+        "source": ""
+      },
+      {
+        "kind": "story",
+        "label": "Three hundred years and nine",
+        "primary": "They were young men who believed in their Lord, in a place where saying so would have got them stoned. They withdrew to a cave and asked Him for one thing.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 18:10-25"
+      },
+      {
+        "kind": "story",
+        "label": "Three hundred years and nine",
+        "primary": "\"So We cast [a cover of sleep] over their ears within the cave for a number of years.\" That was the answer. Sleep.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 18:10-25"
+      },
+      {
+        "kind": "story",
+        "label": "Three hundred years and nine",
+        "primary": "\"And you would think them awake, while they were asleep. And We turned them to the right and to the left…\" — for three hundred years, and nine.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 18:10-25"
+      },
+      {
+        "kind": "verse",
+        "label": "",
+        "primary": "…And ever is He, to the believers, Merciful.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": "Qur'an 33:43"
+      },
+      {
+        "kind": "dua",
+        "label": "catalog id 3, verbatim in full — these are the words the youths said in the cave, Qur'ān 18:10",
+        "primary": "Our Lord, grant us mercy from Yourself and guide us rightly through our affair.",
+        "arabic": "رَبَّنَا آتِنَا مِنْ لَدُنْكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا",
+        "transliteration": "Rabbana atina min ladunka rahmatan wa hayyi' lana min amrina rashada",
+        "translation": "",
+        "source": "Qur'an 18:10"
+      },
+      {
+        "kind": "takeaway",
+        "label": "",
+        "primary": "That sentence was theirs first. They said it going in — and it was being answered the whole time they were unconscious of it, one turn at a time, for three centuries.",
+        "arabic": "",
+        "transliteration": "",
+        "translation": "",
+        "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: \"young men who believed in their Lord\" — paraphrase, nothing quoted",
+        "url": "https://quran.com/18/13",
+        "verified": "✅ verified — live fetch api.quran.com verses/by_key/18:13?translations=20, 2026-08-02. Saheeh International: \"Indeed, they were youths who believed in their Lord, and We increased them in guidance.\"",
+        "source_label": "Qur'an 18:13"
+      },
+      {
+        "claim": "Beat 3: \"where saying so would have got them stoned\" — paraphrase, nothing quoted",
+        "url": "https://quran.com/18/20",
+        "verified": "✅ verified — live fetch, 2026-08-02. Saheeh International: \"Indeed, if they come to know of you, they will stone you or return you to their religion. And never would you succeed, then - ever.\" Precise provenance, since the beat compresses it: these are the youths' OWN words about the people they had fled, spoken to one another after they woke (18:19–20), not third-person narration about the city before they left.",
+        "source_label": "Qur'an 18:20"
+      },
+      {
+        "claim": "Beat 3: \"They withdrew to a cave and asked Him for one thing\" — the prayer itself is deliberately not quoted here; it is beat 7",
+        "url": "https://quran.com/18/10",
+        "verified": "✅ verified — live fetch of 18:10 and 18:16, 2026-08-02.",
+        "source_label": "Qur'an 18:10 · 18:16"
+      },
+      {
+        "claim": "Beat 4 quotation, verbatim: \"So We cast [a cover of sleep] over their ears within the cave for a number of years.\" The [a cover of sleep] bracket is the translator's own, present in the fetched string, not authored.",
+        "url": "https://quran.com/18/11",
+        "verified": "✅ verified — live fetch ?translations=20,85, 2026-08-02; byte-exact substring of the fetched Saheeh International string, no footnote marker. Abdel Haleem (85) fetched and rejected: it drops ʿadadan (\"a number of\"), the vagueness 18:26 turns on.",
+        "source_label": "Qur'an 18:11 (Saheeh International)"
+      },
+      {
+        "claim": "Beat 4: \"That was the answer.\"",
+        "url": "https://quran.com/18/11",
+        "verified": "⚠️ honest label — authored reading, NOT a source claim. Verified: 18:11 opens with the conjunctive fa- (\"So We cast\") and immediately follows the prayer in 18:10. Inferred: that the sleep therefore IS the answer to that prayer. Mainstream and supported by the fa-, but the Qur'an does not say it.",
+        "source_label": "Qur'an 18:10–11"
+      },
+      {
+        "claim": "Beat 5 quotation, marked excerpt: \"And you would think them awake, while they were asleep. And We turned them to the right and to the left…\"",
+        "url": "https://quran.com/18/18",
+        "verified": "✅ verified — live fetch ?translations=20,85, 2026-08-02; byte-exact substring of the fetched Saheeh International string. The ellipsis marks the omitted remainder (\"…while their dog stretched his forelegs at the entrance. If you had looked at them, you would have turned from them in flight and been filled by them with terror.\") — omitted for register and length; disclosed.",
+        "source_label": "Qur'an 18:18 (Saheeh International)"
+      },
+      {
+        "claim": "Beat 5: \"for three hundred years, and nine\" — the beat states the number, it does not quote the verse",
+        "url": "https://quran.com/18/25",
+        "verified": "⚠️ verified, with an excerpt boundary disclosed. Fetched: \"And they remained in their cave for three hundred years and exceeded by nine.\" The very next ayah is 18:26 — \"Say, 'Allah is most knowing of how long they remained…'\" Classical readings split on whether 18:25 reports the People of the Book's figure with 18:26 as the divine qualifier. Under the majority reading the beat is fine and it is what the shipped Saheeh International text says flatly. Founder option if he prefers maximum caution: beat 5 can end at the 18:18 quotation and drop the number entirely; beat 8's \"three centuries\" would become \"the whole time\".",
+        "source_label": "Qur'an 18:25 (→ 18:26)"
+      },
+      {
+        "claim": "DISCLOSURE FOLDED IN AT TRANSCRIPTION — the successor of beat 5's own on-screen quotation. 18:19, the ayah immediately after 18:18, has the sleepers themselves guess wrong and be answered with the same \"your Lord is most knowing how long\" qualifier the deck already discloses at the farther 18:25/18:26: \"And similarly, We awakened them that they might question one another. Said a speaker from among them, 'How long have you remained [here]?' They said, 'We have remained a day or part of a day.' They said, 'Your Lord is most knowing of how long you remained.'\" Non-blocking — no contradiction of any beat — and the founder option recorded on the 18:25 row (cut the number) resolves both instances at once.",
+        "url": "https://quran.com/18/19",
+        "verified": "⚠️ disclosed at transcription. Saheeh International text as fetched by the Wave-G successor sweep, 2026-08-02; not independently re-fetched by the transcriber. 18:19 also confirms the 18:20 row's claim that 18:20 is the youths' own speech after waking.",
+        "source_label": "Qur'an 18:19"
+      },
+      {
+        "claim": "Beat 6, verse anchor, marked excerpt: \"…And ever is He, to the believers, Merciful.\"",
+        "url": "https://quran.com/33/43",
+        "verified": "✅ verified — live fetch ?translations=20,85, 2026-08-02; byte-exact substring of the fetched Saheeh International after the footnote marker is stripped (the marker falls in the omitted opening and never reaches the beat). Arabic wa-kana bil-mu'minina rahima — the Name in-text AND the qualifier bil-mu'minin (\"to the believers\"). Abdel Haleem (85) fetched and rejected: it lower-cases the Name and ends on a hyphen running into 33:44.",
+        "source_label": "Qur'an 33:43 (Saheeh International)"
+      },
+      {
+        "claim": "Beat 2 name_intro, and the duʿa's three fields",
+        "url": "",
+        "verified": "✅ verified byte-identical to collectible_names.json id 3 across arabic / transliteration / english and dua_arabic / dua_transliteration / dua_translation, re-checked programmatically 2026-08-02; the ship gate enforces both independently.",
+        "source_label": "catalog id 3"
+      },
+      {
+        "claim": "Duʿa beat carries source: Qur'an 18:10",
+        "url": "https://quran.com/18/10",
+        "verified": "⚠️ partially verified, stated plainly. The Arabic is the same words and the same consonantal text but is NOT byte-identical to quran.com's text_imlaei: 7 of 9 tokens identical, 2 differ in idgham notation only (min / min, ladunka / ladunka) — religiously immaterial. And the catalog's English is not the Saheeh International rendering of 18:10; it is a faithful paraphrase carrying a Qur'an citation. Precedent: shipped al-wakeel@1 carries source \"Qur'an 3:173\" on a non-identical rendering.",
+        "source_label": "Qur'an 18:10"
+      },
+      {
+        "claim": "Authored joint, named: the qualifier that distinguishes Ar-Raheem from Ar-Rahman — bil-mu'minin — comes from 33:43, a different surah with no connection to the cave. Nothing in the Kahf passage says the mercy was particular BECAUSE they were believers. The causal link between 18:13 and 18:10–11 is the deck's. The Name-noun ar-Raheem does not appear in the story passage at all (18:10 has rahmatan, 18:16 has min rahmatihi).",
+        "url": "",
+        "verified": "authoring disclosure",
+        "source_label": "authored"
+      },
+      {
+        "claim": "Insight collision, disclosed rather than resolved: beat 8 shares a shape of insight with shipped al-lateef@1 beat 5 (care operating unseen throughout, recognised only in retrospect) — no shared vocabulary, no shared sentence structure, different subject. If judged too close, the fix is to cut \"the whole time they were unconscious of it\".",
+        "url": "",
+        "verified": "collision disclosure",
+        "source_label": "al-lateef@1"
+      }
+    ],
+    "author": "Claude",
+    "reviewed_by": "founder",
+    "reviewed_at": "2026-08-03",
+    "review_verdict": "good"
   }
 ]
