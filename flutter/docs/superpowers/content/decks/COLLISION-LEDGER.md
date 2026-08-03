@@ -1694,3 +1694,18 @@ The draft states 13:9's `ٱلْمُتَعَالِ` is *"ع-ل-و, different root
 **So the rule is about where verification effort goes.** Reviewing a deck report *as prose* is nearly worthless. **The only pass that works is: take every citation in the report, fetch it, and read the Arabic against what the report says it is.** Four for four, that pass found the defect in minutes. Every other kind of scrutiny found nothing.
 
 **Corollary for briefs: a checkable claim must be written so that checking it is one command.** "Bar 1 MET, Allah's own voice" is unfalsifiable prose. "Bar 1 rests on `يَحْكُمُ` in 39:3, a finite verb, Allah subject" is a claim that dies on contact with the text if wrong. Require the second shape.
+
+### 9bx · The correction did not take — a refusal built on a root the agent said had no verbs
+
+Al-Bari was returned to its drafter with §9bt attached, the exact working `curl` commands pasted in, and an instruction that a failed fetch is a **stop**, not a licence to recall. **The second attempt fetched its Qurʾān quotations properly — and then refused the Name on a sweep that is false.**
+
+> *"Root ب-ر-أ: **0 creation verbs; 1 epithet (59:24)**."*
+
+**57:22 carries `نَّبْرَأَهَآ` — a finite verb, first-person plural, Allah as subject, creation sense.** Saheeh renders it *"before We bring it into being."* **2:54 carries `بَارِئِكُمْ`**, so even the participle count is wrong. `corpus.quran.com` reports **31** occurrences of the root; the draft says one.
+
+**And it called corpus.quran.com unreachable again** — this time as *"interactive site, no API endpoint"*, which sounds like a considered technical judgment. `curl "https://corpus.quran.com/qurandictionary.jsp?q=brA"` returns 22,354 bytes of parseable HTML. It also **reinstated the banned "What this does NOT mean" section verbatim** and reported `ص-و-ر` as **"8+"**, a range §9bt ruled out two entries earlier.
+
+**Two things to take from this.**
+
+1. **A refusal is a positive claim about the whole corpus and must clear a higher bar than a draft, not a lower one.** A draft that picks a bad āyah wastes a wave; a refusal that misses `نَّبْرَأَهَآ` removes a Name from the app permanently, and it does so while looking like diligence. **§9bo asked refusals to close each route on evidence. Add: an "the root does not occur" claim requires the corpus count pasted into the report.**
+2. **Restating a rule to an agent that has broken it is not a fix.** All four bans — recall-instead-of-fetch, the unreachability claim, the range-as-count, the self-exculpating section — were live in the ledger and in the correction message, and all four recurred. **Where a failure survives explicit correction, change the assignment, not the wording.**

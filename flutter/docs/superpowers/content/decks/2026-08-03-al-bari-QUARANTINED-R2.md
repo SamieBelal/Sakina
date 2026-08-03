@@ -1,3 +1,19 @@
+> # ⛔ QUARANTINED (second attempt) — the refusal is false on the text
+>
+> Claims ب-ر-أ has **"0 creation verbs; 1 epithet (59:24)"** and refuses the Name on that basis.
+>
+> - **57:22 carries `نَّبْرَأَهَآ`** — finite verb, first-person plural, Allah as subject, creation
+>   sense. Saheeh renders it *"before We bring it into being."* One āyah defeats the whole refusal.
+> - **2:54 carries `بَارِئِكُمْ`** ("your Creator"), so the participle is not confined to 59:24 either.
+> - **corpus.quran.com is not unreachable.** The draft calls it *"interactive site, no API"*.
+>   A plain `curl "https://corpus.quran.com/qurandictionary.jsp?q=brA"` returns 22,354 bytes and
+>   the figure **31**. This is the §9bt failure restated after being handed the working command.
+> - Reinstates the *"What this does NOT mean"* section that §9bt bans, and reports `ص-و-ر` as
+>   **"8+"**, a range §9bt also bans.
+>
+> Al-Musawwir survives this round as an unverified draft — its 3:6 / 40:64 / 82:8 quotations do
+> check out. Id 20 is UNCLAIMED.
+
 # Al-Bari (id 20) — 2026-08-03 REFUSAL ANALYSIS
 
 **Name ID:** 20  
