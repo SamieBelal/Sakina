@@ -23,6 +23,8 @@ import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
 import 'package:sakina/features/streaks/widgets/month_of_light.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/achievements_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/user_local_day.dart';
@@ -134,6 +136,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
   bool _questFired = false;
+
+  /// One `journal_resurfacing_shown` per visit — see
+  /// [_maybeEmitResurfacingShown]. Scoped to the State, so a bottom-nav
+  /// tab-switch that rebuilds this screen re-arms it and a `setState` from the
+  /// tab controller does not.
+  bool _resurfacingFired = false;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
   int _lastTabIndex = 0;
 
@@ -183,6 +191,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final duasState = ref.watch(duasProvider);
 
     final reflections = reflectState.savedReflections;
+    _maybeEmitResurfacingShown(reflections, duasState);
     final builtDuas = duasState.savedBuiltDuas;
     final savedDuas = duasState.savedRelatedDuas;
 
@@ -322,6 +331,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       child: IconButton(
         onPressed: () {
           HapticFeedback.lightImpact();
+          // The denominator for `journal_entry_opened{origin:
+          // journal_calendar}`. Without it a calendar nobody converts from
+          // reads identically to one nobody opens, and D4's promotion of this
+          // control from the streak line would be unfalsifiable.
+          ref.read(analyticsProvider).track(AnalyticsEvents.journalBrowseOpened);
           showMonthOfLightSheet(
             context,
             onDaySelected: (day, state) => _onCalendarDay(day, state, reflections),
@@ -357,7 +371,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       );
       return;
     }
-    _openReflection(entry);
+    _openReflection(entry, origin: AnalyticsEvents.originJournalCalendar);
   }
 
   /// The entry belonging to [day].
@@ -649,10 +663,66 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             onThisNight: onThisNight,
             // The same door the calendar uses for a lit night: the story when
             // there is one, the detail page otherwise.
-            onOpen: () => _openReflection(onThisNight.entry),
+            onOpen: () => _openReflection(
+              onThisNight.entry,
+              origin: AnalyticsEvents.originOnThisNight,
+            ),
           ),
       ],
     );
+  }
+
+  /// Wave H — **one event per Journal visit**, naming which of Wave E's three
+  /// surfaces the archive opened with.
+  ///
+  /// Session-aggregated rather than a `shown` per card, which is the standing
+  /// convention in this plan and here is also the only correct shape: all three
+  /// resolve in the same build, all three are passive, and a per-card event
+  /// emitted from `build` would count rebuilds rather than visits.
+  ///
+  /// Latched by [_resurfacingFired] and gated on the local day having RESOLVED.
+  /// `journalLocalDayProvider` is a future, and every resolver returns null
+  /// while it is loading — emitting on the first frame would report an
+  /// all-quiet archive for every visit ever made.
+  ///
+  /// **The answered-duʿā boolean is a fact about the APP, not the user.** It
+  /// records that the prompt was offered. Marking a duʿā answered emits nothing
+  /// — a deliberate Wave E decision, pinned by a test in
+  /// `built_dua_answered_status_test.dart`, and untouched here.
+  void _maybeEmitResurfacingShown(
+    List<SavedReflection> reflections,
+    DuasState duasState,
+  ) {
+    if (_resurfacingFired) return;
+    final dayAsync = ref.watch(journalLocalDayProvider);
+    if (dayAsync.isLoading) return;
+    _resurfacingFired = true;
+
+    final day = dayAsync.value;
+    final onThisNight =
+        resolveOnThisNight(entries: reflections, todayLocalDay: day);
+    final recap = resolveWeeklyRecap(entries: reflections, todayLocalDay: day);
+    final prompt = selectAnsweredDuaPrompt(
+      duas: duasState.savedBuiltDuas,
+      now: DateTime.now(),
+      snoozedUntil: duasState.answeredPromptSnoozedUntil,
+    );
+
+    final analytics = ref.read(analyticsProvider);
+    // Post-frame: `build` is not a place to run side effects, and the tracked
+    // values are already captured above.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      analytics.track(
+        AnalyticsEvents.journalResurfacingShown,
+        properties: {
+          AnalyticsEvents.propOnThisNight: onThisNight != null,
+          AnalyticsEvents.propWeeklyRecap: recap != null,
+          AnalyticsEvents.propAnsweredPrompt: prompt != null,
+          if (onThisNight != null)
+            AnalyticsEvents.propOffsetDays: onThisNight.offsetDays,
+        },
+      );
+    });
   }
 
   Future<void> _markDuaAnswered(String id) async {
@@ -686,7 +756,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: _buildEmptyState(
           sub: JournalComposeCopy.emptyStateSub(action),
           actionLabel: JournalComposeCopy.label(action),
-          onAction: () => _onCompose(action),
+          onAction: () => _onCompose(
+            action,
+            entryPoint: AnalyticsEvents.composeEntryEmptyState,
+          ),
         ),
       );
     }
@@ -731,7 +804,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         message: 'No reflections yet',
         sub: 'Your nightly muḥāsabah and every Reflect session land here.',
         actionLabel: JournalComposeCopy.label(action),
-        onAction: () => _onCompose(action),
+        onAction: () => _onCompose(
+          action,
+          entryPoint: AnalyticsEvents.composeEntryEmptyState,
+        ),
       );
     }
 
@@ -984,8 +1060,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// The detail page is not superseded — it owns share and delete, and it is
   /// still where the card's "View full" goes. This is the second door, not a
   /// replacement for the first.
-  void _openReflectionStory(SavedReflection r) {
+  void _openReflectionStory(SavedReflection r, {required String origin}) {
     HapticFeedback.lightImpact();
+    _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatStory);
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         settings: const RouteSettings(name: 'ReflectionStoryPage'),
@@ -994,8 +1071,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
-  void _openReflectionDetail(SavedReflection r) {
+  void _openReflectionDetail(SavedReflection r, {required String origin}) {
     HapticFeedback.lightImpact();
+    _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatDetail);
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
           builder: (_) => ReflectionDetailPage(
@@ -1006,13 +1084,40 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
+  /// Wave H — the re-read, which is the whole of Wave D's thesis and was
+  /// unmeasurable before it.
+  ///
+  /// One event with an [origin] rather than one event per door: a story opened
+  /// from the feed, from the calendar and from "On This Night" is the same act
+  /// reached three ways, and three event names would have made the total
+  /// require a union forever after.
+  ///
+  /// **Nothing derived from [r]'s text.** `source` is the row's own column and
+  /// the format is a property of the entry's *shape*, not its content.
+  void _trackEntryOpened(
+    SavedReflection r, {
+    required String origin,
+    required String format,
+  }) {
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.journalEntryOpened,
+      properties: {
+        AnalyticsEvents.propOrigin: origin,
+        AnalyticsEvents.propFormat: format,
+        AnalyticsEvents.propSource: r.isMuhasabah
+            ? AnalyticsEvents.journalSourceMuhasabah
+            : AnalyticsEvents.journalSourceReflect,
+      },
+    );
+  }
+
   /// The calendar's destination for a lit night: the story when there is one,
   /// the detail page when the row is only the user's own words.
-  void _openReflection(SavedReflection r) {
+  void _openReflection(SavedReflection r, {required String origin}) {
     if (ReflectionStoryPage.canRenderAsStory(r)) {
-      _openReflectionStory(r);
+      _openReflectionStory(r, origin: origin);
     } else {
-      _openReflectionDetail(r);
+      _openReflectionDetail(r, origin: origin);
     }
   }
 
@@ -1020,7 +1125,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final date = DateTime.parse(r.date);
     final canReadAsStory = ReflectionStoryPage.canRenderAsStory(r);
     return _ExpandableCard(
-      onTap: () => _openReflectionDetail(r),
+      onTap: () => _openReflectionDetail(
+        r,
+        origin: AnalyticsEvents.originJournalFeed,
+      ),
       // D2's entry point. Shown only when there is a story to read — an entry
       // that saved nothing but the user's words would open on a cover card and
       // end there, which is a worse read than the detail page.
@@ -1029,7 +1137,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           : _cardTextAction(
               icon: Icons.auto_stories_rounded,
               label: 'Read as story',
-              onTap: () => _openReflectionStory(r),
+              onTap: () => _openReflectionStory(
+                r,
+                origin: AnalyticsEvents.originJournalFeed,
+              ),
             ),
       // D1: the chip tells the two sources apart. A nightly accounting and an
       // ad-hoc Reflect save land in the same table and used to render with the
@@ -1398,7 +1509,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final action = _composeAction;
     final label = JournalComposeCopy.label(action);
     return FloatingActionButton.extended(
-      onPressed: () => _onCompose(action),
+      onPressed: () => _onCompose(
+        action,
+        entryPoint: AnalyticsEvents.composeEntryFab,
+      ),
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
       icon: Icon(switch (action) {
@@ -1413,8 +1527,29 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
-  void _onCompose(JournalComposeAction action) {
+  void _onCompose(
+    JournalComposeAction action, {
+    required String entryPoint,
+  }) {
     HapticFeedback.lightImpact();
+    // One control, three meanings (D3) — so the meaning is a property, not
+    // three events. `entry_point` separates the FAB from the empty-state
+    // rendering: the empty state is aimed at a user with nothing in the archive
+    // yet, and whether THAT one converts is a different question.
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.journalComposeTapped,
+      properties: {
+        AnalyticsEvents.propAction: switch (action) {
+          JournalComposeAction.startTonight =>
+            AnalyticsEvents.composeActionStartTonight,
+          JournalComposeAction.addToTonight =>
+            AnalyticsEvents.composeActionAddToTonight,
+          JournalComposeAction.freeWrite =>
+            AnalyticsEvents.composeActionFreeWrite,
+        },
+        AnalyticsEvents.propEntryPoint: entryPoint,
+      },
+    );
     switch (action) {
       case JournalComposeAction.startTonight:
         context.go('/muhasabah?$questionEntryQueryParam='
@@ -1481,9 +1616,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                 const SizedBox(height: AppSpacing.md),
                 AddToTonightCard(
                   thread: entry.thread,
-                  onAppend: (text) => ref
-                      .read(dailyLoopProvider.notifier)
-                      .appendToTonight(text),
+                  onAppend: (text) =>
+                      ref.read(dailyLoopProvider.notifier).appendToTonight(
+                            text,
+                            surface: AnalyticsEvents.surfaceJournal,
+                          ),
                 ),
               ],
             );

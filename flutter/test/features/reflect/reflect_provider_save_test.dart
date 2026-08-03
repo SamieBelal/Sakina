@@ -142,6 +142,17 @@ void main() {
     expect(journal.single.props[AnalyticsEvents.propEntryType],
         AnalyticsEvents.entryTypeReflection);
     expect(journal.single.props[AnalyticsEvents.propAuto], false);
+    // Wave H. The muḥāsabah now writes into this same table and fires this same
+    // event, so without `source` the two are one undifferentiated number — and
+    // a Reflect save and a night are not the same act. Property, not a second
+    // event name: forking it would split every historical journal chart at T0.
+    expect(journal.single.props[AnalyticsEvents.propSource],
+        AnalyticsEvents.journalSourceReflect);
+
+    // And the user's words are not in the payload. `setUserText` put them on
+    // state one line before the emit, which is exactly the shape of the two
+    // violations `no_free_text_reaches_analytics_test` was written for.
+    expect('${journal.single.props}'.contains('anxious'), isFalse);
   });
 
   // The 5-entry free-tier save cap was removed 2026-08-02 (design §9A). The

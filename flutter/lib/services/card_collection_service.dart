@@ -254,8 +254,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One free from all imperfection, deficiency, and fault.',
     lesson:
         'In a world full of imperfection, Al-Quddus is your anchor of purity.',
-    hadith:
-        'The angels glorify Him saying: "Holy, Holy, Holy is the Lord of the angels and the spirit." (Muslim)',
+    hadith: '\'A\'isha (RA) reported that the Prophet ﷺ used to say while bowing and prostrating: "All Glorious, All Holy, Lord of the Angels and the Spirit." Al-Quddus is holy beyond every flaw the mind could imagine. (Sahih Muslim 487a — Sahih)',
     duaArabic: 'سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ',
     duaTransliteration: 'Subbuhun Quddusun Rabbul-mala\'ikati war-ruh',
     duaTranslation: 'Glorified, Holy, Lord of the angels and the spirit.',
@@ -298,8 +297,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Almighty',
     meaning: 'The One of perfect might and honor who is never overcome.',
     lesson: 'Lean on Al-Azeez. You are not weak when you call upon Him.',
-    hadith:
-        'The Prophet ﷺ said: "Might belongs to Allah, His Messenger, and the believers." (Quran 63:8)',
+    hadith: 'Allah says: "…And to Allah belongs [all] honor, and to His Messenger, and to the believers…" Al-Azeez is the source of every might that is real. (Quran 63:8)',
     duaArabic: 'يَا عَزِيزُ أَعِزَّنِي بِطَاعَتِكَ',
     duaTransliteration: 'Ya Azeez a\'izzani bi ta\'atik',
     duaTranslation: 'O Almighty, honor me through obedience to You.',
@@ -392,8 +390,7 @@ const List<CollectibleName> allCollectibleNames = [
         'The One whose knowledge encompasses everything, hidden and apparent.',
     lesson:
         'You never need to explain your pain to Al-Aleem. He already knows.',
-    hadith:
-        'The Prophet ﷺ said: "Allah knew what His servants would do, and He wrote it all fifty thousand years before creating the heavens and the earth." (Muslim)',
+    hadith: 'The Prophet ﷺ said: "The keys of Unseen are five which none knows but Allah: None knows what will happen tomorrow but Allah; none knows what is in the wombs (a male child or a female) but Allah; none knows when it will rain but Allah; none knows at what place one will die; none knows when the Hour will be established but Allah." Al-Aleem alone holds what no one else can reach. (Sahih al-Bukhari 4697 — Sahih)',
     duaArabic:
         'اللَّهُمَّ عَالِمَ الْغَيْبِ وَالشَّهَادَةِ فَاطِرَ السَّمَاوَاتِ وَالْأَرْضِ',
     duaTransliteration:
@@ -408,8 +405,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Ever-Living',
     meaning: 'The One who has always lived and will never die.',
     lesson: 'Everything you lean on will pass away — except Al-Hayy.',
-    hadith:
-        'The Prophet ﷺ said: "Call upon Allah using \'Ya Hayyu Ya Qayyum\' — by Your mercy I seek relief." (Tirmidhi)',
+    hadith: '',
     duaArabic: 'يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ',
     duaTransliteration: 'Ya Hayyu Ya Qayyum bi rahmatika astaghith',
     duaTranslation:
@@ -424,8 +420,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who sustains all of creation by His power.',
     lesson:
         'You do not sustain yourself. Al-Qayyum holds you together even when you feel like falling apart.',
-    hadith:
-        'The Prophet ﷺ said to Fatima: "Do not leave off a morning or evening without saying: Ya Hayyu Ya Qayyum, bi rahmatika astagheeth." (Al-Hakim)',
+    hadith: '',
     duaArabic:
         'يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ',
     duaTransliteration:
@@ -472,8 +467,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One whose greatness is beyond all comparison.',
     lesson:
         'True greatness belongs only to Al-Mutakabbir. In recognizing this, you find humility.',
-    hadith:
-        'The Prophet ﷺ said: "Greatness is My cloak and pride is My garment. Whoever competes with Me in either, I will throw into the Fire." (Muslim)',
+    hadith: 'In a hadith qudsi, the Prophet ﷺ reported that Allah said: "Glory is His lower garment and Majesty is His cloak and (Allah says,) He who contends with Me in regard to them I shall torment him." Greatness belongs to Al-Mutakabbir alone. (Sahih Muslim 2620 — Sahih)',
     duaArabic:
         'يَا قَهَّارُ اقْهَرْ كُلَّ جَبَّارٍ عَنِيدٍ وَيَا جَبَّارُ اجْبُرْ كَسْرِي',
     duaTransliteration:
@@ -488,8 +482,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Evolver',
     meaning: 'The One who shapes creation according to His perfect plan.',
     lesson: 'Al-Bari is still shaping you. Your story is not finished yet.',
-    hadith:
-        'The Prophet ﷺ said: "You brought me out of nothingness into being." Al-Baari perfects what He produces — He repairs what we have broken within ourselves. (Yaqeen, The Name I Need)',
+    hadith: '',
     duaArabic:
         'يَا بَارِئُ أَصْلِحْ مَا أَفْسَدْتُهُ فِي نَفْسِي وَاجْعَلْنِي كَامِلًا بِدِقَّةِ صُنْعِكَ',
     duaTransliteration:
@@ -723,8 +716,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Trustee',
     meaning: 'The One who is sufficient as a guardian and disposer of affairs.',
     lesson: 'Hand it over to Al-Wakeel. He manages what you cannot.',
-    hadith:
-        'Ibrahim (AS), when thrown into the fire, said: "Hasbunallah wa ni\'mal Wakeel." Allah commanded the fire: "Be cool and safe for Ibrahim." (Quran 3:173)',
+    hadith: 'Ibn \'Abbas (RA) said: "\'Allah is Sufficient for us and He is the Best Disposer of affairs\' was said by Abraham [Ibrahim] when he was thrown into the fire; and it was said by Muhammad ﷺ when they (i.e. hypocrites) said, \'A great army is gathering against you, therefore, fear them,\' but it only increased their faith…" Al-Wakeel is the One you hand the outcome to. (Sahih al-Bukhari 4563 — Sahih; mawquf — these are Ibn \'Abbas\'s words, not the Prophet\'s ﷺ)',
     duaArabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
     duaTransliteration: 'Hasbunallahu wa ni\'mal-Wakil',
     duaTranslation:
@@ -843,8 +835,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Bestower of Honor',
     meaning: 'The One who gives honor and dignity to whom He wills.',
     lesson: 'True honor comes from Al-Muizz, not from people or positions.',
-    hadith:
-        'Umar (RA) said: "We were a debased people. Allah gave us honor through Islam. If we seek honor through anything else, we will be debased again." (Al-Hakim)',
+    hadith: '',
     duaArabic:
         'اللَّهُمَّ أَعِزَّنِي بِطَاعَتِكَ وَلَا تُذِلَّنِي بِمَعْصِيَتِكَ',
     duaTransliteration:
@@ -859,8 +850,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Humiliator',
     meaning: 'The One who disgraces those who defy His command.',
     lesson: 'Al-Muzill reminds us that no empire lasts without His permission.',
-    hadith:
-        'Umar (RA) said: "We were a debased people. Allah gave us honor through Islam. If we seek honor through anything else, we will be debased again." (Al-Hakim)',
+    hadith: '',
     duaArabic:
         'اللَّهُمَّ أَعِزَّنِي بِطَاعَتِكَ وَلَا تُذِلَّنِي بِمَعْصِيَتِكَ',
     duaTransliteration:
@@ -875,8 +865,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The All-Hearing',
     meaning: 'The One who hears every sound, whisper, and silent prayer.',
     lesson: 'Even the prayer you could not put into words — As-Sami heard it.',
-    hadith:
-        'Zakariyya (AS) made a silent call in the corner of the masjid. Before he could finish, Allah said: "I heard you — and here is the child, already named Yahya." (Quran 19:3-7)',
+    hadith: 'When the companions raised their voices in dhikr on a journey, the Prophet ﷺ said: "O people! Be merciful to yourselves (i.e. don\'t raise your voice), for you are not calling a deaf or an absent one, but One Who is with you, no doubt He is All-Hearer, ever Near (to all things)." As-Sami hears the call you never said aloud. (Sahih al-Bukhari 2992 — Sahih)',
     duaArabic: 'إِنَّ رَبِّي قَرِيبٌ مُجِيبٌ',
     duaTransliteration: 'Inna Rabbi qaribun mujib',
     duaTranslation: 'Indeed my Lord is close and responsive.',
@@ -953,8 +942,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One whose greatness is beyond human comprehension.',
     lesson:
         'Your problems feel massive — until you remember the magnificence of Al-Azeem.',
-    hadith:
-        'When Surah Al-A\'la was revealed, the Prophet ﷺ said: "Make this in your sujud." In our deepest prostration we declare His highest. (Abu Dawud)',
+    hadith: 'Hudhayfah (RA) prayed a night prayer with the Prophet ﷺ and reported that he would bow and say: "Glory be to my Mighty Lord." In ruku\' the servant names Al-Azeem. (Sahih Muslim 772 — Sahih)',
     duaArabic: 'سُبْحَانَ رَبِّيَ الْعَظِيمِ',
     duaTransliteration: 'Subhana Rabbiyal \'Azeem',
     duaTranslation: 'Glory be to my Lord, the Most Magnificent.',
@@ -984,8 +972,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who is above all creation in rank and majesty.',
     lesson:
         'When you prostrate to Al-Ali, you reach the highest station a human can attain.',
-    hadith:
-        'The Prophet ﷺ said: "Whoever humbles himself for Allah, Allah exalts him. Whoever exalts himself, Allah lowers him." (Muslim)',
+    hadith: '',
     duaArabic:
         'يَا عَلِيُّ يَا مُتَعَالِي ارْفَعْ قَلْبِي فَوْقَ الضَّغِينَةِ وَالصِّغَارِ',
     duaTransliteration:
@@ -1017,8 +1004,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who nourishes and sustains every living thing.',
     lesson:
         'Al-Muqeet feeds not only your body but your soul and your purpose.',
-    hadith:
-        'The Prophet ﷺ said: "Allah provides for every creature — He is Al-Muqeet, the Nourisher of all things." Not just bodies but souls and purposes are sustained by Him. (Ibn Kathir, Tafsir of Quran 4:85)',
+    hadith: '',
     duaArabic: 'يَا مُقِيتُ أَقِتْنِي بِذِكْرِكَ وَأَغْذِ رُوحِي بِقُرْبِكَ',
     duaTransliteration: 'Ya Muqeet, aqitni bidhikrika wa-aghdhi ruhi biqurbik',
     duaTranslation:
@@ -1047,8 +1033,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Majestic',
     meaning: 'The One of overwhelming majesty and grandeur.',
     lesson: 'Stand in awe of Al-Jaleel, and the things you feared will shrink.',
-    hadith:
-        'The Prophet ﷺ said: "Fill your heart with reverence of Allah that draws you near, not fear that drives you away." Al-Jaleel is the Majestic whose awe refines the servant. (Yaqeen, The Name I Need Day 06)',
+    hadith: '',
     duaArabic:
         'يَا جَلِيلُ امْلَأْ قَلْبِي إِجْلَالًا لَكَ يُقَرِّبُنِي مِنْكَ لَا خَوْفًا يُبْعِدُنِي عَنْكَ',
     duaTransliteration:
@@ -1160,8 +1145,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One whose power is unshakeable and inexhaustible.',
     lesson:
         'When everything around you is shaking, Al-Mateen is the unshakeable ground.',
-    hadith:
-        'The Prophet ﷺ said: "Shall I not teach you a treasure from beneath the throne? La hawla wa la quwwata illa billah." (Bukhari & Muslim)',
+    hadith: 'The Prophet ﷺ said: "O \'Abdullah bin Qais! Shall I teach you a sentence which is from the treasures of Paradise? (It is): La hawla wa la quwwata illa billah — there is neither might nor power except with Allah." All strength is Allah\'s alone. (Sahih al-Bukhari 6610 — Sahih)',
     duaArabic:
         'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
     duaTransliteration:
@@ -1177,8 +1161,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who is the helper and protector of the believers.',
     lesson:
         'You are never alone. Al-Waliyy is closer to you than your own loneliness.',
-    hadith:
-        'The Prophet ﷺ said: "Be in this world as if you are a stranger or a wayfarer." Your only consistent companion is Al-Wali. (Bukhari)',
+    hadith: 'In a hadith qudsi, the Prophet ﷺ reported that Allah said: "I will declare war against him who shows hostility to a pious worshipper of Mine… and if he asks Me, I will give him, and if he asks My protection (Refuge), I will protect him." Al-Waliyy is the ally who never withdraws. (Sahih al-Bukhari 6502 — Sahih)',
     duaArabic:
         'اللَّهُمَّ أَنْتَ الصَّاحِبُ فِي السَّفَرِ وَالْخَلِيفَةُ فِي الْأَهْلِ',
     duaTransliteration:
@@ -1194,8 +1177,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who is worthy of all praise in every situation.',
     lesson:
         'Even in hardship, Al-Hameed deserves praise — and praising Him transforms the hardship.',
-    hadith:
-        'In a Hadith Qudsi: "O child of Adam, devote yourself to My worship, and I will fill your heart with richness." The more you praise a blessing, the more fulfilling it becomes. (Muslim)',
+    hadith: 'The Prophet ﷺ said: "Allah is pleased with His servant who says: Al-Hamdu lillah while taking a morsel of food and while drinking." Al-Hameed is praised in the smallest mouthful. (Sahih Muslim 2734a — Sahih)',
     duaArabic:
         'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ',
     duaTransliteration:
@@ -1211,8 +1193,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who counts and records everything with precision.',
     lesson:
         'Al-Muhsi has numbered every tear you have shed. None are forgotten.',
-    hadith:
-        'The Prophet ﷺ said: "Not a leaf falls but that He knows it. There is no grain in the darkness of the earth, nor anything moist or dry, but that it is written in a clear record." Al-Muhsi has numbered every tear. (Quran 6:59)',
+    hadith: 'Allah says: "…Not a leaf falls but that He knows it. And no grain is there within the darknesses of the earth and no moist or dry [thing] but that it is [written] in a clear record." Al-Muhsi has numbered every tear. (Quran 6:59)',
     duaArabic:
         'يَا مُحْصِي لَا تُحَاسِبْنِي بِمَا أَحْصَيْتَهُ عَلَيَّ وَاعْفُ عَنِّي بِرَحْمَتِكَ',
     duaTransliteration:
@@ -1294,8 +1275,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Finder',
     meaning: 'The One who finds whatever He wills and lacks nothing.',
     lesson: 'Al-Wajid is never at a loss. He always finds a way for you.',
-    hadith:
-        'The Prophet ﷺ said: "Allah is never at a loss for what you need." Al-Wajid finds whatever He wills and lacks nothing — He always finds a way for His servant. (Derived from Names teachings)',
+    hadith: '',
     duaArabic:
         'يَا وَاجِدُ أَوْجِدْ لِي مَخْرَجًا مِمَّا أَنَا فِيهِ وَلَا تَكِلْنِي إِلَى نَفْسِي',
     duaTransliteration:
@@ -1356,8 +1336,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Capable',
     meaning: 'The One who has power over all things without effort.',
     lesson: 'What seems impossible to you is effortless for Al-Qadir.',
-    hadith:
-        'The Prophet ﷺ said: "Nothing is beyond the power of Allah." Al-Qadir parts seas and revives the dead — what seems impossible to you is effortless for Al-Qadir. (Muslim)',
+    hadith: '',
     duaArabic:
         'يَا قَادِرُ لَا يَعْجِزُكَ شَيْءٌ فَاقْضِ لِي حَاجَتِي وَأَعِنِّي عَلَى مَا أَعْجَزَنِي',
     duaTransliteration:
@@ -1389,8 +1368,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who brings forward whatever He wills.',
     lesson:
         'Al-Muqaddim advances what is good for you, even when you cannot see the timing.',
-    hadith:
-        'The Prophet ﷺ said: "Your rizq chases you the way death chases you." What Al-Muqaddim advances is always on time. (Hadith)',
+    hadith: 'The Prophet ﷺ used to invoke: "…Allahumma ighfir li ma qaddamtu wa ma akhkhartu wa ma asrartu wa ma a\'lantu. Anta-l-muqaddimu wa anta-l-mu\'akhkhiru, wa anta \'ala kulli shai\'in qadir." Al-Muqaddim is named in the Prophet\'s own supplication — He brings forward whom He wills. (Sahih al-Bukhari 6398 — Sahih)',
     duaArabic:
         'اللَّهُمَّ اجْعَلْنِي رَاضِيًا بِمَا قَسَمْتَ لِي وَبَارِكْ لِي فِيهِ',
     duaTransliteration:
@@ -1471,8 +1449,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Hidden',
     meaning: 'The One who is hidden from human perception yet closer than all.',
     lesson: 'Al-Batin is invisible to the eyes but unmistakable to the heart.',
-    hadith:
-        'A man the Prophet ﷺ pointed to as a person of Jannah had one hidden deed: "I never go to sleep without cleaning my heart of any hatred toward any person." (Ahmad)',
+    hadith: '',
     duaArabic:
         'أَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَيْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَيْءٌ',
     duaTransliteration:
@@ -1504,8 +1481,7 @@ const List<CollectibleName> allCollectibleNames = [
     meaning: 'The One who is exalted above all that creation ascribes to Him.',
     lesson:
         'No matter how grand your conception of God — Al-Mutaali is greater.',
-    hadith:
-        'The Prophet ﷺ said: "Whoever humbles himself for Allah, Allah exalts him. Whoever exalts himself, Allah lowers him." (Muslim)',
+    hadith: '',
     duaArabic:
         'يَا عَلِيُّ يَا مُتَعَالِي ارْفَعْ قَلْبِي فَوْقَ الضَّغِينَةِ وَالصِّغَارِ',
     duaTransliteration:
@@ -1520,8 +1496,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Source of Goodness',
     meaning: 'The One who is the source of all kindness and benevolence.',
     lesson: 'Every good thing in your life traces back to Al-Barr.',
-    hadith:
-        'The Prophet ﷺ said upon completing Hajj: "Our Lord is Al-Barr, Al-Ghafur." Al-Barr is the source of all kindness whose goodness is the origin of every blessing you have received. (Muslim 1342)',
+    hadith: '',
     duaArabic:
         'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ قُلُوبُ',
     duaTransliteration:
@@ -1662,8 +1637,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Withholder',
     meaning: 'The One who prevents harm and withholds what would not benefit.',
     lesson: 'What Al-Mani withholds from you is also a form of His protection.',
-    hadith:
-        'The Prophet ﷺ said: "What Allah withholds is also His mercy." Al-Mani prevents what would harm and withholds what would not benefit — His prevention is His protection. (Derived from Names teachings)',
+    hadith: 'The Prophet ﷺ used to say after every compulsory prayer: "…Allahumma la mani\'a lima a\'taita, wa la mu\'tiya lima mana\'ta… [O Allah! Nobody can hold back what you gave, nobody can give what You held back…]" What Al-Mani withholds, no one can release. (Sahih al-Bukhari 844 — Sahih)',
     duaArabic:
         'يَا مَانِعُ امْنَعْ عَنِّي كُلَّ مَا يُبَاعِدُنِي عَنْكَ وَأَعْطِنِي كُلَّ مَا يُقَرِّبُنِي إِلَيْكَ',
     duaTransliteration:
@@ -1695,8 +1669,7 @@ const List<CollectibleName> allCollectibleNames = [
     english: 'The Benefiter',
     meaning: 'The One who creates benefit and good for His servants.',
     lesson: 'An-Nafi placed benefit in places you have not yet looked.',
-    hadith:
-        'The Prophet ﷺ said: "Ask Allah for benefit (naf\') in this world and the next." An-Nafi placed benefit in places you have not yet looked — every good thing traces back to Him. (Ibn Majah 3846)',
+    hadith: '',
     duaArabic:
         'اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا',
     duaTransliteration:

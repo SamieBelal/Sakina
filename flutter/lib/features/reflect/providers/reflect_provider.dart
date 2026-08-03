@@ -735,6 +735,33 @@ Future<bool> saveMuhasabahReflection(SavedReflection reflection) async {
   for (final notifier in _liveReflectNotifiers.toList()) {
     notifier.adoptExternalReflection(reflection);
   }
+
+  // Wave H — the night is a journal entry, so it emits the journal's event.
+  //
+  // Here and not in `daily_loop_provider.completeDeeper()` on purpose: this
+  // function is the one path that owns the muḥāsabah row, and only it knows
+  // that a row was actually WRITTEN. The two silent returns above — the day
+  // already had its entry, and the server refused the insert — are exactly the
+  // cases an emit at the call site would have counted as journal entries that
+  // do not exist.
+  //
+  // `auto: true`, for the same reason the auto-saved built duʿā is: the user
+  // wrote the words, but nothing asked them to save. The deliberate-save slice
+  // (`auto: false`) stays what it has always been.
+  //
+  // Guarded, because a throwing hook here would be indistinguishable from a
+  // failed write to the caller — it would return an exception instead of
+  // `true`, and `_persistMuhasabahEntry`'s catch would then skip the state
+  // write that puts tonight's entry on the completion screen.
+  try {
+    ReflectNotifier.onAnalyticsEvent?.call(AnalyticsEvents.journalEntryCreated, {
+      AnalyticsEvents.propEntryType: AnalyticsEvents.entryTypeReflection,
+      AnalyticsEvents.propAuto: true,
+      AnalyticsEvents.propSource: AnalyticsEvents.journalSourceMuhasabah,
+    });
+  } catch (_) {
+    // Telemetry never costs the row.
+  }
   return true;
 }
 
@@ -1654,6 +1681,13 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     onAnalyticsEvent?.call(AnalyticsEvents.journalEntryCreated, {
       AnalyticsEvents.propEntryType: AnalyticsEvents.entryTypeReflection,
       AnalyticsEvents.propAuto: false,
+      // Wave H. The property, not a second event — see [journalSourceReflect].
+      // Hard-coded rather than read off `reflection.source` because this method
+      // is the Reflect writer by construction: it passes no `source` to
+      // `buildSavedReflection`, so the row is `reflect` or the default changed
+      // underneath it, and in the second case the event should be wrong loudly
+      // rather than follow it quietly.
+      AnalyticsEvents.propSource: AnalyticsEvents.journalSourceReflect,
     });
   }
 

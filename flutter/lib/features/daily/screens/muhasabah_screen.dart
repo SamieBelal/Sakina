@@ -1077,9 +1077,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   AddToTonightCard(
                     thread: entry.thread,
-                    onAppend: (text) => ref
-                        .read(dailyLoopProvider.notifier)
-                        .appendToTonight(text),
+                    onAppend: (text) =>
+                        ref.read(dailyLoopProvider.notifier).appendToTonight(
+                              text,
+                              surface: AnalyticsEvents.surfaceMuhasabah,
+                            ),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.xl),

@@ -26,6 +26,7 @@ import 'package:sakina/features/daily/widgets/daily_question_opening_line.dart';
 import 'package:sakina/features/daily/widgets/time_machine_card.dart';
 import 'package:sakina/features/daily/widgets/tonight_entry_summary.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
@@ -42,6 +43,12 @@ class _StubLoop extends DailyLoopNotifier {
   }
 
   final List<String> appends = [];
+
+  /// Wave H: which surface the append claimed to come from. The completion
+  /// screen and the Journal's compose sheet share one write, and the ONLY thing
+  /// separating them in the data is this argument — so a call site that forgets
+  /// to pass it files a Journal append under the muḥāsabah.
+  final List<String> appendSurfaces = [];
   final List<String> azms = [];
   int discoverCalls = 0;
   bool appendSucceeds = true;
@@ -55,7 +62,11 @@ class _StubLoop extends DailyLoopNotifier {
   }
 
   @override
-  Future<bool> appendToTonight(String text) async {
+  Future<bool> appendToTonight(
+    String text, {
+    String surface = AnalyticsEvents.surfaceMuhasabah,
+  }) async {
+    appendSurfaces.add(surface);
     appends.add(text);
     if (!appendSucceeds) return false;
     final entry = state.tonightEntry!;
