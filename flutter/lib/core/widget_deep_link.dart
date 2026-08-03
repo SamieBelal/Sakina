@@ -34,10 +34,18 @@ String? parseWidgetDeepLink(Uri? uri) {
       return '/muhasabah?$questionEntryQueryParam=$questionEntryWidget';
     case 'build-dua':
       return '/duas';
+    case 'fix-location':
+      // The widget can state that precise times are off but has no room to say
+      // how to fix it — the small cue is one line at ~28 characters. So the
+      // widget points and the app explains.
+      return kFixLocationRoute;
     default:
       return null;
   }
 }
+
+/// Where a widget "precise times are off" tap lands.
+const String kFixLocationRoute = '/precise-times';
 
 /// The widget-link target segment (`muhasabah` / `build-dua`), or null if [uri]
 /// is not a recognised widget link. Shared by the router mapping and the
@@ -125,7 +133,11 @@ class WidgetDeepLinkHandler {
     // `dua_live_activity_tapped` attribution lives solely in the router redirect
     // (single owner — no double-count). See lib/core/router.dart.
     onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
-      'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
+      'target': switch (_widgetTarget(uri)) {
+        'build-dua' => 'build_dua',
+        'fix-location' => 'fix_location',
+        _ => 'muhasabah',
+      },
       'launch': cold ? 'cold' : 'warm',
       // Which widget drove the tap — the duʿā-times widget tags its link
       // `source=dua_times_widget`, while the daily-Name widget tags

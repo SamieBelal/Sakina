@@ -110,8 +110,16 @@ private func resolve(at date: Date) -> DuaRender {
     }
 }
 
+/// Bundled fallback = no fresh payload, and from here we CANNOT tell whether
+/// that is because the user never granted location or because the payload went
+/// stale. So this uses `promptEnable`, whose copy is deliberately neutral
+/// ("Open Sakina for precise times" — no "turn on"), and whose tap lands on the
+/// in-app explainer that CAN work out which case it is.
+///
+/// Using `needsRefresh` here instead was wrong: a user who never granted and
+/// then left the app for 48h would be told to "refresh your times" and dropped
+/// on Build-a-Duʿā with nothing to refresh.
 private func resolveFromBundledCalendar(at date: Date, cal: Calendar) -> DuaRender {
-    // Bundled fallback = no fresh located schedule → always prompt to open the app.
     guard let file = loadBundledCalendar() else {
         return DuaRender(window: nil, urgency: .upcoming, isActive: false,
                          at: date, promptEnable: true)
@@ -246,6 +254,17 @@ private func duaDeepLinkURL() -> URL {
     URL(string: "sakina://widget/build-dua?homeWidget&source=dua_times_widget")!
 }
 
+/// Where a tap should land given what the widget is currently saying.
+///
+/// systemSmall has exactly ONE tap target (`.widgetURL` covers the whole card),
+/// so when the card's only message is "precise times are off" that tap has to
+/// go somewhere that can actually explain it — the widget has no room to. A
+/// refresh hint still routes to Build-a-Duʿā: opening the app is itself the fix.
+private func duaDeepLinkURL(for render: DuaRender) -> URL {
+    guard render.promptEnable else { return duaDeepLinkURL() }
+    return URL(string: "sakina://widget/fix-location?homeWidget&source=dua_times_widget")!
+}
+
 // MARK: - Countdown rule (§9 bullet 3 / §9.1 ladder)
 
 /// Live `Text(timerInterval:)` ONLY for near time-boxed targets (closing /
@@ -376,7 +395,7 @@ private struct DuaSmallView: View {
                 .clipShape(Capsule())
         }
         .padding(14)
-        .widgetURL(duaDeepLinkURL())
+        .widgetURL(duaDeepLinkURL(for: render))
     }
 
     @ViewBuilder private var cue: some View {
@@ -396,8 +415,12 @@ private struct DuaSmallView: View {
     }
 
     private var cueText: String {
-        // Location off → point them to the app (widget can't prompt).
+        // Neutral on purpose. This one line has to serve both a user who never
+        // granted and one whose grant lapsed — they need the identical action,
+        // and the widget has no way to tell them apart. "Turn on" would presume.
         if render.promptEnable { return "Open Sakina · precise times" }
+        // We have their location; this payload is just stale or from elsewhere.
+        if render.needsRefresh { return "Open Sakina · refresh times" }
         guard let w = render.window else { return "" }
         if render.isActive {
             if w.isAllDay { return "today only" }
@@ -446,10 +469,19 @@ private struct DuaMediumView: View {
                     .foregroundColor(urgent ? Color(red: 0.29, green: 0.20, blue: 0.09) : Palette.ink)
                     .lineLimit(1).minimumScaleFactor(0.55)
                 if render.promptEnable {
-                    // Widget extensions can't request location — tell a
-                    // widget-only user where the switch is (spec §9).
-                    Label("Open Sakina to turn on precise times",
+                    // Widget extensions can't request location — point the user
+                    // back into the app (spec §9). Phrased WITHOUT "turn on":
+                    // this fires for a lapsed grant too, and telling someone who
+                    // already granted to turn it on is the bug we are fixing.
+                    Label("Open Sakina for precise times",
                           systemImage: "location.circle.fill")
+                        .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
+                        .foregroundColor(Palette.goldInk)
+                        .lineLimit(2).minimumScaleFactor(0.75)
+                } else if render.needsRefresh {
+                    // Located, but this payload is stale or from another city.
+                    Label("Open Sakina to refresh your times",
+                          systemImage: "arrow.clockwise.circle.fill")
                         .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
                         .foregroundColor(Palette.goldInk)
                         .lineLimit(2).minimumScaleFactor(0.75)
@@ -476,7 +508,7 @@ private struct DuaMediumView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
-        .widgetURL(duaDeepLinkURL())
+        .widgetURL(duaDeepLinkURL(for: render))
     }
 
     private var kicker: String {
@@ -550,7 +582,7 @@ private struct DuaRectView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .widgetURL(duaDeepLinkURL())
+        .widgetURL(duaDeepLinkURL(for: render))
     }
 
     /// The verb at the LARGEST size that fits the accessory width on one line.
@@ -585,6 +617,15 @@ private struct DuaRectView: View {
         }
     }
 
+    /// Lock-screen accessories deliberately show NO location nudge, unlike the
+    /// home-screen sizes.
+    ///
+    /// This asymmetry is a choice, not an oversight. The accessory slot is a
+    /// fixed OS size with one line and unreliable `minimumScaleFactor`, so a
+    /// nudge here would not sit beside the window info — it would replace it,
+    /// and the user would lose the only thing the accessory is for. The
+    /// home-screen widget already carries the message, and a user with a
+    /// lock-screen accessory almost always has the app too.
     private var cueText: String {
         guard let w = render.window else { return "" }
         if render.isActive {

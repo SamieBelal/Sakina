@@ -134,6 +134,11 @@ void main() {
     var advanced = 0;
     await pump(tester, onNext: () => advanced++);
 
+    // Card 0 is Duʿā Times, so the location primer comes first (below); swipe
+    // to a card that has no location dependency to pin the how-to on its own.
+    await tester.drag(find.byType(PageView), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text(WidgetOfferScreen.ctaLabel));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -142,5 +147,77 @@ void main() {
     expect(find.textContaining('Search for "Sakina"'), findsOneWidget);
     expect(advanced, 0,
         reason: 'the how-to is a sheet over the page, not a step forward');
+  });
+
+  // ── The location ask (2026-08) ────────────────────────────────────────────
+
+  testWidgets('the Duʿā Times CTA primes the location ask first',
+      (tester) async {
+    await pump(tester);
+
+    // Card 0 is Duʿā Times — the one widget that cannot work without location,
+    // and a widget extension can never ask for it itself.
+    await tester.tap(find.text(WidgetOfferScreen.ctaLabel));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.textContaining('needs your location'), findsOneWidget);
+    // The diagram names the durable choice. "Allow Once" reverting on the next
+    // cold launch is what put the reporting tester in a re-prompt loop.
+    expect(find.text('Allow While Using App'), findsOneWidget);
+    expect(find.textContaining('Allow Once'), findsWidgets);
+  });
+
+  testWidgets('the location primer has exactly one button and no way past it',
+      (tester) async {
+    // Apple's pre-alert rules name location explicitly: "include only one
+    // button… don't include an option to cancel… don't include an option to
+    // close the view." Notifications are NOT on that list, which is why the
+    // notification screen's "Not now" is not safe to copy here.
+    await pump(tester);
+
+    await tester.tap(find.text(WidgetOfferScreen.ctaLabel));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // One button in the sheet, and no cancel/close of its own. ("Not now" still
+    // exists on the page BEHIND the scrim — that is the widget offer, not the
+    // location pre-alert, and it is not reachable while the sheet is up.)
+    final sheet = find.ancestor(
+      of: find.textContaining('needs your location'),
+      matching: find.byType(SingleChildScrollView),
+    );
+    expect(sheet, findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('Continue')),
+        findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('Cancel')),
+        findsNothing);
+    expect(
+        find.descendant(
+            of: sheet, matching: find.text(WidgetOfferScreen.skipLabel)),
+        findsNothing);
+
+    // And it cannot be dismissed by tapping the scrim — the one button is the
+    // only way forward.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('needs your location'), findsOneWidget,
+        reason: 'a location pre-alert must not be dismissible');
+  });
+
+  testWidgets('a non-location widget never sees the location primer',
+      (tester) async {
+    await pump(tester);
+
+    await tester.drag(find.byType(PageView), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(WidgetOfferScreen.ctaLabel));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.textContaining('needs your location'), findsNothing,
+        reason: 'only Duʿā Times depends on location');
   });
 }

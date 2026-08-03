@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/progress/screens/progress_screen.dart';
 import '../features/reflect/screens/reflect_screen.dart';
+import '../features/dua_times/screens/precise_times_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
 import '../features/journal/screens/journal_screen.dart';
 import '../features/quests/screens/quests_screen.dart';
@@ -388,6 +389,15 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
             path: '/store',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: StoreScreen(),
+            ),
+          ),
+          // Where the duʿā-times widget's "precise times are off" tap lands,
+          // and where the Settings row links. The widget can state the problem
+          // in ~28 characters and no more, so the explaining happens here.
+          GoRoute(
+            path: kFixLocationRoute,
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: PreciseTimesScreen(),
             ),
           ),
         ],

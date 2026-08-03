@@ -88,6 +88,16 @@ abstract final class AnalyticsEvents {
   static const onboardingWidgetPreviewed = 'onboarding_widget_previewed';
   static const onboardingWidgetCtaTapped = 'onboarding_widget_cta_tapped';
   static const onboardingWidgetSkipped = 'onboarding_widget_skipped';
+
+  /// How the onboarding location ask resolved, fired only on the Duʿā Times
+  /// card's CTA path. Carries [propOutcome]:
+  /// `granted|denied|openedSettings|servicesOff`.
+  ///
+  /// This is the leading indicator for the whole precise-times funnel: the
+  /// system dialog is a one-shot resource, so the granted rate HERE bounds
+  /// everything downstream. Pair it with `dua_times_precise_state` to see how
+  /// many of the grants later lapse.
+  static const onboardingLocationResult = 'onboarding_location_result';
   static const String propWidgetKind = 'widget_kind';
   // First-visit hints (Wave F3 — what replaced the deleted tour). Without
   // these we cannot tell whether the Reflect hint moves the 13.0%-vs-36.8%
@@ -617,9 +627,42 @@ abstract final class AnalyticsEvents {
   /// Fired when the user grants location permission from the card affordance.
   static const String duaTimesLocationGranted = 'dua_times_location_granted';
 
-  /// Fired when the user denies (or has permanently denied) location from the
-  /// card affordance — the card degrades to calendar + soft-night windows.
+  /// Fired when the user denies location from the card affordance — the card
+  /// degrades to calendar + soft-night windows.
+  ///
+  /// **Narrowed 2026-08.** This used to also fire for the `deniedForever`
+  /// Settings round-trip, which was a lie: the user denied nothing there and
+  /// many granted seconds later in Settings. That case is now
+  /// [duaTimesLocationSettingsOpened]. Comparisons of the granted:denied ratio
+  /// across that date are not valid.
   static const String duaTimesLocationDenied = 'dua_times_location_denied';
+
+  /// Fired when the tap routed the user to an OS Settings page instead of
+  /// resolving in-flow — permission was `deniedForever`, or the app grant is
+  /// held but device Location Services are off. Props: `precise_state`.
+  static const String duaTimesLocationSettingsOpened =
+      'dua_times_location_settings_opened';
+
+  /// The deduped state-of-the-world event for precise times: fired when the
+  /// state CHANGES, not per rebuild (same rationale as [duaScheduleBuilt] —
+  /// `rebuild()` runs on every Control-Center bounce).
+  ///
+  /// THE event that verifies the 2026-08 re-nag fix: `never_asked` following a
+  /// prompt must go to zero, and `permission_lapsed` sizes the iOS "Allow Once"
+  /// cohort this fix exists to rescue. Props: `precise_state`, `permission`.
+  static const String duaTimesPreciseState = 'dua_times_precise_state';
+
+  /// The paused notice actually rendered. Without this we cannot tell "shown
+  /// and ignored" from "silently spent on a frame nobody saw" — the ambiguity
+  /// that made the 2026-08-03 device QA inconclusive. Props: `precise_state`.
+  static const String duaTimesPreciseNoticeShown =
+      'dua_times_precise_notice_shown';
+
+  /// The user dealt with that notice. `action` is `opened` (tapped through to
+  /// the steps) or `dismissed` (the ✕) — the ratio is the whole readout on
+  /// whether the notice is a help or a nuisance.
+  static const String duaTimesPreciseNoticeAction =
+      'dua_times_precise_notice_action';
 
   // ── Duʿā Times Live Activity (Lock Screen + Dynamic Island) ──
   // Phase 2 of Duʿā Times: the same active-window countdown promoted to the
@@ -691,6 +734,18 @@ abstract final class AnalyticsEvents {
   static const String propHasActive = 'has_active';
   static const String propHasNext = 'has_next';
   static const String propLocationPresent = 'location_present';
+
+  /// `working|never_asked|permission_lapsed|services_off|unresolved` — keep in
+  /// sync with `PreciseTimesState.wireName`.
+  static const String propPreciseState = 'precise_state';
+
+  /// What the user did with a surface that offers more than one exit — today
+  /// only [duaTimesPreciseNoticeAction] (`opened` vs `dismissed`).
+  static const String propAction = 'action';
+
+  /// `granted|services_off|denied|denied_forever|undetermined` — what the OS
+  /// said at the moment the state was resolved.
+  static const String propPermission = 'permission';
   static const String propCount = 'count';
   static const String propOutcome = 'outcome';
 

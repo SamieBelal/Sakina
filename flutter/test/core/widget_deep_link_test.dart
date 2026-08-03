@@ -52,6 +52,17 @@ void main() {
           parseWidgetDeepLink(Uri.parse('sakina://widget/unknown?homeWidget')),
           isNull);
     });
+
+    // The widget can say precise times are off in about 28 characters and no
+    // more, so the tap has to land somewhere that can explain the fix. Before
+    // this it went to /duas like every other tap, with no explanation at all.
+    test('fix-location → the precise-times explainer', () {
+      expect(
+        parseWidgetDeepLink(Uri.parse(
+            'sakina://widget/fix-location?homeWidget&source=dua_times_widget')),
+        kFixLocationRoute,
+      );
+    });
   });
 
   group('WidgetDeepLinkHandler', () {

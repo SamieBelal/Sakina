@@ -6,6 +6,7 @@ import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/dua_notification_scheduler.dart';
 import 'package:sakina/services/dua_precise_sync_service.dart';
+import 'package:sakina/services/dua_precise_sync_state_store.dart';
 import 'package:sakina/services/dua_window_engine.dart';
 import 'package:sakina/services/dua_window_repository.dart';
 import 'package:sakina/services/location_service.dart';
@@ -18,6 +19,10 @@ import 'package:sakina/services/notification_service.dart';
 /// that often is wasteful, so within this window a non-forced sync is skipped.
 /// A forced [apply] (opt-in toggle, Dev Tools) bypasses it.
 const Duration kDuaPreciseSyncThrottle = Duration(hours: 6);
+
+/// Retry spacing after a FAILED sync. A Supabase blip should be retried on the
+/// next foreground, not sat out for six hours — but not hammered either.
+const Duration kDuaPreciseSyncRetryThrottle = Duration(minutes: 15);
 
 /// Builds the precise-sync service from the app-wide engine/location services.
 /// Null when the local scheduler is unavailable (web / tests without the
@@ -73,11 +78,16 @@ class DuaNotificationGate {
     required NotificationService notificationService,
     DuaPreciseSyncService? preciseSync,
     Duration preciseSyncThrottle = kDuaPreciseSyncThrottle,
+    Duration preciseRetryThrottle = kDuaPreciseSyncRetryThrottle,
+    DuaPreciseSyncStateStore? syncStateStore,
     DateTime Function()? clock,
   })  : _scheduler = scheduler,
         _notificationService = notificationService,
         _preciseSync = preciseSync,
         _preciseThrottle = preciseSyncThrottle,
+        _retryThrottle = preciseRetryThrottle,
+        _syncState =
+            syncStateStore ?? SharedPreferencesDuaPreciseSyncStateStore(),
         _clock = clock ?? DateTime.now;
 
   /// Static analytics hook (mirrors [DuaWindowNotifier.onAnalyticsEvent]). Wired
@@ -94,10 +104,9 @@ class DuaNotificationGate {
   /// the gate degrades to the local calendar path only.
   final DuaPreciseSyncService? _preciseSync;
   final Duration _preciseThrottle;
+  final Duration _retryThrottle;
+  final DuaPreciseSyncStateStore _syncState;
   final DateTime Function() _clock;
-
-  /// Throttle state — the last instant a precise sync actually ran.
-  DateTime? _lastPreciseSync;
 
   /// Reschedule the calendar band from [schedule] AND sync the server-push
   /// precise instants when opted in AND the `notify_dua_windows` category is on;
@@ -118,7 +127,10 @@ class DuaNotificationGate {
         localTzName: schedule.computedAt.tz,
         force: force,
       );
-      final syncResult = await _syncPrecise(force: force);
+      final syncResult = await _syncPrecise(
+        force: force,
+        locationPresent: schedule.computedAt.lat != null,
+      );
       // Emit only when a sync actually RAN and did something (null =
       // throttle-skipped / no plugin; `skipped` = signed-out no-op). Naturally
       // rate-limited to ~once/6h/user + on toggles — the synced-instant volume
@@ -129,6 +141,11 @@ class DuaNotificationGate {
         onAnalyticsEvent?.call(AnalyticsEvents.duaNotifSynced, {
           AnalyticsEvents.propCount: syncResult.count,
           AnalyticsEvents.propOutcome: syncResult.outcome.name,
+          AnalyticsEvents.propLocationPresent: syncResult.locationPresent,
+          // Splits `retained` into "the user's location lapsed" vs a copy-book
+          // bug, and marks the rare genuine `cleared`.
+          if (syncResult.reason != null)
+            AnalyticsEvents.propReason: syncResult.reason,
           // Per-sync join key to the server `notification_sent{dua_window}`
           // (present only on a `synced` outcome).
           if (syncResult.syncVersion != null)
@@ -140,27 +157,74 @@ class DuaNotificationGate {
     }
   }
 
-  /// Run the precise sync, honoring the throttle unless [force]. The sync itself
-  /// degrades silently; the throttle here only avoids needless recompute +
-  /// round-trips on the high-frequency rebuild path.
-  /// Returns the sync result when a sync actually ran, or null when it was
-  /// skipped (no precise-sync available, or throttled) so [apply] emits nothing.
-  Future<DuaPreciseSyncResult?> _syncPrecise({required bool force}) async {
+  /// Run the precise sync, honoring the throttle unless [force] — or unless the
+  /// user's location capability just came back.
+  ///
+  /// **The transition check is the fix for the grant that never reached the
+  /// server.** The old throttle stamped itself BEFORE awaiting the sync, so a
+  /// no-location run at cold launch armed the full 6h window just as hard as a
+  /// success. The user then tapped "Turn on", granted, the card rebuilt — and
+  /// this returned null. The reporter's every recorded sync was `cleared`,
+  /// never once `synced`, across two days on which a located schedule was built.
+  ///
+  /// It lives here rather than in `DuaWindowNotifier.rebuild()` on purpose: the
+  /// Settings and Dev Tools paths call [apply] directly with a schedule the
+  /// notifier never rebuilt, so a detector in the notifier would miss them
+  /// entirely — and a persisted flag is durable across cold launches in a way
+  /// the notifier's in-memory schedule cannot be.
+  ///
+  /// Returns null when nothing ran (no precise-sync available, or throttled) so
+  /// [apply] emits nothing.
+  Future<DuaPreciseSyncResult?> _syncPrecise({
+    required bool force,
+    required bool locationPresent,
+  }) async {
     final sync = _preciseSync;
     if (sync == null) return null;
     final now = _clock().toUtc();
-    if (!force && _lastPreciseSync != null) {
-      if (now.difference(_lastPreciseSync!) < _preciseThrottle) return null;
+    final state = await _syncState.read();
+
+    final regained = locationPresent && state.lastLocationPresent == false;
+    final neverSynced = state.lastSyncedAt == null;
+    final mustRun = force || regained || neverSynced;
+
+    if (!mustRun) {
+      final elapsed = now.difference(state.lastSyncedAt!);
+      if (elapsed < _preciseThrottle) return null;
     }
-    _lastPreciseSync = now;
-    return sync.sync();
+
+    final result = await sync.sync();
+    await _syncState.write(DuaPreciseSyncState(
+      lastSyncedAt: _armFor(result.outcome, now),
+      lastLocationPresent: result.locationPresent,
+    ));
+    return result;
   }
+
+  /// When to pretend the last sync happened, so the next one is spaced by the
+  /// right amount. Armed AFTER the sync and keyed on what it actually did.
+  DateTime? _armFor(DuaPreciseSyncOutcome outcome, DateTime now) =>
+      switch (outcome) {
+        // Signed out — sign-in should sync immediately, so arm nothing.
+        DuaPreciseSyncOutcome.skipped => null,
+        // Transient; retry after the short window rather than in six hours.
+        // Clamped: the two durations are independent constructor params, and a
+        // retry >= throttle would put `lastSyncedAt` in the FUTURE, making
+        // `elapsed` negative and the sync unreachable until a force or a regain.
+        DuaPreciseSyncOutcome.failed => _preciseThrottle > _retryThrottle
+            ? now.subtract(_preciseThrottle - _retryThrottle)
+            : now.subtract(_preciseThrottle),
+        DuaPreciseSyncOutcome.synced ||
+        DuaPreciseSyncOutcome.cleared ||
+        DuaPreciseSyncOutcome.retained =>
+          now,
+      };
 
   Future<void> _clearPrecise() async {
     final sync = _preciseSync;
     if (sync == null) return;
     // Reset the throttle so a later re-enable syncs immediately.
-    _lastPreciseSync = null;
+    await _syncState.clear();
     await sync.clear();
   }
 

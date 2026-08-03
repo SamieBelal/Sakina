@@ -58,7 +58,8 @@ class DuaWindowCatalog {
     type: DuaWindowType.fridayHour,
     tier: DuaWindowTier.hero,
     titleKey: 'dua_window.friday_hour.title',
-    sourceRef: 'al-Bukhari 935, Muslim 852; Abu Dawud/Nasaʾi (the last hour before Maghrib)',
+    sourceRef:
+        'al-Bukhari 935, Muslim 852; Abu Dawud/Nasaʾi (the last hour before Maghrib)',
   );
 
   /// The Friday hero window opens this many minutes before Maghrib. The hadith's

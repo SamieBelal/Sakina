@@ -33,6 +33,52 @@ class CoarseLocation {
       'CoarseLocation(lat: $lat, lon: $lon, fromCache: $fromCache)';
 }
 
+/// What the OS says about location access *right now*.
+///
+/// Deliberately distinct from [LocationGrantOutcome]: this is an observation,
+/// that is a result of asking. The card gates its copy on this, so it must
+/// separate "the user said no" from "the device's Location Services are off" —
+/// they need different words and different destinations.
+enum LocationReadiness {
+  /// Permission held AND device Location Services are on.
+  granted,
+
+  /// Permission held, but the device's Location Services are switched off.
+  /// Nothing the app can prompt for; the fix lives in the OS Settings app.
+  servicesOff,
+
+  /// Askable — the system dialog can still be shown.
+  denied,
+
+  /// "Never". iOS/Android will not re-show the dialog; Settings is the only way.
+  deniedForever,
+
+  /// Indeterminate (platform said so, or the lookup itself failed).
+  undetermined,
+}
+
+/// The outcome of an explicit user request for precise access.
+enum LocationGrantOutcome {
+  /// Permission held and Location Services on — a fix is obtainable.
+  granted,
+
+  /// The user declined (or the dialog resolved to denied).
+  denied,
+
+  /// We routed the user to an OS Settings page instead of a dialog. NOT a
+  /// denial — the user denied nothing, and many grant seconds later.
+  openedSettings,
+
+  /// Permission is fine but device Location Services are off; we routed to the
+  /// Location Services page.
+  servicesOff,
+}
+
+/// How long a coarse fix may take before we stop waiting and fall back to the
+/// cache. Public so tests and the plan can reference the number. Every
+/// foreground `resumed` retries, so a short bound costs nothing.
+const Duration kCoarseFixTimeout = Duration(seconds: 8);
+
 /// Wraps `geolocator` with a SharedPreferences cache so the duʿā-times feature
 /// works offline and never re-prompts on every launch (spec §4/§10).
 ///
@@ -40,7 +86,7 @@ class CoarseLocation {
 /// - **Coarse accuracy only** — prayer times need city-level precision, not
 ///   navigation-grade. Ships coarse for App Store data-minimization.
 /// - **Lazy prompt** — permission is requested only when a caller explicitly
-///   invokes [ensureOrOpenSettings]/[getCoarseLocation], never on construction.
+///   invokes [requestPreciseAccess]/[getCoarseLocation], never on construction.
 /// - **Graceful degrade** — permission denied / services off ⇒ returns `null`
 ///   (or the last cache) so callers fall back to calendar-only windows.
 ///
@@ -54,20 +100,27 @@ class LocationService {
     Future<bool> Function()? serviceEnabled,
     Future<Position> Function()? currentPosition,
     Future<bool> Function()? openAppSettings,
+    Future<bool> Function()? openLocationSettings,
     Future<SharedPreferences> Function()? prefs,
+    Duration? fixTimeout,
   })  : _checkPermission = checkPermission ?? Geolocator.checkPermission,
         _requestPermission = requestPermission ?? Geolocator.requestPermission,
         _serviceEnabled = serviceEnabled ?? Geolocator.isLocationServiceEnabled,
         _currentPosition = currentPosition ?? _defaultCurrentPosition,
         _openAppSettings = openAppSettings ?? Geolocator.openAppSettings,
-        _prefs = prefs ?? SharedPreferences.getInstance;
+        _openLocationSettings =
+            openLocationSettings ?? Geolocator.openLocationSettings,
+        _prefs = prefs ?? SharedPreferences.getInstance,
+        _fixTimeout = fixTimeout ?? kCoarseFixTimeout;
 
   final Future<LocationPermission> Function() _checkPermission;
   final Future<LocationPermission> Function() _requestPermission;
   final Future<bool> Function() _serviceEnabled;
   final Future<Position> Function() _currentPosition;
   final Future<bool> Function() _openAppSettings;
+  final Future<bool> Function() _openLocationSettings;
   final Future<SharedPreferences> Function() _prefs;
+  final Duration _fixTimeout;
 
   /// SharedPreferences keys for the cached coarse fix. Wiped on sign-out via
   /// [clearCache] (called from the widget clear hook) so a second user on the
@@ -76,8 +129,14 @@ class LocationService {
   static const String _lonKey = 'dua_times_last_lon';
 
   /// Coarse-accuracy request settings shared by fresh fixes.
-  static const LocationSettings _coarseSettings =
-      LocationSettings(accuracy: LocationAccuracy.low);
+  ///
+  /// `timeLimit` bounds the fix natively; [_fixTimeout] bounds it again in Dart
+  /// (see [getCoarseLocation]) because [_currentPosition] is an injectable seam
+  /// and a fake has no native timer.
+  static const LocationSettings _coarseSettings = LocationSettings(
+    accuracy: LocationAccuracy.low,
+    timeLimit: kCoarseFixTimeout,
+  );
 
   static Future<Position> _defaultCurrentPosition() =>
       Geolocator.getCurrentPosition(locationSettings: _coarseSettings);
@@ -100,24 +159,65 @@ class LocationService {
     return permission;
   }
 
-  /// Ensure permission for an explicit user tap ("Turn on precise times").
+  /// Observe-only: what does the OS say *right now*.
+  ///
+  /// Never prompts, never reads or writes the coarse cache, so it cannot weaken
+  /// the permission-gates-the-cache rule in [getCoarseLocation].
+  ///
+  /// **Swallows its own errors on purpose.** This runs on the foreground-resume
+  /// hot path via `DuaWindowNotifier.rebuild()`, whose catch block fires
+  /// `dua_schedule_build_failed`. Letting a platform-channel hiccup escape here
+  /// would poison the engine-health alarm with location noise.
+  Future<LocationReadiness> readiness() async {
+    try {
+      final permission = await _checkPermission();
+      switch (permission) {
+        case LocationPermission.whileInUse:
+        case LocationPermission.always:
+          return await _serviceEnabled()
+              ? LocationReadiness.granted
+              : LocationReadiness.servicesOff;
+        case LocationPermission.denied:
+          return LocationReadiness.denied;
+        case LocationPermission.deniedForever:
+          return LocationReadiness.deniedForever;
+        case LocationPermission.unableToDetermine:
+          return LocationReadiness.undetermined;
+      }
+    } catch (e) {
+      debugPrint('LocationService.readiness failed: $e');
+      return LocationReadiness.undetermined;
+    }
+  }
+
+  /// Request precise access for an explicit user tap, and report honestly what
+  /// happened.
   ///
   /// - `denied` (askable) ⇒ show the system prompt.
   /// - `deniedForever` ⇒ iOS/Android won't re-show the prompt after a "Never",
-  ///   so route the user to the OS app-settings page instead. Otherwise the
-  ///   button would silently do nothing.
-  ///
-  /// Returns `true` only when permission ended up granted in-flow. When we open
-  /// Settings we return `false` — the actual grant is picked up when the app
-  /// returns to the foreground and the schedule rebuilds.
-  Future<bool> ensureOrOpenSettings() async {
+  ///   so route to the OS app-settings page and report [openedSettings]. This
+  ///   is NOT a denial: the old `false` return was logged as
+  ///   `dua_times_location_denied` even when the user granted in Settings
+  ///   seconds later.
+  /// - granted **but device Location Services off** ⇒ there is no dialog to
+  ///   show, so route to the Location Services page and report [servicesOff].
+  ///   Without this branch the button is a visible no-op: the caller sees
+  ///   permission granted, shows no dialog, and nothing happens.
+  Future<LocationGrantOutcome> requestPreciseAccess() async {
     final permission = await _ensurePermission();
     if (permission == LocationPermission.deniedForever) {
       await _openAppSettings();
-      return false;
+      return LocationGrantOutcome.openedSettings;
     }
-    return permission == LocationPermission.whileInUse ||
+    final granted = permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always;
+    if (!granted) return LocationGrantOutcome.denied;
+
+    if (!await _serviceEnabled()) {
+      await _openLocationSettings();
+      return LocationGrantOutcome.servicesOff;
+    }
+    return LocationGrantOutcome.granted;
   }
 
   /// Fetch a coarse location, degrading gracefully.
@@ -147,7 +247,11 @@ class LocationService {
         return await _cached();
       }
 
-      final pos = await _currentPosition();
+      // Bounded twice on purpose — see [_coarseSettings]. Without the Dart-side
+      // timeout a hung fix leaves the caller awaiting forever, which showed up
+      // as a permanent "Turn on precise times" banner while analytics reported
+      // the grant as successful.
+      final pos = await _currentPosition().timeout(_fixTimeout);
       await _cache(pos.latitude, pos.longitude);
       return CoarseLocation(
         lat: pos.latitude,

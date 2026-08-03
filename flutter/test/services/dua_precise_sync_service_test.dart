@@ -57,6 +57,7 @@ class _FakeBackend implements DuaPreciseSyncBackend {
   int insertCalls = 0;
   int deleteBelowCalls = 0;
   int deleteAllCalls = 0;
+  int deleteFutureCalls = 0;
 
   /// When true, [insertRows] fails (to test the insert-before-delete guard).
   bool failInsert = false;
@@ -101,11 +102,32 @@ class _FakeBackend implements DuaPreciseSyncBackend {
   }
 
   @override
-  Future<bool> deleteRowsBelowVersion(String uid, int belowVersion) async {
+  Future<bool> deleteSupersededRows(
+    String uid,
+    int belowVersion, {
+    required DateTime nowUtc,
+    required Duration lateTolerance,
+  }) async {
     deleteBelowCalls++;
-    rows.removeWhere(
-      (r) => r['user_id'] == uid && (r['sync_version'] as int) < belowVersion,
-    );
+    final lateFloor = nowUtc.subtract(lateTolerance);
+    rows.removeWhere((r) {
+      if (r['user_id'] != uid) return false;
+      if ((r['sync_version'] as int) >= belowVersion) return false;
+      final fire = DateTime.parse(r['fire_utc'] as String).toUtc();
+      // The protected band: about to fire, or just fired. Never deleted — that
+      // is what makes a double-send impossible on this path.
+      final inBand = !fire.isBefore(lateFloor) && !fire.isAfter(nowUtc);
+      return !inBand;
+    });
+    return true;
+  }
+
+  @override
+  Future<bool> deleteFutureRowsForUser(String uid, DateTime fromUtc) async {
+    deleteFutureCalls++;
+    rows.removeWhere((r) =>
+        r['user_id'] == uid &&
+        DateTime.parse(r['fire_utc'] as String).toUtc().isAfter(fromUtc));
     return true;
   }
 
@@ -119,6 +141,10 @@ class _FakeBackend implements DuaPreciseSyncBackend {
 
 /// A [LocationService] wired to always return a granted coarse fix at [lat]/[lon]
 /// (no platform channel).
+/// The clock every `service()` in the sync group runs on. Named so the
+/// late-tolerance-band tests can position rows relative to "now".
+DateTime _fixedNow() => DateTime.utc(2027, 2, 5);
+
 LocationService _grantedLocation(double lat, double lon) {
   return LocationService(
     checkPermission: () async => LocationPermission.whileInUse,
@@ -340,7 +366,7 @@ void main() {
         engine: engineWith(calendar),
         locationService: location,
         backend: backend,
-        clock: () => now ?? DateTime.utc(2027, 2, 5),
+        clock: () => now ?? _fixedNow(),
         nightThirdPolicy: policy,
       );
     }
@@ -387,7 +413,9 @@ void main() {
       expect(result.syncVersion, 1);
     });
 
-    test('no location → cleared result (count 0, no sync_version)', () async {
+    // CHANGED 2026-08. This asserted `cleared`, which encoded the defect: an
+    // absent location was treated as an instruction to wipe the user's rows.
+    test('no location → retained result (count 0, no sync_version)', () async {
       final backend = _FakeBackend();
       final result = await service(
         calendar: calendarWith(),
@@ -395,7 +423,9 @@ void main() {
         backend: backend,
       ).sync();
 
-      expect(result.outcome, DuaPreciseSyncOutcome.cleared);
+      expect(result.outcome, DuaPreciseSyncOutcome.retained);
+      expect(result.reason, 'no_location');
+      expect(result.locationPresent, isFalse);
       expect(result.count, 0);
       expect(result.syncVersion, isNull);
     });
@@ -573,9 +603,18 @@ void main() {
           reason: 'no instant duplicated across interleaved syncs');
     });
 
-    test('no location → clears the user rows (empty instants)', () async {
+    // INVERTED 2026-08 — this test used to assert `deleteAllCalls == 1` and an
+    // empty table, i.e. it pinned the defect itself.
+    //
+    // The behaviour it protected ("empty instants ⇒ retire everything") was
+    // written at the sync seam, where a one-launch permission lapse is
+    // indistinguishable from a revocation, and without the server's own
+    // `push_enabled AND notify_dua_windows` re-check in view. In production it
+    // meant 8 of 10 users in a 30-day window had their rows wiped and their
+    // precise pushes stopped silently. Inverting it is the point of the change.
+    test('no location → RETAINS the user rows (no delete at all)', () async {
       final backend = _FakeBackend();
-      // Seed a stale row so we can prove it gets cleared.
+      // Seed a row so we can prove it survives.
       backend.rows.add(<String, dynamic>{
         'user_id': 'user-1',
         'window_type': 'iftar',
@@ -591,9 +630,63 @@ void main() {
         backend: backend,
       ).sync();
 
-      expect(backend.rows, isEmpty);
-      expect(backend.deleteAllCalls, 1);
+      expect(backend.rows, hasLength(1),
+          reason: 'still-correct prayer times must survive a lapse');
+      expect(backend.deleteAllCalls, 0);
+      expect(backend.deleteFutureCalls, 0);
       expect(backend.insertCalls, 0);
+    });
+
+    // The double-send pin. A row inside the late-tolerance band is either about
+    // to fire or has just fired; deleting it loses the push or the `sent_at`
+    // that stops it firing twice.
+    test('a just-fired in-band row survives a successful sync', () async {
+      final backend = _FakeBackend();
+      final now = _fixedNow();
+      backend.rows.add(<String, dynamic>{
+        'user_id': 'user-1',
+        'window_type': 'iftar',
+        // 30 minutes ago — inside the 1h band the server will still deliver.
+        'fire_utc': now.subtract(const Duration(minutes: 30)).toIso8601String(),
+        'sync_version': 1,
+        'sent_at': now.subtract(const Duration(minutes: 29)).toIso8601String(),
+        'title': 't',
+        'body': 'b',
+      });
+
+      await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      final survived = backend.rows.any((r) =>
+          r['sync_version'] == 1 && r['sent_at'] != null);
+      expect(survived, isTrue,
+          reason: 'deleting it would drop the at-most-once guard');
+    });
+
+    test('an expired out-of-band row is still retired', () async {
+      final backend = _FakeBackend();
+      final now = _fixedNow();
+      backend.rows.add(<String, dynamic>{
+        'user_id': 'user-1',
+        'window_type': 'iftar',
+        // 3 hours ago — the cron will never fire it. Safe to collect.
+        'fire_utc': now.subtract(const Duration(hours: 3)).toIso8601String(),
+        'sync_version': 1,
+        'title': 't',
+        'body': 'b',
+      });
+
+      await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      final stale = backend.rows.any((r) => r['sync_version'] == 1);
+      expect(stale, isFalse);
     });
 
     test('signed out → no-op', () async {
