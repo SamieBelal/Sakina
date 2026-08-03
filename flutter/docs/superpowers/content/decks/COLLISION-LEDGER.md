@@ -1468,3 +1468,53 @@ Aḍ-Ḍārr/An-Nāfiʿ · Al-Qābiḍ/Al-Bāsiṭ · Al-Khāfiḍ/Ar-Rāfiʿ ·
 **Rule: re-run surface (b) against `assets/content/name_stories.json` immediately before writing the report, and state the deck count you swept as a number in the report.** *"Checked against all shipped decks"* is not a measurement (§9ak); *"checked against 45 decks"* is one, and it is the number that lets a reader spot the staleness the drafter couldn't.
 
 **Corollary for whoever is coordinating:** when you merge decks mid-wave, the in-flight drafters' bar-3 numbers are now stale by construction. **Say so to them.** Do not wait for a verifier to find it — the verifier is usually sweeping the same stale copy, because it was briefed from the same starting state.
+
+### 9bj · Your own translation of a ḥadīth is not a source
+
+**§9bh banned splicing two translations. This is the case one step worse: no translation underneath at all.** A drafter put its own literal English of Bukhārī 6398's confession-prayer on a rendered beat, because **sunnah.com's English field for that particular ḥadīth is a transliteration, not a translation.**
+
+**A missing English field on one site is a fact about that site, not about the world (§9bc).** Bukhārī has published English editions. The rule stands exactly as §9bh wrote it: **re-render from the Arabic only when you name a published translation that agrees.** No agreeing translation reachable ⇒ do not ship your own. Cut back to the portion you can source, or move the claim to a beat whose English *is* sourced.
+
+**Say which you did.** "I could not find one" is a different disclosure from "I wrote my own", and only the second is a defect.
+
+### 9bk · If `قُلْ` fails bar 1, a prophet's reported speech fails a fortiori
+
+A drafter rested Al-Muakhkhir's bar 1 on **71:3–4, Nūḥ addressing his people**, arguing it is distinguishable from this project's earlier rejections (7:196, 12:101, 10:62) because Nūḥ is *a messenger relaying revealed content*, not a person giving personal testimony.
+
+**The argument runs backwards.** This corpus already rejected **`قُلْ` recitation** as a bar-1 carrier (the 112:1 ruling, `2026-08-03-al-ahad-DRAFT.md`). In a `قُلْ` verse **Allah dictates the exact words** — that is *closer* to divine self-speech than a narration of what a prophet said to his people, not further from it. So any argument admitting Nūḥ's speech must first overturn 112:1, and this one never addressed it.
+
+**Standing order for the whole ladder, strongest to weakest:** Allah narrating in His own voice **carries bar 1**; Allah quoting Himself inside a narrative **carries it**; `قُلْ`-instructed recitation **does not**; a prophet's reported speech **does not**; any other human speech about Allah **does not**. A new argument may move a rung, but it must engage the rung already ruled on, not step around it.
+
+### 9bl · Do not pick a translation to dodge a collision — and check the threshold first
+
+Same drafter chose **Mufti Taqi Usmani over Saheeh International for 71:3–4 specifically because Saheeh's wording shared a 2-gram with shipped `al-haleem@1`.**
+
+Two things wrong, and the second is the more useful one.
+
+1. **A translation is chosen for fidelity.** §9at: authored prose yields to a locked string; **quoted scripture does not yield to a rendered-string collision.** Shopping translations to dodge one inverts that — it makes the scripture the flexible part.
+2. **The finding threshold is a shared run of ≥3 words. Two is not a finding.** The drafter paid a real cost — a non-default translator on one beat — to fix something that was never on the books as a problem.
+
+**Check the threshold before you pay to clear it.** Half the "collisions" fixed under time pressure in this project were below the bar that defines one.
+
+### 9bm · §9bi, vindicated the same day it was written
+
+The first agent asked to re-sweep against 45 decks instead of its original 24 reported: *"kind"/"kindness" **5 → 7**, grew by 2* — `al-wahhab@1`'s "what kind of person" and `ar-rauf@1`'s "man**kind**". Verdict unchanged (neither is a Name-gloss; the deck renders neither word). **But the number moved, and the R0 report had stated the old one as current fact.**
+
+That is the whole shape of §9bi in one line: **the stale sweep was not wrong about its conclusion, it was wrong about its evidence** — and there was no way to tell from the report which kind of wrong it was. Every other number that agent re-ran came back unchanged, which is exactly why this failure mode survives: it is right most of the time.
+
+**Report the number you actually measured, at the size you actually measured it.**
+
+### 9bn · FIFTH must-pair ruling — Al-Muqaddim (77) / Al-Muakhkhir (78)
+
+**Ship as a pair, never solo. RULED — on the strongest grounds of the five.**
+
+The earlier four each rest on **one** convergence. This pair has **two independent ones**:
+
+1. **A byte-identical shared duʿā** in `collectible_names.json` (verified programmatically, not asserted).
+2. **A sole primary attestation naming both in one grammatically inseparable sentence** — Bukhārī 6398's «أَنْتَ الْمُقَدِّمُ وَأَنْتَ الْمُؤَخِّرُ». Full sweeps of `q-d-m` (48 occurrences, 8 forms) and `ʾ-kh-r` (250, 6 forms) found **no clean Qurʾānic demonstration of either Name**, so this one ḥadīth is the whole textual basis for both.
+
+**And §9bk makes the pairing structural rather than editorial.** Once Al-Muakhkhir's 71:3–4 carrier falls, both decks must rest bar 1 on 6398 — **each rendering only its own half of the sentence, never the twin's**, the 3:26 technique that already lets `al-malik@1`, `al-muizz@1` and `al-muzill@1` share one āyah three ways. A solo Al-Muakhkhir would then be **incoherent, not merely thin**: the only text naming it would be sitting on the other deck.
+
+**Distinct bar-1 carriers per twin is a preference. A carrier that clears bar 1 is a requirement.** When they conflict, the preference loses.
+
+**Running count: five pairs ruled must-ship-together, zero enforced in code (§9bg).**
