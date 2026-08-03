@@ -1518,3 +1518,27 @@ The earlier four each rest on **one** convergence. This pair has **two independe
 **Distinct bar-1 carriers per twin is a preference. A carrier that clears bar 1 is a requirement.** When they conflict, the preference loses.
 
 **Running count: five pairs ruled must-ship-together, zero enforced in code (§9bg).**
+
+### 9bo · Two reasoned refusals, two overturns — a refusal must close routes, not rank candidates
+
+**Al-Ghaniyy (92) and Al-Wajid (71) were both returned as "not draftable under today's constraints." Both now ship.** Neither drafter was careless — both ran full-corpus enumerations (18 occurrences of `ٱلْغَنِيُّ` predicated of Allah; 107 of `w-j-d`, 6 with Allah as subject) and both wrote up their sweeps honestly. **The sweeps were right. The conclusions were not.**
+
+They failed the same two ways, and both ways are now checkable before a refusal is accepted.
+
+**1. They collapsed the bar-1 carrier and the story into one text.** Both searched for a single passage that would *demonstrate* the Name and *carry* its root, and refused when none existed. **The deck does not require that.** `al-wahid@1` takes its story from 21:21–22 and recovers its root on a separate verse beat at 16:51; `al-muhyi@1` runs 30:48–50 and adds 41:39 as an independent second verse beat. Al-Ghaniyy shipped on exactly this split — Muslim 2577a clause 6 for the demonstration, 35:15–17 for the root.
+
+**2. They excluded the best candidate on grounds the corpus itself doesn't hold.** Al-Wajid's refusal ruled out 93:7 because taking it would put three decks across three consecutive āyāt of an 11-āyah sūrah. **That concentration is lower than what already ships:** `al-malik@1`, `al-muizz@1` and `al-muzill@1` divide **one āyah** (3:26) three ways, each rendering only its own clause. Al-Wajid shipped on 93:7 with `فَهَدَىٰ` elided by the same technique.
+
+**So: adjacency to a spent āyah is a disclosure, not a disqualification.** What disqualifies is rendering the neighbour's clause, and that is a thing you check, not a thing you infer from proximity.
+
+**The standard for accepting a refusal, from here:** it must name each route and say what closed it *on evidence*. **"I did not try it" is not a closed route, and "the best candidate sits near spent ground" is not a closure at all.** Al-Wajid's revision is the model of a closure done right — it went and fetched five Wayback captures of the lost-camel ḥadīth and found **zero** use of `w-j-d` in any of them (Bukhārī 6309 reads `أَضَلَّهُ`, Muslim 2747 uses `إِذَا هُوَ بِهَا قَائِمَةً`), then closed the route on a second independent ground as well. That is a closed route. A ranking of candidates is not.
+
+**Keep the refusal file either way.** Both enumerations survive as the most reusable artifact either agent produced; the drafts supersede the *conclusions*, not the sweeps.
+
+### 9bp · "This is the Name for…" is at 7 of 45 and needs a ruling
+
+Two agents measured the same bridge opener independently this wave and reported **6 of 45** and **7 of 45** shipped decks using it. §9o says a formulaic opening is not a collision, and that still holds — **but §9o was written when the corpus was 14 decks.**
+
+**At 7 of 45 this is no longer a template, it is a house tic**, and the failure it produces is invisible to every check we run: no shared *n*-gram threshold trips, no root collides, no citation repeats. A user meeting four decks in a week just feels that they all start the same way.
+
+**Not ruled here — flagged, with the number, for a founder call.** The options are to cap it (a stated maximum share of decks), to retire it for new decks while leaving shipped ones alone, or to accept it as deliberate house voice. **Whichever is chosen, it needs to be chosen**, because right now it is spreading by default and each drafter clears it individually against a rule written for a corpus a third this size.
