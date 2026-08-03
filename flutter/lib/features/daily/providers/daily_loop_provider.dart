@@ -650,6 +650,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // Pick quest dua
       final questDua = _pickQuestDua(hour);
 
+      // Every write below this line is post-await, and `_initialize` is
+      // fire-and-forget from the constructor — so the notifier can be disposed
+      // (route popped, container torn down) while those awaits are still in
+      // flight, and a write to a disposed StateNotifier throws. Same guard
+      // [_applyRewardClaimResult] already carries, for the same reason.
+      if (!mounted) return;
       state = state.copyWith(
         greeting: greeting,
         todaysQuestion: question,
@@ -682,8 +688,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // reach this point.
       await refreshEconomyState();
 
+      if (!mounted) return;
       state = state.copyWith(loaded: true);
     } catch (e) {
+      // The guard matters MORE here than above: this handler is the one that
+      // escapes. A post-dispose write inside the `try` lands in this `catch`,
+      // which then writes again — and THAT throw has nowhere to go but the
+      // fire-and-forget future, where it surfaces as an unhandled async error
+      // and fails whichever test happens to be running.
+      if (!mounted) return;
       state = state.copyWith(loaded: true, error: e.toString());
     }
   }
@@ -2191,6 +2204,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       final xpState = await getXp();
       final tokenState = await getTokens();
       final displayTitle = await getDisplayTitle(xpState.level);
+      // Post-await write, and this one is awaited from `_initialize` — see the
+      // note there. Otherwise the dispose-time StateError is swallowed as
+      // "stale values are better than crashing", which it is not.
+      if (!mounted) return;
       state = state.copyWith(
         streakCount: streakState.currentStreak,
         xpTotal: xpState.totalXp,
@@ -2533,6 +2550,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // written this way.
       final tonight = await readMuhasabahEntryForDay(day);
       final anchor = await findMuhasabahTimeMachineAnchor(day);
+      // A write to a disposed StateNotifier throws. Unlike `_initialize`, this
+      // catch does not re-write state, so the throw is swallowed rather than
+      // escaping as an unhandled async error — but the completion screen then
+      // silently loses tonight's entry. The dispose window here is a real user
+      // action: navigating away while the Supabase round-trip is in flight.
+      if (!mounted) return;
       state = state.copyWith(
         tonightEntry: tonight,
         timeMachineEntry: anchor,
@@ -2579,7 +2602,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         now: debugDailyLoopClock,
       );
       if (updated == null) return false;
-      state = state.copyWith(tonightEntry: updated);
+      // A write to a disposed StateNotifier throws, and this catch does not
+      // re-write state, so it would be swallowed into the debugPrint below and
+      // read as "the append failed" — when it did not. The row is already
+      // committed server-side; only the local echo has nobody left to show it
+      // to. So skip the state write and carry on: the event still fires and
+      // this still returns true, because the append really did happen.
+      if (mounted) state = state.copyWith(tonightEntry: updated);
       // AFTER the commit and only on a committed one — a blank line, a
       // rolled-over day with no row, an exhausted budget and a server refusal
       // all return above, and none of them is an append.
@@ -2619,7 +2648,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         azm: azm,
       );
       if (updated == null) return false;
-      state = state.copyWith(tonightEntry: updated);
+      // Same reasoning as [appendToTonight]: the resolve is already committed,
+      // so a disposed notifier costs the local echo and nothing else.
+      if (mounted) state = state.copyWith(tonightEntry: updated);
       final next = updated.azm.trim();
       // `setMuhasabahAzm` returns the entry UNCHANGED when the text is already
       // what is stored — a re-save of the same line is not an edit, and
@@ -2683,6 +2714,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       final anchor = state.currentStep == DailyLoopStep.completed
           ? await findMuhasabahTimeMachineAnchor(day)
           : null;
+      // Post-await write on the `_initialize` path — see the note there.
+      // Without this the dispose-time StateError is caught below and logged as
+      // "journal context not hydrated", which reads like a cache miss.
+      if (!mounted) return;
       state = state.copyWith(
         tonightEntry: tonight,
         lastNightAzm: azm,
@@ -2933,6 +2968,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         }
       }
 
+      // Post-await write on the `_initialize` path — see the note there. The
+      // `catch (_) { start fresh }` below would otherwise absorb the
+      // dispose-time StateError.
+      if (!mounted) return;
       state = state.copyWith(
         checkinDone: checkinDone,
         deeperDone: deeperDone,
