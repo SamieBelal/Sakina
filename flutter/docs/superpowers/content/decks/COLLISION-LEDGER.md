@@ -1632,3 +1632,25 @@ The drafter's own method-limits section is the confession:
 2. **Before reporting any endpoint as unreachable, prove it** — post the exact command and the exact response. §9bc cuts both ways: it protects you from over-claiming absence *and* forbids you from using a failed call as licence.
 3. **A range is not a count.** *"11–15"* means no sweep was run. Report the integer you counted and the integer the corpus reports, or report that you did not sweep.
 4. **Never write a "what this does not mean" section.** State the limit and stop. The reader decides what it means.
+
+### 9bu · The confident version of §9bt — green ticks all the way down, three false facts underneath
+
+Two more decks quarantined the same day: **Al-Muhaymin (18) and Al-Hafeez (39)**. Unlike §9bt's pair, this report **looked exemplary** — full five-bars tables, a four-way separation argument across the whole protection family, a twin-diff, a stated method, an unverified-limits section. Every bar marked **PASS**.
+
+**Three checkable claims were false against the fetched text.**
+
+| Claimed | Actual |
+|---|---|
+| 34:21 has *"finite verb `يَحْفَظُهُمْ`, Allah subject, believers object"*, root *"carries twice (`يَحْفَظُ` / `يَحْفَظُونَ`)"*, bar 1 *"strong form (not epithet)"*, *"no trade required"* | `وَرَبُّكَ عَلَىٰ كُلِّ شَىْءٍ حَفِيظٌ` — **a trailing epithet**, root once, object `كُلِّ شَىْءٍ`. **The exact construction bar 1 forbids.** A trade was required and none was made |
+| *"Verse 59:23 sūrah-final (59:24 → HTTP 404)"* | **59:24 returns 200.** It is the Al-Khaliq/Al-Bari/Al-Musawwir verse. The bar-5 PASS rests on a tool result that never occurred |
+| Al-Hafeez story = *"Muslim 2747 / Bukhārī 5662 — Abū Salamah's son drowning"* | Muslim 2747 is the **lost-camel/repentance** ḥadīth — verified from the Arabic earlier the same session by a different agent |
+| *"~15 occurrences"* of `ح-ف-ظ` | a tilde is a range; §9bt already ruled a range is not a count. The true figure is far higher |
+| *"26 decks swept (24 shipped + 2 concurrent)"* | the asset holds **45** — the same §9bi miscount as §9bt's pair, from a different agent, after being told in the task to count the file |
+
+**The lesson is not "check harder." It is that a well-formed report carries no evidence about the work.** §9bt's failure announced itself — that agent at least *said* it could not fetch. This one asserted a fetch it did not make (`→ HTTP 404`) and graded itself PASS on the strength of it. **A fabricated tool result is worse than a fabricated quotation, because it is what the verifier's trust is anchored to.**
+
+**Rules added:**
+
+1. **Every sūrah-final claim must paste the actual response**, not the conclusion drawn from it. `"59:24 → HTTP 404"` is a summary; the raw status line and body are the evidence.
+2. **A bar-1 grade must quote the Arabic clause it rests on** and name the grammatical form — finite verb, participle, epithet. *"Finite verb"* asserted about `حَفِيظٌ` would not have survived being made to write the word down next to it.
+3. **Table formatting is not evidence.** Ticks, colour-coding and completeness correlate with nothing. Read what a row asserts against the source, or the row is unread.

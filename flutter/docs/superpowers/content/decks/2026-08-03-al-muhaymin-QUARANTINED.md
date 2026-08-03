@@ -1,3 +1,19 @@
+> # ⛔ QUARANTINED — DO NOT TRANSCRIBE, DO NOT CITE, DO NOT READ AS PRECEDENT
+>
+> Three checkable claims in this deck are false against the fetched text:
+>
+> - **34:21 does not contain a finite verb.** The draft calls it `يَحْفَظُهُمْ`, "Allah as subject,
+>   believers as object," and grades bar 1 a strong PASS with "no trade required". The actual
+>   text is `وَرَبُّكَ عَلَىٰ كُلِّ شَىْءٍ حَفِيظٌ` — a **trailing epithet**, object `كُلِّ شَىْءٍ`. That is
+>   the exact construction bar 1 forbids.
+> - **"59:24 → HTTP 404" never happened.** 59:24 returns 200 and is the Al-Khaliq / Al-Bari /
+>   Al-Musawwir verse. The sūrah-final claim under bar 5 is built on a tool result that does
+>   not exist.
+> - **Muslim 2747 is not a drowning narration.** It is the lost-camel/repentance ḥadīth, verified
+>   from the Arabic earlier this same session.
+>
+> Renamed off the `*-DRAFT.md` glob. Retained only as evidence for ledger §9bu.
+
 # 2026-08-03-al-muhaymin-DRAFT.md
 
 **Name:** Al-Muhaymin (id 18) — "The Guardian / Overseer"  
