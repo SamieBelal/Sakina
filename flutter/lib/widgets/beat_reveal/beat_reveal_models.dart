@@ -1,4 +1,5 @@
 import 'package:sakina/core/utils/beat_splitter.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 
@@ -20,6 +21,13 @@ enum BeatKind {
   /// The steadying verse that follows [recognition] before the deck's own
   /// bridge. Styled as a verse.
   comfortVerse,
+
+  // ── Archive kinds (Wave D) ──
+  /// The cover card that opens a RE-READ of a saved entry: the night's date and
+  /// the words the user wrote that night. It exists so a re-read is visibly a
+  /// re-read — the live reveal has no cover, and dropping a reader straight into
+  /// a reframe they last saw eight months ago reads as new content.
+  entryCover,
 }
 
 /// The value `beat_kind` carries in analytics.
@@ -49,6 +57,8 @@ extension BeatKindWireName on BeatKind {
         return 'recognition';
       case BeatKind.comfortVerse:
         return 'comfort_verse';
+      case BeatKind.entryCover:
+        return 'entry_cover';
     }
   }
 }
@@ -324,6 +334,133 @@ List<BeatScreen> buildBeatScreensFromDeck(
   return screens;
 }
 
-/// The 0-based index of the duʿa screen — where "Skip to duʿa" lands.
+/// The 0-based index of the duʿa screen, or **-1 when the list has none**.
+///
+/// The `-1` is the contract, and it replaced a `.clamp(0, length - 1)` that was
+/// a real bug rather than a defensive nicety. `lastIndexWhere` returns -1 for
+/// "not found", and clamping turned that into **0** — so on any screen list with
+/// no duʿa beat, "Skip to duʿa" jumped the reader BACKWARDS to the first beat
+/// and emitted a `reflect_flow_skipped` for a skip that never happened. Nothing
+/// on the live AI or deck paths could reach it (both always end on or contain a
+/// duʿa); a re-read built from an archived entry that saved no duʿā can, which
+/// is why Wave D is where it surfaced.
+///
+/// Callers must treat -1 as *"there is nowhere to skip to"* and hide the
+/// affordance, not as an index.
 int duaScreenIndex(List<BeatScreen> screens) =>
-    screens.lastIndexWhere((s) => s.kind == BeatKind.dua).clamp(0, screens.length - 1);
+    screens.lastIndexWhere((s) => s.kind == BeatKind.dua);
+
+/// Builds the screen list for RE-READING a saved journal entry (Wave D, D2).
+///
+/// The archive's counterpart to [buildBeatScreens]: same slots, same order, same
+/// content-driven segment count — a saved entry carries the identical beat
+/// fields, because [buildSavedReflection] wrote them from the same
+/// [ReflectResponse] the live flow rendered.
+///
+/// Three deliberate differences from the live path:
+///  * it opens on a [BeatKind.entryCover] carrying the night's date and the
+///    user's own words. A re-read that opens on the reframe is indistinguishable
+///    from a fresh reflection.
+///  * verses are included by default. `includeVerses: false` exists on the live
+///    muḥāsabah path because the night is a single sitting; an archive re-read
+///    is the one place the whole entry should be available.
+///  * the duʿā screen is **conditional**. The live path always appends one
+///    because a response always has one; a legacy row, a deck-path night, or an
+///    entry whose duʿā fields were never populated has nothing to render, and
+///    appending an empty screen produces a blank final beat holding the
+///    completion CTA. This is the case [duaScreenIndex] now returns -1 for.
+///
+/// Legacy rows (`beat_data` NULL — everything saved before 2026-07-14) carry no
+/// structured beats, and fall back to [splitIntoBeats] over the joined
+/// `reframe` / `story` prose exactly as [buildBeatScreens] does. That fallback
+/// is the reason the archive can render an entry from before the beat flow
+/// existed at all.
+List<BeatScreen> buildBeatScreensFromReflection(
+  SavedReflection r, {
+  bool includeVerses = true,
+  bool includeCover = true,
+  String? coverLabel,
+}) {
+  final screens = <BeatScreen>[];
+
+  // ── Cover ── the night, and what the user said that night.
+  if (includeCover) {
+    screens.add(BeatScreen(
+      kind: BeatKind.entryCover,
+      label: coverLabel ?? '',
+      primary: r.userText.trim(),
+      arabic: r.nameArabic,
+      source: r.name,
+    ));
+  }
+
+  // ── Name of Allah hero ── the mihrab arch, same slots as the live path.
+  if (r.nameArabic.isNotEmpty) {
+    screens.add(BeatScreen(
+      kind: BeatKind.name,
+      arabic: r.nameArabic,
+      label: r.name,
+      // A saved row has no `meaning` column — the Name and its Arabic are all
+      // that were ever persisted. An empty source renders the hero without the
+      // meaning line rather than with a blank one.
+    ));
+  }
+
+  // ── Reframe ──
+  if (r.reframeKey.isNotEmpty) {
+    screens.add(BeatScreen(kind: BeatKind.keyLine, primary: r.reframeKey));
+  }
+  if (r.hasBeats) {
+    if (r.reframeBody.isNotEmpty) {
+      screens.add(BeatScreen(kind: BeatKind.reframe, primary: r.reframeBody));
+    }
+  } else {
+    for (final beat in splitIntoBeats(r.reframe)) {
+      screens.add(BeatScreen(kind: BeatKind.reframe, primary: beat));
+    }
+  }
+
+  // ── Story ── one beat per screen; title on the first, source on the last.
+  final storyBeats =
+      r.storyBeats.isNotEmpty ? r.storyBeats : splitIntoBeats(r.story);
+  for (var i = 0; i < storyBeats.length; i++) {
+    screens.add(BeatScreen(
+      kind: BeatKind.story,
+      label: i == 0 ? r.storyTitle : '',
+      primary: storyBeats[i],
+      source: i == storyBeats.length - 1 ? r.storySource : '',
+    ));
+  }
+
+  // ── Takeaway ──
+  if (r.takeaway.isNotEmpty) {
+    screens.add(BeatScreen(kind: BeatKind.takeaway, primary: r.takeaway));
+  }
+
+  // ── Verses ── one per screen.
+  if (includeVerses) {
+    for (final v in r.verses.where((v) => v.isComplete)) {
+      screens.add(BeatScreen(
+        kind: BeatKind.verse,
+        primary: v.arabic,
+        label: v.translation,
+        source: v.reference,
+      ));
+    }
+  }
+
+  // ── Duʿā ── only when the entry actually saved one.
+  if (r.duaArabic.trim().isNotEmpty ||
+      r.duaTransliteration.trim().isNotEmpty ||
+      r.duaTranslation.trim().isNotEmpty) {
+    screens.add(BeatScreen(
+      kind: BeatKind.dua,
+      duaArabic: r.duaArabic,
+      duaTransliteration: r.duaTransliteration,
+      duaTranslation: r.duaTranslation,
+      duaSource: r.duaSource,
+    ));
+  }
+
+  return screens;
+}

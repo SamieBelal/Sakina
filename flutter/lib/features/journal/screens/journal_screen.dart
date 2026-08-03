@@ -7,14 +7,22 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
+import 'package:sakina/features/streaks/widgets/month_of_light.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/achievements_service.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
+import 'package:sakina/features/journal/screens/reflection_story_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
@@ -63,6 +71,24 @@ class _JournalEntry {
   });
 }
 
+/// The sort key for a saved related duʿā, which carries no timestamp of any
+/// kind (see `SavedRelatedDua` — id, title, arabic, transliteration,
+/// translation, source, and nothing else).
+///
+/// **D6, the sort bug.** This used to be `DateTime.now()`, evaluated during
+/// `build`. A value that is by definition the newest instant in existence, on
+/// every rebuild, pinned every saved duʿā to the top of the All feed forever —
+/// so a duʿā saved eight months ago outranked tonight's muḥāsabah, and the feed
+/// stopped being chronological the first time anyone tapped a heart.
+///
+/// The epoch is the honest replacement: *we do not know when this was saved*,
+/// so it sorts below everything that does know, in a stable order, instead of
+/// claiming to be the most recent thing the user did. Giving these entries a
+/// real timestamp needs a column that does not exist; that is a migration, and
+/// deliberately not in Wave D's scope.
+final DateTime _undatedEntrySortKey =
+    DateTime.fromMillisecondsSinceEpoch(0);
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -80,6 +106,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   bool _questFired = false;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
   int _lastTabIndex = 0;
+
+  /// D1's half of the filter work: 0=All, 1=Nightly (muḥāsabah), 2=Reflect.
+  ///
+  /// The Reflections tab now holds two genuinely different kinds of entry —
+  /// the nightly accounting, one per day, and an ad-hoc Reflect save — and
+  /// before Wave B it could only ever hold the second. Mirrors `_duaFilter`'s
+  /// shape exactly so the two chip rows behave identically.
+  int _reflectionFilter = 0;
 
   /// Index of the Badges tab in [_buildScaffold]'s IndexedStack / TabBar.
   static const _achievementsTabIndex = 3;
@@ -136,7 +170,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           )),
       ...savedDuas.map((d) => _JournalEntry(
             type: _EntryType.savedDua,
-            date: DateTime.now(), // no saved date on related duas
+            // No saved date on related duʿās — see [_undatedEntrySortKey] (D6).
+            date: _undatedEntrySortKey,
             data: d,
           )),
     ]..sort((a, b) => b.date.compareTo(a.date));
@@ -168,11 +203,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   ) {
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
+      // D3 — the one primary control. It sits on the Scaffold rather than
+      // inside a tab so it is present whichever tab is open: composing is a
+      // property of the day, not of what you are currently browsing.
+      floatingActionButton: _buildComposeButton(),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(totalCount),
+            _buildHeader(totalCount, reflections),
             if (totalCount > 0) ...[
               const SizedBox(height: 12),
               _buildInlineStats(
@@ -199,28 +238,122 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(int total) {
+  Widget _buildHeader(int total, List<SavedReflection> reflections) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Journal',
-                  style: AppTypography.displayLarge
-                      .copyWith(color: AppColors.textPrimaryLight))
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .slideY(begin: 0.05, end: 0, duration: 500.ms),
-          const SizedBox(height: 4),
-          Text(
-            total == 0 ? 'Your spiritual diary' : '$total entries',
-            style: AppTypography.bodyMedium
-                .copyWith(color: AppColors.textSecondaryLight),
-          ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Journal',
+                        style: AppTypography.displayLarge
+                            .copyWith(color: AppColors.textPrimaryLight))
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                const SizedBox(height: 4),
+                Text(
+                  total == 0 ? 'Your spiritual diary' : '$total entries',
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textSecondaryLight),
+                ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+              ],
+            ),
+          ),
+          _buildBrowseButton(reflections),
         ],
       ),
     );
+  }
+
+  // ── Browse (D4) ─────────────────────────────────────────────────────────────
+
+  /// Promotes the month-of-light calendar from a read-only sheet buried behind
+  /// the streak line to the Journal's browse control (D4).
+  ///
+  /// The calendar was already the right shape for this — it computes
+  /// `lit / todayPending / excused / held / missed / future` from check-in
+  /// history and renders gaps as *"an open invitation, not a gap"*. All it was
+  /// missing was somewhere for a tap to go. Now `lit` opens that night's entry
+  /// and `todayPending` starts tonight; every other state stays inert, which is
+  /// what keeps the gentle framing honest.
+  Widget _buildBrowseButton(List<SavedReflection> reflections) {
+    return Semantics(
+      button: true,
+      label: 'Browse by month',
+      child: IconButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          showMonthOfLightSheet(
+            context,
+            onDaySelected: (day, state) => _onCalendarDay(day, state, reflections),
+          );
+        },
+        icon: const Icon(Icons.calendar_month_rounded, size: 22),
+        color: AppColors.textSecondaryLight,
+        tooltip: 'Browse by month',
+      ),
+    ).animate().fadeIn(duration: 500.ms, delay: 200.ms);
+  }
+
+  void _onCalendarDay(
+    DateTime day,
+    MonthCellState state,
+    List<SavedReflection> reflections,
+  ) {
+    if (state == MonthCellState.todayPending) {
+      context.go('/muhasabah?$questionEntryQueryParam='
+          '$questionEntryHomeCta');
+      return;
+    }
+    final entry = _entryForDay(reflections, day);
+    if (entry == null) {
+      // A night the streak knows about but the journal does not: every night
+      // completed before Wave B started persisting entries is one of these, and
+      // so is a night whose write the server refused. Say so plainly rather
+      // than open an empty page or do nothing at all.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('That night was lit, but no entry was saved for it.'),
+        ),
+      );
+      return;
+    }
+    _openReflection(entry);
+  }
+
+  /// The entry belonging to [day].
+  ///
+  /// `entry_local_day` first, because that is the column the night is filed
+  /// under and the one the time machine joins on. The `saved_at` fallback
+  /// catches the two kinds of row that have no local day at all: everything
+  /// written before Wave B, and every Reflect save (which is not a night).
+  ///
+  /// Known seam, deliberately left: the calendar's cells are UTC days (it is
+  /// aligned with `streak_service`, which is also UTC), while `entry_local_day`
+  /// is the user's own local day. For a user far from UTC the two can differ by
+  /// one, and then the fallback is what answers. Reconciling them is a change to
+  /// the streak's day resolution, not to the Journal.
+  SavedReflection? _entryForDay(
+    List<SavedReflection> reflections,
+    DateTime day,
+  ) {
+    final key = formatLocalDay(day);
+    for (final r in reflections) {
+      if (r.entryLocalDay == key) return r;
+    }
+    for (final r in reflections) {
+      final d = DateTime.tryParse(r.date);
+      if (d == null) continue;
+      if (d.year == day.year && d.month == day.month && d.day == day.day) {
+        return r;
+      }
+    }
+    return null;
   }
 
   // ── Inline stats ───────────────────────────────────────────────────────────
@@ -474,6 +607,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           final selected = _tab.index == i;
           return Flexible(
             child: GestureDetector(
+              // Keyed because the tab labels are not unique on this screen —
+              // the inline stats row also renders the word "Reflections", and a
+              // `find.text` in a test would match the stat tile first.
+              key: ValueKey('journal-tab-$i'),
               onTap: () => _tab.animateTo(i),
               child: Container(
                 height: 40,
@@ -512,6 +649,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   Widget _buildAllFeed(List<_JournalEntry> entries) {
     if (entries.isEmpty) {
+      final action = _composeAction;
       // Register the tour anchor on the empty hero as a fallback — the
       // tour step targeting `journal.firstEntry` (step 12) expects an
       // anchor here. By step 12 the user has just saved a dua, so the
@@ -519,18 +657,30 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       return TourAnchor(
         surface: TourSurface.journal,
         anchorId: 'firstEntry',
-        child: _buildEmptyState(),
+        // D3: the All tab's empty state used to describe what would eventually
+        // appear here and offer no way to make any of it happen. It now carries
+        // the same one control as the FAB, with copy that follows the day.
+        child: _buildEmptyState(
+          sub: JournalComposeCopy.emptyStateSub(action),
+          actionLabel: JournalComposeCopy.label(action),
+          onAction: () => _onCompose(action),
+        ),
       );
     }
 
-    return ListView(
+    // D5: windowed. A daily journaler produces ~365 entries a year and Wave A
+    // removed the five-entry cap that was the only thing keeping this list
+    // short; a plain `ListView` with a materialised children list builds and
+    // lays out every one of them on every frame.
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: entries.asMap().entries.map((e) {
-        final card = _animatedCard(e.key, _buildEntryCard(e.value));
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 96),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final card = _animatedCard(index, _buildEntryCard(entries[index]));
         // Wrap only the first entry with the tour anchor so step 12 can
         // target it.
-        if (e.key == 0) {
+        if (index == 0) {
           return TourAnchor(
             surface: TourSurface.journal,
             anchorId: 'firstEntry',
@@ -538,7 +688,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           );
         }
         return card;
-      }).toList(),
+      },
     );
   }
 
@@ -546,23 +696,56 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   Widget _buildReflectionsTab(List<SavedReflection> reflections) {
     if (reflections.isEmpty) {
+      final action = _composeAction;
       return _buildEmptyState(
         icon: Icons.auto_awesome_outlined,
         message: 'No reflections yet',
-        sub: 'Complete a Reflect session and it will appear here.',
-        actionLabel: 'Start Reflecting',
-        onAction: () => context.go('/reflect'),
+        sub: 'Your nightly muḥāsabah and every Reflect session land here.',
+        actionLabel: JournalComposeCopy.label(action),
+        onAction: () => _onCompose(action),
       );
     }
-    return ListView(
+
+    // D1: filter by `source`. The chips render even when one side is empty —
+    // an empty "Nightly" tab is itself the answer to "where are my muḥāsabah
+    // entries", and hiding the chip would leave the question unanswered.
+    final List<SavedReflection> visible;
+    switch (_reflectionFilter) {
+      case 1:
+        visible = reflections.where((r) => r.isMuhasabah).toList();
+      case 2:
+        visible = reflections.where((r) => !r.isMuhasabah).toList();
+      default:
+        visible = reflections;
+    }
+
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: reflections.asMap().entries.map((e) {
-        return _animatedCard(
-          e.key,
-          _buildReflectionCard(e.value),
-        );
-      }).toList(),
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 96),
+      // +1 for the filter row, which scrolls with the list rather than pinning
+      // above it (matching the Duas tab).
+      itemCount: visible.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                _filterChip('All', 0, _reflectionFilter,
+                    (i) => setState(() => _reflectionFilter = i)),
+                const SizedBox(width: 8),
+                _filterChip('Nightly', 1, _reflectionFilter,
+                    (i) => setState(() => _reflectionFilter = i)),
+                const SizedBox(width: 8),
+                _filterChip('Reflect', 2, _reflectionFilter,
+                    (i) => setState(() => _reflectionFilter = i)),
+              ],
+            ),
+          );
+        }
+        final r = visible[index - 1];
+        return _animatedCard(index - 1, _buildReflectionCard(r));
+      },
     );
   }
 
@@ -580,45 +763,61 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       );
     }
 
-    final List<Widget> duaWidgets;
+    // Built lazily per index (D5) rather than materialised up front, so the
+    // Duas tab windows exactly like the other two.
+    final List<Widget Function()> duaBuilders;
     switch (_duaFilter) {
       case 1:
-        duaWidgets = builtDuas.map(_buildBuiltDuaCard).toList();
+        duaBuilders = [for (final d in builtDuas) () => _buildBuiltDuaCard(d)];
       case 2:
-        duaWidgets = savedDuas.map(_buildSavedDuaCard).toList();
+        duaBuilders = [for (final d in savedDuas) () => _buildSavedDuaCard(d)];
       default:
-        duaWidgets = [
-          ...builtDuas.map(_buildBuiltDuaCard),
-          ...savedDuas.map(_buildSavedDuaCard),
+        duaBuilders = [
+          for (final d in builtDuas) () => _buildBuiltDuaCard(d),
+          for (final d in savedDuas) () => _buildSavedDuaCard(d),
         ];
     }
 
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: [
-        // Filter chips
-        Row(
-          children: [
-            _duaFilterChip('All', 0),
-            const SizedBox(width: 8),
-            _duaFilterChip('Built', 1),
-            const SizedBox(width: 8),
-            _duaFilterChip('Saved', 2),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ...duaWidgets.asMap().entries.map((e) => _animatedCard(e.key, e.value)),
-      ],
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 96),
+      itemCount: duaBuilders.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                _filterChip('All', 0, _duaFilter,
+                    (i) => setState(() => _duaFilter = i)),
+                const SizedBox(width: 8),
+                _filterChip('Built', 1, _duaFilter,
+                    (i) => setState(() => _duaFilter = i)),
+                const SizedBox(width: 8),
+                _filterChip('Saved', 2, _duaFilter,
+                    (i) => setState(() => _duaFilter = i)),
+              ],
+            ),
+          );
+        }
+        return _animatedCard(index - 1, duaBuilders[index - 1]());
+      },
     );
   }
 
-  Widget _duaFilterChip(String label, int index) {
-    final selected = _duaFilter == index;
+  /// One filter chip. Shared by the Duas tab and (D1) the Reflections tab, so
+  /// the two rows cannot drift into looking like different controls.
+  Widget _filterChip(
+    String label,
+    int index,
+    int selectedIndex,
+    ValueChanged<int> onSelect,
+  ) {
+    final selected = selectedIndex == index;
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _duaFilter = index);
+        onSelect(index);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -661,7 +860,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
+              AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 96),
           children: [
             // Summary
             Center(
@@ -749,22 +948,66 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Reflection card ─────────────────────────────────────────────────────────
 
+  /// Opens an entry the way the archive is meant to be read (D2): the
+  /// tap-through story flow when the entry has beats to render, the detail page
+  /// otherwise.
+  ///
+  /// The detail page is not superseded — it owns share and delete, and it is
+  /// still where the card's "View full" goes. This is the second door, not a
+  /// replacement for the first.
+  void _openReflectionStory(SavedReflection r) {
+    HapticFeedback.lightImpact();
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'ReflectionStoryPage'),
+        builder: (_) => ReflectionStoryPage(reflection: r),
+      ),
+    );
+  }
+
+  void _openReflectionDetail(SavedReflection r) {
+    HapticFeedback.lightImpact();
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+          builder: (_) => ReflectionDetailPage(
+                reflection: r,
+                onRemove: () =>
+                    ref.read(reflectProvider.notifier).deleteReflection(r.id),
+              )),
+    );
+  }
+
+  /// The calendar's destination for a lit night: the story when there is one,
+  /// the detail page when the row is only the user's own words.
+  void _openReflection(SavedReflection r) {
+    if (ReflectionStoryPage.canRenderAsStory(r)) {
+      _openReflectionStory(r);
+    } else {
+      _openReflectionDetail(r);
+    }
+  }
+
   Widget _buildReflectionCard(SavedReflection r) {
     final date = DateTime.parse(r.date);
+    final canReadAsStory = ReflectionStoryPage.canRenderAsStory(r);
     return _ExpandableCard(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              builder: (_) => ReflectionDetailPage(
-                    reflection: r,
-                    onRemove: () => ref
-                        .read(reflectProvider.notifier)
-                        .deleteReflection(r.id),
-                  )),
-        );
-      },
-      topLeft: _typeChip('Reflection', AppColors.primary),
+      onTap: () => _openReflectionDetail(r),
+      // D2's entry point. Shown only when there is a story to read — an entry
+      // that saved nothing but the user's words would open on a cover card and
+      // end there, which is a worse read than the detail page.
+      leadingAction: !canReadAsStory
+          ? null
+          : _cardTextAction(
+              icon: Icons.auto_stories_rounded,
+              label: 'Read as story',
+              onTap: () => _openReflectionStory(r),
+            ),
+      // D1: the chip tells the two sources apart. A nightly accounting and an
+      // ad-hoc Reflect save land in the same table and used to render with the
+      // same word on them.
+      topLeft: r.isMuhasabah
+          ? _typeChip('Muhāsabah', AppColors.primary)
+          : _typeChip('Reflection', AppColors.secondary),
       topRight: _dateLabel(date),
       summary: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1048,6 +1291,154 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         .slideY(begin: 0.05, end: 0, delay: (index * 50).ms, duration: 300.ms);
   }
 
+  /// A small text+icon control that lives inside a card without stealing the
+  /// card's own tap: the inner [GestureDetector] wins the arena for its own
+  /// bounds, so tapping the label opens the story and tapping anywhere else on
+  /// the card still opens the detail page.
+  Widget _cardTextAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: AppColors.primary),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Compose (D3) ────────────────────────────────────────────────────────────
+
+  /// Reads the day's state off the daily loop and resolves the one control's
+  /// meaning. See [resolveJournalComposeAction] for the rule.
+  JournalComposeAction get _composeAction => ref.watch(
+        dailyLoopProvider.select(
+          (s) => resolveJournalComposeAction(
+            tonightEntry: s.tonightEntry,
+            checkinDone: s.checkinDone,
+          ),
+        ),
+      );
+
+  Widget _buildComposeButton() {
+    final action = _composeAction;
+    final label = JournalComposeCopy.label(action);
+    return FloatingActionButton.extended(
+      onPressed: () => _onCompose(action),
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      icon: Icon(switch (action) {
+        JournalComposeAction.startTonight => Icons.nightlight_round,
+        JournalComposeAction.addToTonight => Icons.add_rounded,
+        JournalComposeAction.freeWrite => Icons.edit_outlined,
+      }),
+      label: Text(
+        label,
+        style: AppTypography.labelLarge.copyWith(color: Colors.white),
+      ),
+    );
+  }
+
+  void _onCompose(JournalComposeAction action) {
+    HapticFeedback.lightImpact();
+    switch (action) {
+      case JournalComposeAction.startTonight:
+        context.go('/muhasabah?$questionEntryQueryParam='
+          '$questionEntryHomeCta');
+      case JournalComposeAction.freeWrite:
+        context.go('/reflect');
+      case JournalComposeAction.addToTonight:
+        _showAddToTonightSheet();
+    }
+  }
+
+  /// The append sheet.
+  ///
+  /// Reuses `AddToTonightCard` and `DailyLoopNotifier.appendToTonight`
+  /// unchanged — the same widget and the same write the completion screen uses.
+  /// **This is the whole reason the append is safe from here:** `appendToTonight`
+  /// is a pure text write against a row that already exists. It does not reveal
+  /// a Name, mark the streak, claim the reward ladder, unseal the queue, engage
+  /// a card or consume an allowance, and reaching it from a second surface adds
+  /// no new way for any of that to fire.
+  void _showAddToTonightSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: AppColors.surfaceLight,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 4,
+          bottom: 24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: Consumer(
+          builder: (context, ref, _) {
+            final entry = ref.watch(
+              dailyLoopProvider.select((s) => s.tonightEntry),
+            );
+            if (entry == null) {
+              // The day rolled over while the sheet was open, or the entry went
+              // away underneath it. Never leave a field that writes nowhere.
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  MuhasabahCompletionCopy.addFailed,
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textSecondaryLight),
+                ),
+              );
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  MuhasabahCompletionCopy.addToTonight,
+                  style: AppTypography.headlineMedium
+                      .copyWith(color: AppColors.textPrimaryLight),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AddToTonightCard(
+                  thread: entry.thread,
+                  onAppend: (text) => ref
+                      .read(dailyLoopProvider.notifier)
+                      .appendToTonight(text),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _typeChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1270,6 +1661,7 @@ class _ExpandableCard extends StatefulWidget {
     required this.summary,
     required this.expanded,
     this.onTap,
+    this.leadingAction,
   });
 
   final Widget topLeft;
@@ -1277,6 +1669,11 @@ class _ExpandableCard extends StatefulWidget {
   final Widget summary;
   final Widget expanded;
   final VoidCallback? onTap;
+
+  /// A second control on the card's footer row, left of the "View full" hint.
+  /// Only meaningful alongside [onTap] — the expand-toggle variant has no
+  /// footer row to put it on.
+  final Widget? leadingAction;
 
   @override
   State<_ExpandableCard> createState() => _ExpandableCardState();
@@ -1345,6 +1742,10 @@ class _ExpandableCardState extends State<_ExpandableCard> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            if (widget.leadingAction != null) ...[
+                              widget.leadingAction!,
+                              const Spacer(),
+                            ],
                             Text(
                               'View full',
                               style: AppTypography.labelSmall.copyWith(

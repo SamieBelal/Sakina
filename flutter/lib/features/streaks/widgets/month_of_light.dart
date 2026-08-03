@@ -6,10 +6,25 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
 import 'package:sakina/features/streaks/widgets/month_of_light_cell.dart';
 
+/// What a tap on a month cell can select. Only two states are ever offered:
+/// a night that was lit (open it) and today when it is still pending (start it).
+/// Every other state is a fact about the past with nothing behind it, and
+/// making it tappable would turn the gentle framing of gaps into a prod.
+typedef MonthDayTap = void Function(DateTime day, MonthCellState state);
+
 /// Open the full current-month "month of light" grid on its own surface (T3 /
 /// S3 / D1): a bottom-anchored cream sheet, top-rounded 28px — matching the
-/// pattern in `streak_rescue_sheet.dart`. Read-only.
-Future<void> showMonthOfLightSheet(BuildContext context) {
+/// pattern in `streak_rescue_sheet.dart`.
+///
+/// [onDaySelected] promotes the sheet from read-only to the Journal's browse
+/// control (Wave D, D4). It stays optional and defaults to null, so the streak
+/// line on the Progress screen keeps the read-only sheet it has always shown.
+/// The sheet closes itself before invoking it — a callback that pushes a route
+/// must not do so under a modal that is still up.
+Future<void> showMonthOfLightSheet(
+  BuildContext context, {
+  MonthDayTap? onDaySelected,
+}) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   return showModalBottomSheet<void>(
     context: context,
@@ -25,12 +40,14 @@ Future<void> showMonthOfLightSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => const _MonthOfLightSheet(),
+    builder: (_) => _MonthOfLightSheet(onDaySelected: onDaySelected),
   );
 }
 
 class _MonthOfLightSheet extends ConsumerWidget {
-  const _MonthOfLightSheet();
+  const _MonthOfLightSheet({this.onDaySelected});
+
+  final MonthDayTap? onDaySelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,7 +91,19 @@ class _MonthOfLightSheet extends ConsumerWidget {
               if (data == null)
                 const _GridSkeleton()
               else
-                _MonthGrid(data: data),
+                _MonthGrid(
+                  data: data,
+                  onDaySelected: onDaySelected == null
+                      ? null
+                      : (day, state) {
+                          // Close first: the callback pushes a route, and a
+                          // route pushed under a live modal sheet lands behind
+                          // it. `pop` is safe here — this widget only ever
+                          // builds inside `showModalBottomSheet`.
+                          Navigator.of(context).pop();
+                          onDaySelected!(day, state);
+                        },
+                ),
               const SizedBox(height: 20),
               const _Legend(),
             ],
@@ -96,8 +125,9 @@ class _GridSkeleton extends StatelessWidget {
 }
 
 class _MonthGrid extends StatelessWidget {
-  const _MonthGrid({required this.data});
+  const _MonthGrid({required this.data, this.onDaySelected});
   final MonthOfLight data;
+  final MonthDayTap? onDaySelected;
 
   static const double _rowSpacing = 6;
 
@@ -123,7 +153,19 @@ class _MonthGrid extends StatelessWidget {
           for (var i = 0; i < leadingBlanks; i++)
             SizedBox(width: cellSize, height: cellSize),
           for (final day in days)
-            MonthOfLightCell(day: day, state: data.cells[day]!, size: cellSize),
+            MonthOfLightCell(
+              day: day,
+              state: data.cells[day]!,
+              size: cellSize,
+              // Only `lit` and `todayPending` route (D4). A missed, held,
+              // excused or future cell has nothing behind it, and the sheet's
+              // framing of gaps as "an open invitation, not a gap" only holds
+              // while tapping one does nothing.
+              onTap: onDaySelected == null ||
+                      !_isRoutable(data.cells[day]!)
+                  ? null
+                  : () => onDaySelected!(day, data.cells[day]!),
+            ),
         ];
         while (cells.length % 7 != 0) {
           cells.add(SizedBox(width: cellSize, height: cellSize));
@@ -152,6 +194,11 @@ class _MonthGrid extends StatelessWidget {
     );
   }
 }
+
+/// The two cell states a tap can act on. Kept next to the grid rather than on
+/// the enum so the enum stays a pure description of the calendar.
+bool _isRoutable(MonthCellState state) =>
+    state == MonthCellState.lit || state == MonthCellState.todayPending;
 
 class _WeekdayHeader extends StatelessWidget {
   const _WeekdayHeader({required this.cellSize});

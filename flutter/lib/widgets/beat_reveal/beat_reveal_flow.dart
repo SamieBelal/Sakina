@@ -85,6 +85,24 @@ class BeatRevealFlow extends StatefulWidget {
   final String? offTopicMessage;
   final String? offTopicBody;
 
+  /// The label on the completion pill. Defaults to the live path's `Ameen`.
+  ///
+  /// A re-read of a saved entry passes something else, because "Ameen" is a
+  /// word said once, at the end of a duʿā, on the night it was made. Saying it
+  /// again every time the user browses their own archive devalues the one
+  /// moment it belongs to — and the archive flow is not a supplication at all,
+  /// it is a reading.
+  final String completionLabel;
+
+  /// Whether saying [completionLabel] plays the 1.1s blur-and-bloom ceremony
+  /// before [onAmeen] fires.
+  ///
+  /// True on the live path, where the ceremony IS the moment. False for a
+  /// re-read: a 1.1s ritual between "I'm done looking at this" and the list
+  /// coming back is a tax on browsing, and it stages a moment that has already
+  /// happened.
+  final bool showCompletionCeremony;
+
   const BeatRevealFlow({
     super.key,
     required this.status,
@@ -106,6 +124,8 @@ class BeatRevealFlow extends StatefulWidget {
     this.loadingView,
     this.offTopicMessage,
     this.offTopicBody,
+    this.completionLabel = 'Ameen',
+    this.showCompletionCeremony = true,
   });
 
   @override
@@ -201,7 +221,8 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   void _skipToDua() {
     final screens = _screens;
     final target = duaScreenIndex(screens);
-    if (target == _index) return;
+    // No duʿā beat in this list — nowhere to skip to. Never a jump to 0.
+    if (target < 0 || target == _index) return;
     HapticFeedback.selectionClick();
     widget.onSkip?.call(_index);
     setState(() {
@@ -214,6 +235,12 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   Future<void> _sayAmeen() async {
     if (_completing) return;
     HapticFeedback.mediumImpact();
+    if (!widget.showCompletionCeremony) {
+      // No ceremony, no delay, and no `_completing` latch: the host is popping
+      // this route immediately, and latching would only leave a dead frame.
+      widget.onAmeen();
+      return;
+    }
     setState(() => _completing = true);
     await Future<void>.delayed(
       Duration(milliseconds: _reducedMotion ? 350 : 1100),
@@ -304,6 +331,14 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
     // end `…dua → takeaway`, and keying on the duʿa would strand the user on the
     // takeaway with no way to complete.
     final isLast = _index == screens.length - 1;
+    /// Whether this screen list has a duʿā beat to skip to at all.
+    ///
+    /// An archived entry that saved no duʿā has none, and [duaScreenIndex] then
+    /// returns -1. Both the button and the screen-reader action are gated on it
+    /// — otherwise the affordance offers a jump to a screen that does not exist
+    /// (and, before the -1 fix, silently jumped BACKWARDS to beat 0). Read off
+    /// the local `screens` rather than re-deriving the list.
+    final hasDua = duaScreenIndex(screens) >= 0;
 
     return Stack(
       children: [
@@ -346,7 +381,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               // and `_skipToDua`'s `target == _index` guard does not catch it,
               // because on an 8-screen deck the duʿa is index 6 and the last
               // beat is index 7.
-              if (!isDua && !isLast)
+              if (!isDua && !isLast && hasDua)
                 const CustomSemanticsAction(label: 'Skip to duʿa'): _skipToDua,
             },
             child: AnimatedSwitcher(
@@ -388,7 +423,11 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               // and "Skip to duʿa" renders — jumping the user BACKWARDS and
               // emitting a spurious `reflect_flow_skipped`. The slot it vacates
               // is where the share icon belongs anyway.
-              if (!isDua && !isLast) _skipButton(),
+              // `hasDua` is the third guard, added in Wave D. An archived
+              // entry that saved no duʿā has no duʿā beat at all, so `isDua` is
+              // false on every screen and the button would render throughout a
+              // flow it cannot navigate.
+              if (!isDua && !isLast && hasDua) _skipButton(),
               // `!isDua` matters as much as `isLast`. The AI path's screen list
               // always ENDS on the duʿa, so without it a second share icon
               // appeared there — Reflect would carry two affordances at once
@@ -404,7 +443,8 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         if (isTakeaway && widget.onShare != null && !isLast) _shareButton(),
         if (isLast) _ameenPill(),
         if (widget.showFirstRunHint && _index <= 1 && !isLast) _tapHint(),
-        if (_completing) const Positioned.fill(child: _CompletionBeat()),
+        if (_completing)
+          Positioned.fill(child: _CompletionBeat(label: widget.completionLabel)),
       ],
     );
   }
@@ -519,7 +559,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
           ],
         ),
         child: Text(
-          'Ameen',
+          widget.completionLabel,
           style: AppTypography.headlineMedium.copyWith(
             color: AppColors.sacredCanvasTop,
             fontWeight: FontWeight.w600,
@@ -532,7 +572,11 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
       left: 24,
       right: 24,
       bottom: 24,
-      child: Semantics(button: true, label: 'Ameen', child: wrapped),
+      child: Semantics(
+        button: true,
+        label: widget.completionLabel,
+        child: wrapped,
+      ),
     );
   }
 
@@ -688,7 +732,9 @@ class _MessageView extends StatelessWidget {
 
 // ── Completion beat (post-Ameen, non-interactive) ──────────────────────────
 class _CompletionBeat extends StatelessWidget {
-  const _CompletionBeat();
+  const _CompletionBeat({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -713,7 +759,7 @@ class _CompletionBeat extends StatelessWidget {
                   .fadeIn(duration: 400.ms),
               const SizedBox(height: 18),
               Text(
-                'Ameen',
+                label,
                 style: AppTypography.bodyLarge.copyWith(
                   fontSize: 32,
                   fontWeight: FontWeight.w600,
