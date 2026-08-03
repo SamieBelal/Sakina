@@ -9,10 +9,22 @@ Written so a fresh session can pick this up cold. Branch `feat/journaling-and-na
 | | Count | |
 |---|---|---|
 | **Shipped** in `assets/content/name_stories.json` | **45** | ship gate green |
-| **Drafted, awaiting review/transcription** | **24** | ids 19, 21, 22, 43, 44, 62, 63, 69, 70, 71, 73, 74, 77, 78, 79, 80, 81, 82, 85, 91, 92, 94, 95, 96 |
+| **Drafted, awaiting review/transcription** | **24** | 3 reviewed — see §2a | ids 19, 21, 22, 43, 44, 62, 63, 69, 70, 71, 73, 74, 77, 78, 79, 80, 81, 82, 85, 91, 92, 94, 95, 96 |
 | **Remaining, unstarted** | **30** | listed in §4 |
 
 **Quarantined (9 files, `*-QUARANTINED*.md`).** Renamed off the `*-DRAFT.md` glob so no transcription pass can pick them up. Their ids are UNCLAIMED and free to redraft: **20, 21 (Al-Bari retry only — the Al-Musawwir draft survives), 18, 39, 47, 48, 50, 53.** Do not read them as precedent; see §3.
+
+---
+
+## 2a · The one completed review — three decks, all SHIP-AFTER-FIX
+
+A Sonnet blind verifier fetched every citation in **Az-Zahir (81), Al-Batin (82), Al-Musawwir (21)** and confirmed **no invented scripture in any of the three** — every Qurʾān quotation real, live-fetched, accurately transcribed. It also independently confirmed the two decks' load-bearing bar-4 claim (that **only 57:3** predicates `ẓāhir`/`bāṭin` of Allah) which both drafters had honestly disclosed they had *not* checked. **Fixes still pending, none touching the scriptural core:**
+
+1. **Az-Zahir + Al-Batin beat 7 do not match the locked catalogue duʿā.** Both render the ḥadīth text from Muslim 2713a — adding `اللَّهُمَّ`/"O Allah" and substituting *"the Manifest"/"the Hidden"* for the catalogue's *"Al-Dhahir"/"Al-Batin"* phrasing. They verified against the ḥadīth capture, never against `collectible_names.json` ids 81/82. **The ship gate would reject this**, so it cannot escape — but fix it at draft level. (Ids 79/80 genuinely *do* open with `اللَّهُمَّ`; the catalogue is not symmetric across the two pairs. Reported, not actioned.)
+2. **Al-Musawwir beat 2 renders the catalogue `meaning` where the house convention is `english`** — so *"The Fashioner"* appears nowhere on the deck. 10 of 10 sampled shipped decks use `english`. Ledger §9bz; the gate does not pin which field.
+3. **Al-Musawwir's corpus sweep is unreliable** (its method was grepping for the letter `ص`: 2 false positives, 11 misses) and it repeated the false *"cannot access corpus.quran.com"* claim. Bar 4 still **passes** — 3:6, 40:64, 82:8 genuinely carry the root — but the section around it needs redoing. See §9by for the site's silent case-sensitivity trap.
+4. Bar-3(b), which the deck left marked *"PENDING"* with a green tick, was completed by the verifier: **zero real collisions across 45 decks.**
+5. **Ruled:** the Usmani-over-Saheeh choice for `ٱلظَّاهِر` is **fidelity, not §9bl collision-dodging** — Usmani matches the catalogue's locked `english` exactly, and no ≥3-word collision is being evaded.
 
 ---
 
@@ -52,7 +64,10 @@ draft (Sonnet)  →  blind adversarial verify (Sonnet)  →  fix pass  →  tran
 
 ```bash
 curl "https://api.quran.com/api/v4/verses/by_key/3:6?fields=text_uthmani&translations=20"
-curl "https://corpus.quran.com/qurandictionary.jsp?q=Swr"     # parseable HTML, ~22kB
+curl "https://corpus.quran.com/qurandictionary.jsp?q=Swr"     # parseable HTML, ~18kB
+# NOTE: the q= code is case-sensitive and fails SILENTLY (§9by). `Swr` = ص-و-ر;
+# `swr`/`SwR`/`sur` all return 200 for an unrelated entry with no error.
+# Verified codes: Zhr=59 · bTn=25 · Swr=19 · brA=31 · Hkm=210 · Edl=28
 # sunnah.com via Wayback/CDX when blocked; captures may be zstd — pipe through `zstd -d`
 ```
 
@@ -64,7 +79,7 @@ curl "https://corpus.quran.com/qurandictionary.jsp?q=Swr"     # parseable HTML, 
 
 **Known hazards, so they are not rediscovered:**
 
-- **20 Al-Bari** — the Haiku refusal is false. **57:22's `نَّبْرَأَهَآ`** is a finite verb, Allah subject, creation sense; `corpus` reports 31 occurrences of `ب-ر-أ`. Start there.
+- **20 Al-Bari** — the Haiku refusal is **refuted on the text** (§9ca), independently confirmed. **57:22's `نَّبْرَأَهَآ`** is a finite verb, first-person plural, Allah subject, creation sense — Saheeh: *"before We bring it into being."* `corpus?q=brA` reports **31** occurrences against the refusal's claim of one. Do **not** reach for 2:54 (`بَارِئِكُمْ` ×2 — Mūsā's reported speech, bottom rung) or 59:24 (trailing three-epithet chain); neither carries bar 1. 57:21/57:23 checked, no punishment adjacent.
 - **47, 48, 55, 90** share one locked duʿā (§9bs). A **four**-Name group, so a twin-diff between any two is not sufficient — each drafter must record which āyāt it leaves for the group's undrafted members.
 - **52 Al-Ali / 84 Al-Mutaali** — same root `ع-ل-و`, and `ٱلْعَلِىُّ` is nearly always compounded with `ٱلْعَظِيمُ` (2:255) or `ٱلْكَبِيرُ`. Coordinate with 50 and 53.
 - **26 Al-Hakeem** — partition `ٱلْحَكِيم` from 47's `ٱلْحَكَم` and the verb `حَكَمَ`.

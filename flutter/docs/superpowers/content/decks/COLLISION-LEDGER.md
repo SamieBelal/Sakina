@@ -1709,3 +1709,29 @@ Al-Bari was returned to its drafter with §9bt attached, the exact working `curl
 
 1. **A refusal is a positive claim about the whole corpus and must clear a higher bar than a draft, not a lower one.** A draft that picks a bad āyah wastes a wave; a refusal that misses `نَّبْرَأَهَآ` removes a Name from the app permanently, and it does so while looking like diligence. **§9bo asked refusals to close each route on evidence. Add: an "the root does not occur" claim requires the corpus count pasted into the report.**
 2. **Restating a rule to an agent that has broken it is not a fix.** All four bans — recall-instead-of-fetch, the unreachability claim, the range-as-count, the self-exculpating section — were live in the ledger and in the correction message, and all four recurred. **Where a failure survives explicit correction, change the assignment, not the wording.**
+
+### 9by · corpus.quran.com's query scheme fails *silently* — wrong case returns a different root, not an error
+
+Recorded because it cost a verifier real time and is invisible when it bites.
+
+`https://corpus.quran.com/qurandictionary.jsp?q=<code>` takes an undocumented, **case-sensitive** transliteration. `Swr` returns ص و ر. **`SwR`, `swr` and `sur` all return HTTP 200 and a page — for an unrelated entry**, with no error and no warning.
+
+**So a wrong root count from this site looks exactly like a right one.** Two agents this wave reported the site "unreachable" and one reported a count that was actually a different root's page. **If a corpus count surprises you, suspect the query string before the site.** Confirmed working: `Zhr` (ظ-ه-ر, 59) · `bTn` (ب-ط-ن, 25) · `Swr` (ص-و-ر, 19) · `brA` (ب-ر-أ, 31) · `Hkm` (ح-ك-م, 210) · `Edl` (ع-د-ل, 28).
+
+**And never sweep a root by single-letter presence.** A draft this wave searched candidate āyāt for the letter `ص` as evidence of ص-و-ر. It returned **2 false positives** — 14:34 (the ص is in `تُحْصُوهَآ`, root ح-ص-ي) and 42:11 (`ٱلْبَصِيرُ`, root ب-ص-ر) — and **missed 11 real occurrences**, including the ten `ṣūr` = *the Trumpet*, a different word on the same root. §9bq banned adjacent-radical substring searching; single-radical presence is the degenerate case of it.
+
+### 9bz · `name_intro` renders the catalogue's `english`, not its `meaning`
+
+A draft rendered id 21's `meaning` — *"The One who gives each creation its unique form and beauty"* — on beat 2, and its own bar-3 table graded that byte-identical and correct.
+
+**The house convention is `english`.** Sampled 10 of 10 shipped decks: every one renders the catalogue `english` verbatim as `name_intro.primary` — `al-khaliq@1` → *"The Creator"*. Net effect of the substitution: **the words "The Fashioner" appeared nowhere on that deck.**
+
+The ship gate asserts `name_intro` byte-identity against the catalogue but does not pin *which field*, so this passes CI. **Check the field, not just the bytes.**
+
+### 9ca · Al-Bari is draftable — the refusal is refuted on the text
+
+Independently confirmed by a verifier, live-fetched: **57:22 carries `نَّبْرَأَهَآ`** — finite verb, first-person plural, **Allah as subject**, creation sense. Saheeh: *"before We bring it into being."* `corpus.quran.com?q=brA` reports **31** occurrences of the root against the quarantined refusal's claim of one.
+
+**Two adjacent occurrences do NOT carry bar 1, so whoever drafts this must not reach for them:** 2:54's `بَارِئِكُمْ` ×2 is **Mūsā's reported speech** (bottom rung, §9bk), and 59:24's `ٱلْبَارِئُ` sits in a **trailing three-epithet chain**. 57:22 is the live candidate; its neighbours 57:21 and 57:23 were checked and carry no punishment.
+
+**Status: a lead, not a deck.** No vocabulary sweep against the 45-deck asset and no twin-diff against `al-khaliq@1`/`al-musawwir@1` has been run. It restores plausibility, nothing further.
