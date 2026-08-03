@@ -298,15 +298,17 @@ Run `TODO.md` buckets 2–4 unchanged. Two that matter more because the ship is 
 
 Three migrations in this plan touch `sync_all_user_data`: B1 (reflections columns), E (duʿā answered status), F1 (packs union). **Each must re-emit the function as a superset of the previous one.** Author them in wave order and rebase rather than merging them concurrently. The `20260726000300` / `20260727100300` collision is the precedent.
 
-## 3. Dials
+## 3. Dials — **CUT. There are none.**
 
-| Dial | Default | Covers |
-|---|---|---|
-| `journaling_v2_enabled` | true | C + D |
-| `resurfacing_enabled` | true | E |
-| `packs_enabled` | **false** | F (dark until content lands) |
+**Founder decision, 2026-08-03: journaling ships to every user, ungated.** All three proposed dials are cancelled. None was ever wired — a grep of `lib/`, `test/` and `supabase/` for `journaling_v2_enabled`, `resurfacing_enabled` and `packs_enabled` returns zero hits, so this is a decision recorded, not code removed.
 
-Read through `AppConfigService`, and use `hasCachedValue` before acting on a kill switch at first install.
+`packs_enabled` is moot regardless: Wave F was cut from this release.
+
+**Why cutting the other two is right rather than merely simpler.** A dial is only worth having if its *off* state is a state you would actually choose. Waves B and C write journal data **unconditionally** — persistence is not behind a flag and should not be. So flipping `journaling_v2_enabled` off would not stop anything being written; it would only hide the surfaces that display what users had already written. For most bugs that is a worse outcome than the bug. The kill switch would have been a button nobody could safely press.
+
+`resurfacing_enabled` was the one defensible dial, because Wave E's three cards are purely additive views that can vanish without taking data with them. It is cut too, deliberately: one unpressable switch and one narrow one is not worth the config surface, and E's surfaces degrade to nothing on their own when there is no history to show.
+
+**What replaces it.** The rollback path for journaling is an app release, the same as for every other client-side surface in this product. That is an accepted, stated tradeoff — not an oversight to be discovered later.
 
 ## 4. Risks carried into the build
 
