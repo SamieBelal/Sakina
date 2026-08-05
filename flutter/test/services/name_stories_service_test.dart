@@ -75,7 +75,15 @@ void main() {
 
     test('deckForName finds by catalog id, null when absent', () async {
       expect((await service.deckForName(36))?.deckId, 'al-lateef@1');
-      expect(await service.deckForName(99), isNull);
+      // Absent means OUT OF RANGE, not "an id that happens to be undecked".
+      // This used to assert `deckForName(99)` was null, which held only while
+      // some of the 99 Names had no deck. The 2026-08-05 merge took coverage to
+      // 99/99 and the assertion became false — it was testing the state of the
+      // catalogue, not the lookup. The catalogue is 1-99, so 0 can never
+      // resolve and the invariant survives the next wave too. (Same lesson the
+      // test below already records about pinning deck ids literally.)
+      expect(await service.deckForName(0), isNull);
+      expect(await service.deckForName(1000), isNull);
     });
 
     test('sorting never mutates the shared cache', () async {

@@ -87,6 +87,80 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Saʿd b. Abī Waqqāṣ asked which people are most severely tested; the Prophet ﷺ answered about the Prophets, then those nearest in excellence, testing according to religious commitment, continuing \"until they leave him walking on the earth with no sin on him\" (beats 3–5)",
+        "url": "`sunnah.com/ibnmajah:4023` — Wayback `20210207170756`, `id_` raw",
+        "verified": "✅ `قُلْتُ يَا رَسُولَ اللَّهِ أَىُّ النَّاسِ أَشَدُّ بَلاَءً قَالَ الأَنْبِيَاءُ ثُمَّ الأَمْثَلُ فَالأَمْثَلُ يُبْتَلَى الْعَبْدُ عَلَى حَسَبِ دِينِهِ ... فَمَا يَبْرَحُ الْبَلاَءُ بِالْعَبْدِ حَتَّى يَتْرُكَهُ يَمْشِي عَلَى الأَرْضِ وَمَا عَلَيْهِ مِنْ خَطِيئَةٍ`. Quoted whole, no elision",
+        "grading": "**Hasan (Darussalab)** — printed grade line"
+      },
+      {
+        "claim": "\"The greatest reward comes with the greatest trial. And indeed, when Allah loves a people He tests them.\" (beat 5, closing clause — **this matches catalogue id 95's own `hadith` card field**)",
+        "url": "`sunnah.com/tirmidhi:2396` — Wayback `20260214170558`, `id_` raw",
+        "verified": "✅ `إِنَّ عِظَمَ الْجَزَاءِ مَعَ عِظَمِ الْبَلاَءِ وَإِنَّ اللَّهَ إِذَا أَحَبَّ قَوْمًا ابْتَلاَهُمْ`. Narrated Anas b. Mālik. **Note: this page carries a SECOND, separate hadith on the same isnād** — \"when Allah wants good for His slave, He hastens his punishment in this world…\" — **fetched, read, and deliberately not used**: `khayr`/`sharr` framing plus \"hastens punishment\" risks being misread as \"your suffering proves He does not love you,\" the opposite of the register this deck needs",
+        "grading": "**Hasan (Darussalab)**; Tirmidhī's own classification on the page: *ḥasan gharīb min hādhā al-wajh*"
+      },
+      {
+        "claim": "\"And if Allah should touch you with adversity, there is no remover of it except Him.\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/6:17?fields=text_uthmani,text_imlaei&translations=20`",
+        "verified": "✅ `وَإِن يَمْسَسْكَ ٱللَّهُ بِضُرٍّ فَلَا كَاشِفَ لَهُۥٓ إِلَّا هُوَ` — **quoted as far as the ellipsis, visible `…` on the beat.** The dropped second clause is itemised below",
+        "grading": "Qur'ān, Saheeh International"
+      },
+      {
+        "claim": "Successor sweep n−1",
+        "url": "`verses/by_key/6:16`",
+        "verified": "✅ fetched, quoted nowhere: *\"He from whom it is averted that Day — [Allāh] has granted him mercy. And that is the clear attainment.\"* Judgment-Day mercy, positive, no punishment",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Successor sweep n+1",
+        "url": "`verses/by_key/6:18`",
+        "verified": "✅ fetched, quoted nowhere: *\"And He is the subjugator over His servants. And He is the Wise, the Aware.\"* No punishment; disclosed for sibling-root risk below",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Full-text `ḍ-r-r` enumeration (this deck's actual foundation)",
+        "url": "full 6,236-āyah Uthmānī text, `api.quran.com/api/v4/quran/verses/uthmani`, hand-classified; cross-checked against `corpus.quran.com/qurandictionary.jsp?q=Drr`",
+        "verified": "✅ **74 occurrences, 11 derived forms** (corpus figure, reconciled against my own 72-then-74 table above). Allah finite-subject in exactly 2, both Form VIII, both a Hellfire clause for chosen disbelief (2:126, 31:24)",
+        "grading": "—"
+      },
+      {
+        "claim": "2:126 and 31:24, fetched and read, **used on no beat**",
+        "url": "`verses/by_key/2:126`, `verses/by_key/31:24`",
+        "verified": "✅ `فَأُمَتِّعُهُۥ قَلِيلًا ثُمَّ أَضْطَرُّهُۥٓ إِلَىٰ عَذَابِ ٱلنَّارِ وَبِئْسَ ٱلْمَصِيرُ` (2:126) · `نُمَتِّعُهُمْ قَلِيلًا ثُمَّ نَضْطَرُّهُمْ إِلَىٰ عَذَابٍ غَلِيظٍ` (31:24) — both explicit divine punishment of disbelievers; **the reason this deck disclosed rather than hid the \"Allah is subject twice\" finding**",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Card corroboration cross-check: catalogue id 95's own `hadith` field",
+        "url": "`assets/content/collectible_names.json` id 95",
+        "verified": "✅ matches source #2 exactly (the second, \"greatest reward\" clause of Tirmidhi 2396). The card's citation is accurate",
+        "grading": "—"
+      },
+      {
+        "claim": "Duʿā provenance search",
+        "url": "web search (two queries, itemised above) + Bukhārī 5641/5642 fetch",
+        "verified": "⚠️ **No single narration located with both clauses. UNPINNED.** Stated as a retrieval limit, not a proof of absence (§9bc)",
+        "grading": "—"
+      },
+      {
+        "claim": "Sickness-expiates-sin theme, thematically adjacent, **quoted on no beat**",
+        "url": "`sunnah.com/bukhari:5641` — Wayback `20210127115502`, `id_` raw",
+        "verified": "✅ `مَا يُصِيبُ الْمُسْلِمَ مِنْ نَصَبٍ ... إِلاَّ كَفَّرَ اللَّهُ بِهَا مِنْ خَطَايَاهُ`. Narrated Abū Saʿīd al-Khudrī and Abū Hurayra",
+        "grading": "ṣaḥīḥ (Ṣaḥīḥ al-Bukhārī; no per-page grade line, collection-level)"
+      },
+      {
+        "claim": "48:11 fetched, evaluated, **rejected**",
+        "url": "`verses/by_key/48:9` through `48:14`",
+        "verified": "✅ fetched in full; rejection reasoning below",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "39:38 fetched, evaluated, **not selected** (held as an alternative)",
+        "url": "`verses/by_key/39:36` through `39:40`",
+        "verified": "✅ fetched in full; reasoning below",
+        "grading": "Qur'ān"
+      }
     ]
   },
   {
@@ -176,6 +250,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Indeed, Allah does not do injustice, [even] as much as an atom's weight; while if there is a good deed, He multiplies it and gives from Himself a great reward\"* (beats 3–5, **bar-1 carrier**)",
+        "url": "`.../4:40`",
+        "verified": "✅ `إِنَّ ٱللَّهَ لَا يَظْلِمُ مِثْقَالَ ذَرَّةٍ ۖ وَإِن تَكُ حَسَنَةً يُضَـٰعِفْهَا وَيُؤْتِ مِن لَّدُنْهُ أَجْرًا عَظِيمًا` — **whole āyah**, split across beats at its own `ۖ`"
+      },
+      {
+        "claim": "*\"And the word of your Lord has been fulfilled in truth and in justice…\"* (beat 6, **bar-4 carrier**)",
+        "url": "`.../6:115`",
+        "verified": "✅ `وَتَمَّتْ كَلِمَتُ رَبِّكَ صِدْقًا وَعَدْلًا` — first clause only; `وَهُوَ ٱلسَّمِيعُ ٱلْعَلِيمُ` **not rendered**"
+      },
+      {
+        "claim": "Successor sweep n−1: 4:39",
+        "url": "`.../4:39`",
+        "verified": "✅ clean — closes `وَكَانَ ٱللَّهُ بِهِمْ عَلِيمًا`"
+      },
+      {
+        "claim": "Successor sweep n+1: 4:41",
+        "url": "`.../4:41`",
+        "verified": "✅ **no punishment** — witnesses brought from every nation. Carries `شَهِيدٍ`, **left for id 60**"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 48",
+        "verified": "✅ all three fields asserted present (§9cb). **`source: \"\"` — not Qurʾānic, §9cf**"
       }
     ]
   },
@@ -267,6 +368,62 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 1 bridge",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 2 `name_intro`",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical: `arabic`=`الْأَحَدُ`, `transliteration`=`Al-Ahad`, `english`=`The Unique`, checked via direct Python equality against `collectible_names.json` 2026-08-03",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 3, verbatim: *\"But they have attributed to Allah partners - the jinn, while He has created them - and have fabricated for Him sons and daughters without knowledge. Exalted is He and high above what they describe.\"*",
+        "url": "[Qur'an 6:100](https://quran.com/6/100)",
+        "verified": "✅ verified — live fetch `api.quran.com/api/v4/verses/by_key/6:100`, 2026-08-03. `text_uthmani`: `وَجَعَلُوا۟ لِلَّهِ شُرَكَآءَ ٱلْجِنَّ وَخَلَقَهُمْ ۖ وَخَرَقُوا۟ لَهُۥ بَنِينَ وَبَنَـٰتٍۭ بِغَيْرِ عِلْمٍ ۚ سُبْحَـٰنَهُۥ وَتَعَـٰلَىٰ عَمَّا يَصِفُونَ`. Quoted in full.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 4, partial, leading ellipsis: *\"…How could He have a son when He does not have a companion [i.e., wife],\"*",
+        "url": "[Qur'an 6:101](https://quran.com/6/101)",
+        "verified": "✅ verified — live fetch 2026-08-03. `text_uthmani` (full āyah): `بَدِيعُ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضِ ۖ أَنَّىٰ يَكُونُ لَهُۥ وَلَدٌ وَلَمْ تَكُن لَّهُۥ صَـٰحِبَةٌ ۖ وَخَلَقَ كُلَّ شَىْءٍ ۖ وَهُوَ بِكُلِّ شَىْءٍ عَلِيمٌ`. **Quoted region starts at `أَنَّىٰ`; `بَدِيعُ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضِ` is cut (see the Al-Badi disclosure above), marked with the beat's own leading \"…\".** Translator's bracket `[i.e., wife]` retained rather than silently dropped, per project precedent (`al-haqq@1` 3.3).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 5, verbatim: *\"and He created all things? And He is, of all things, Knowing.\"*",
+        "url": "[Qur'an 6:101](https://quran.com/6/101)",
+        "verified": "✅ verified — same fetch as 4.1. `text_uthmani`: `وَخَلَقَ كُلَّ شَىْءٍ ۖ وَهُوَ بِكُلِّ شَىْءٍ عَلِيمٌ`. Second clause of the same āyah as beat 4, split at the natural clause boundary.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 6, partial, trailing ellipsis: *\"That is Allah, your Lord; there is no deity except Him, the Creator of all things, so worship Him…\"*",
+        "url": "[Qur'an 6:102](https://quran.com/6/102)",
+        "verified": "✅ verified — live fetch 2026-08-03. `text_uthmani` (full āyah): `ذَٰلِكُمُ ٱللَّهُ رَبُّكُمْ ۖ لَآ إِلَـٰهَ إِلَّا هُوَ ۖ خَـٰلِقُ كُلِّ شَىْءٍ فَٱعْبُدُوهُ ۚ وَهُوَ عَلَىٰ كُلِّ شَىْءٍ وَكِيلٌ`. **Quoted region ends at `فَٱعْبُدُوهُ`; `وَهُوَ عَلَىٰ كُلِّ شَىْءٍ وَكِيلٌ` is cut (Al-Wakeel disclosure above), marked with the beat's own trailing \"…\".**",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 7 duʿā",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog across `dua_arabic`/`dua_transliteration`/`dua_translation`, and byte-identical **to id 73's fields**, both via Python string equality, 2026-08-03. **UNPINNED, `source` empty.**",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 8 takeaway",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy. \"Nothing shares what He is\" → beats 4–5's consort/creation argument; \"not a rival, not a near match\" → the same; the Al-Wahid cross-reference is the format's pair-synergy convention, matching `as-samad@1`/`al-baseer@1`'s existing pattern.",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 9 reflection",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy, no scripture claim. No `source`/`arabic` field, per §9br's ship-gate requirement. AI-personalised at runtime; this is the fallback text, written to stand alone.",
+        "grading": "n/a"
+      }
     ]
   },
   {
@@ -356,6 +513,56 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"I know the person who will be the last to come out of the Fire, and the last to enter Paradise…\" through \"…you will have what equals the world and ten times as much\" (beats 3–5, primary carrier), narrated ʿAbdullah [ibn Masʿud]",
+        "url": "`sunnah.com/bukhari:6571` — Wayback capture `20250420215228`",
+        "verified": "✅ `إِنِّي لأَعْلَمُ آخِرَ أَهْلِ النَّارِ خُرُوجًا مِنْهَا، وَآخِرَ أَهْلِ الْجَنَّةِ دُخُولاً رَجُلٌ يَخْرُجُ مِنَ النَّارِ كَبْوًا، فَيَقُولُ اللَّهُ اذْهَبْ فَادْخُلِ الْجَنَّةَ...فَيَقُولُ اذْهَبْ فَادْخُلِ الْجَنَّةَ، فَإِنَّ لَكَ مِثْلَ الدُّنْيَا وَعَشَرَةَ أَمْثَالِهَا`",
+        "grading": "**Sahih** (Sahih al-Bukhari — collection-level; the page prints no separate grade line, same convention as `al-khafid@1`'s Bukhari 2872, §9ag)"
+      },
+      {
+        "claim": "The man's question and the Prophet's ﷺ own reaction (beat 5, second half)",
+        "url": "same page",
+        "verified": "✅ `فَيَقُولُ تَسْخَرُ مِنِّي، أَوْ تَضْحَكُ مِنِّي وَأَنْتَ الْمَلِكُ ‏\"‏ ‏‏.‏ فَلَقَدْ رَأَيْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم ضَحِكَ حَتَّى بَدَتْ نَوَاجِذُهُ` — **⚠️ the beat elides \"though You are the King\" (`وَأَنْتَ الْمَلِكُ`) with a visible ellipsis.** Reason: `أَنْتَ الْمَلِكُ` renders in English as shipped `al-malik@1`'s exact Name-gloss (\"the King\"), whose own beat 5 has Allah say `أَنَا الْمَلِكُ` (\"I am the King\") in first person. Precedent for eliding a clause specifically to avoid a sibling Name's root/gloss: `al-malik@1` itself drops `وَتُعِزُّ مَن تَشَآءُ وَتُذِلُّ مَن تَشَآءُ` from its own 3:26 quotation to avoid Al-Muizz/Al-Muzill. What survives (\"Are you mocking me…?\") preserves the man's incredulity without the King reference",
+        "grading": "Sahih"
+      },
+      {
+        "claim": "Successor sweep, n−1: Bukhari 6570",
+        "url": "`sunnah.com/bukhari:6570` — Wayback `20250207230627`",
+        "verified": "✅ fetched, quoted nowhere — Abu Hurayra asks who gets the Prophet's ﷺ intercession; answer is anyone who said the shahada sincerely. Same chapter (\"The description of Paradise and the Fire\"), no punishment, no contradiction",
+        "grading": "Sahih"
+      },
+      {
+        "claim": "Successor sweep, n+1: Bukhari 6572",
+        "url": "`sunnah.com/bukhari:6572` — Wayback `20231211183016`",
+        "verified": "✅ fetched, quoted nowhere. `العباس` asks the Prophet ﷺ \"Did you benefit Abu Talib with anything?\" — the page's own text stops there. **Disclosed as an adjacency risk**: this question is widely known (elsewhere in the same collection, not on this page) to lead into a description of Abu Talib's post-death punishment. Not shown on THIS hadith's page, not quoted, not alluded to on any beat",
+        "grading": "Sahih"
+      },
+      {
+        "claim": "A parallel of this narration (commonly cited as Sahih Muslim ~186) was independently located by another drafter's sweep for a different Name",
+        "url": "`docs/superpowers/content/decks/2026-08-03-al-wasi-DRAFT.md:275`",
+        "verified": "✅ recorded as \"Muslim 186 — he crawls out of the Fire\", fetched and **rejected there** for Al-Wasi (\"no capacity content\" for that Name). Not rendered on any beat anywhere — examined ground, not spent ground. **Not independently re-fetched by me**; disclosed as a limit below",
+        "grading": "ṣaḥīḥ, per that draft"
+      },
+      {
+        "claim": "\"…and the Last…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:3?fields=text_uthmani,text_imlaei&translations=20`",
+        "verified": "✅ same fetch as Al-Awwal's row 6. `text_uthmani`: `هُوَ ٱلْأَوَّلُ وَٱلْـَٔاخِرُ وَٱلظَّـٰهِرُ وَٱلْبَاطِنُ...`. Saheeh International: *\"He is the First and the Last, the Ascendant and the Intimate…\"*. Beat 6 renders only *\"…and the Last…\"* — double-sided visible ellipsis, does NOT carry bar 1",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The dua (catalog id 80) traced to Sahih Muslim 2713a",
+        "url": "`sunnah.com/muslim:2713` — Wayback `20250811110019`",
+        "verified": "✅ identical finding to Al-Awwal's row 8 — full treatment there, not repeated",
+        "grading": "Sahih (collection-level)"
+      },
+      {
+        "claim": "Root sweep, ʾ-kh-r",
+        "url": "`corpus.quran.com/qurandictionary.jsp?q=Axr`",
+        "verified": "✅ **250 total occurrences** across 6 derived forms (`ākhir`/hereafter 155, `ākhar`/other 70, Form II \"delay\" 15, Form V 3, Form X 6, Form X participle 1). Dictionary-page count, same limit as Al-Awwal's row 9",
+        "grading": "—"
       }
     ]
   },
@@ -447,6 +654,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And it is not for any human being that Allah should speak to him except by revelation, or from behind a partition, or that He sends a messenger to reveal, by His permission, what He wills\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../42:51`",
+        "verified": "✅ `وَمَا كَانَ لِبَشَرٍ أَن يُكَلِّمَهُ ٱللَّهُ إِلَّا وَحْيًا أَوْ مِن وَرَآئِ حِجَابٍ أَوْ يُرْسِلَ رَسُولًا فَيُوحِىَ بِإِذْنِهِۦ مَا يَشَآءُ ۚ إِنَّهُۥ عَلِىٌّ حَكِيمٌ` — the three modes rendered whole; the closing `حَكِيمٌ` **not rendered**"
+      },
+      {
+        "claim": "*\"…Indeed, He is Most High…\"* (beat 6)",
+        "url": "`.../42:51`",
+        "verified": "✅ `إِنَّهُۥ عَلِىٌّ` — visible ellipsis both sides. `حَكِيمٌ` **left for id 26 Al-Hakeem**"
+      },
+      {
+        "claim": "Successor sweep n−1: 42:50",
+        "url": "`.../42:50`",
+        "verified": "✅ no punishment — `يَجْعَلُ مَن يَشَآءُ عَقِيمًا`, closes `عَلِيمٌ قَدِيرٌ`"
+      },
+      {
+        "claim": "Successor sweep n+1: 42:52",
+        "url": "`.../42:52`",
+        "verified": "✅ **good news** — revelation as `نُورًا نَّهْدِى بِهِۦ`, a light by which He guides"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 84)",
+        "url": "`collectible_names.json` id 52",
+        "verified": "✅ all three fields asserted present (§9cb)"
+      }
     ]
   },
   {
@@ -536,6 +770,62 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "The Prophet ﷺ said: \"The first thing Allah created was the Pen. He said to it: Write. It asked: What should I write, my Lord? He said: Write what was decreed about everything till the Last Hour comes.\" (beats 4–5, primary carrier)",
+        "url": "`sunnah.com/abudawud:4700` — Wayback capture `20240408121904`",
+        "verified": "✅ `إِنَّ أَوَّلَ مَا خَلَقَ اللَّهُ الْقَلَمَ فَقَالَ لَهُ اكْتُبْ. قَالَ رَبِّ وَمَاذَا أَكْتُبُ قَالَ اكْتُبْ مَقَادِيرَ كُلِّ شَىْءٍ حَتَّى تَقُومَ السَّاعَةُ` — quoted in full, no elision",
+        "grading": "**Sahih (Al-Albani)** — grade line printed on the page"
+      },
+      {
+        "claim": "Corroborating route, quoted nowhere, narrated by ʿAtaʾ from al-Walid b. ʿUbadah from his father",
+        "url": "`sunnah.com/tirmidhi:2155` — Wayback capture `20250905223959`",
+        "verified": "✅ verified (archive) — `إِنَّ أَوَّلَ مَا خَلَقَ اللَّهُ الْقَلَمَ فَقَالَ اكْتُبْ. فَقَالَ مَا أَكْتُبُ قَالَ اكْتُبِ الْقَدَرَ مَا كَانَ وَمَا هُوَ كَائِنٌ إِلَى الأَبَدِ` — same content, longer isnad chain (via the Az-Zukhruf preamble). **Not the deck's primary citation because of the gharib note; recorded as corroboration, not relied on alone**",
+        "grading": "**Sahih (Darussalam)**, but ⚠️ at-Tirmidhi's own closing note on the same page reads `هَذَا حَدِيثٌ غَرِيبٌ مِنْ هَذَا الْوَجْهِ` (\"gharib from this route\")"
+      },
+      {
+        "claim": "Successor sweep, n−1: Abu Dawud 4699",
+        "url": "`sunnah.com/abudawud:4699` — Wayback `20220908200024`",
+        "verified": "✅ fetched, quoted nowhere. A **different** narration (Ibn ad-Daylami asking Ubayy b. Kaʿb about qadar), same chapter. Contains a conditional punishment clause (*\"were Allah to punish everyone… He would do so without being unjust\"*) and ends *\"were you to die on other than this you would enter the Fire.\"* **Disclosed**: same chapter, adjacent number, not a continuation of beat 4–5's narration, not quoted or alluded to",
+        "grading": "Sahih (Al-Albani)"
+      },
+      {
+        "claim": "Successor sweep, n+1: Abu Dawud 4701",
+        "url": "`sunnah.com/abudawud:4701` — Wayback `20220127212650`",
+        "verified": "✅ fetched, quoted nowhere. The Adam/Musa disputation — Adam answers Musa's blame with *\"a decree He wrote for me forty years before He created me\"*. **Clean**: no punishment, and it reinforces the same theme (decree predates the event), which is why it is disclosed rather than borrowed from",
+        "grading": "Sahih (Al-Albani)"
+      },
+      {
+        "claim": "Successor sweep within Abu Dawud 4700's own text: the hadith continues past the deck's quotation, on the same page",
+        "url": "same page as row 1",
+        "verified": "✅ the full hadith continues: *\"Son, I heard the Messenger of Allah ﷺ say: He who dies on something other than this does not belong to me.\"* **Not quoted on any beat.** A fidelity/disownment clause, not a narrated punishment scene; disclosed rather than used",
+        "grading": "Sahih (Al-Albani)"
+      },
+      {
+        "claim": "\"He is the First…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:3?fields=text_uthmani,text_imlaei&translations=20`",
+        "verified": "✅ `text_uthmani`: `هُوَ ٱلْأَوَّلُ وَٱلْـَٔاخِرُ وَٱلظَّـٰهِرُ وَٱلْبَاطِنُ ۖ وَهُوَ بِكُلِّ شَىْءٍ عَلِيمٌ`. Saheeh International (resource 20): *\"He is the First and the Last, the Ascendant and the Intimate, and He is, of all things, Knowing.\"* **Beat 6 renders only \"He is the First…\" — visible ellipsis, does NOT carry bar 1 (see below)**",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor/context sweep: 57:2 and 57:4",
+        "url": "`verses/by_key/57:2`, `verses/by_key/57:4`",
+        "verified": "✅ fetched. 57:2: *\"His is the dominion of the heavens and earth. He gives life and causes death…\"* — no punishment. 57:4: *\"…He is with you wherever you are…\"* — continues the *same* clause-chain but toward **Az-Zahir/Al-Batin's** territory (omnipresence, inside/outside knowledge), not Awwal/Akhir's. **Neither quoted; flagged for a future 81/82 drafter in the claim file**",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The dua (catalog id 79) traced to Sahih Muslim 2713a",
+        "url": "`sunnah.com/muslim:2713` — Wayback capture `20250811110019`",
+        "verified": "✅ verified (archive) — see full treatment in \"The shared duʿā screen\" below",
+        "grading": "**Sahih (Muslim, collection-level)**"
+      },
+      {
+        "claim": "Root sweep, ʾ-w-l",
+        "url": "`corpus.quran.com/qurandictionary.jsp?q=Awl`",
+        "verified": "✅ **170 total occurrences** across 4 derived forms (nominal *awwal* 82, *ūlī* 45, *āl* 26, *taʾwīl* 17). Cross-checked against the project's standing limit (§9av): this is a dictionary-page count, not a hand-verified verse-by-verse enumeration — see \"What I could not determine\"",
+        "grading": "—"
       }
     ]
   },
@@ -627,6 +917,43 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And have you seen the water that you drink? Is it you who brought it down from the clouds, or is it We who bring it down?\"* (beat 3)",
+        "url": "`.../56:68` + `.../56:69`",
+        "verified": "✅ `أَفَرَءَيْتُمُ ٱلْمَآءَ ٱلَّذِى تَشْرَبُونَ` · `ءَأَنتُمْ أَنزَلْتُمُوهُ مِنَ ٱلْمُزْنِ أَمْ نَحْنُ ٱلْمُنزِلُونَ` — **bar-1 carrier**, first-person plural"
+      },
+      {
+        "claim": "*\"And have you seen the fire that you ignite? Is it you who produced its tree, or are We the producer?\"* (beat 4)",
+        "url": "`.../56:71` + `.../56:72`",
+        "verified": "✅ `أَفَرَءَيْتُمُ ٱلنَّارَ ٱلَّتِى تُورُونَ` · `ءَأَنتُمْ أَنشَأْتُمْ شَجَرَتَهَآ أَمْ نَحْنُ ٱلْمُنشِـُٔونَ`"
+      },
+      {
+        "claim": "*\"So exalt the name of your Lord, the Most Great.\"* (beat 6, **bar-4 carrier**)",
+        "url": "`.../56:74`",
+        "verified": "✅ `فَسَبِّحْ بِٱسْمِ رَبِّكَ ٱلْعَظِيمِ` — whole āyah, and **the passage's own conclusion**"
+      },
+      {
+        "claim": "56:70, inside the story passage but **not rendered**",
+        "url": "`.../56:70`",
+        "verified": "⚠️ `لَوْ نَشَآءُ جَعَلْنَـٰهُ أُجَاجًا فَلَوْلَا تَشْكُرُونَ` — *\"so why are you not grateful?\"* A mild reproach. **Deliberately skipped**; beats 3 and 4 jump 56:69 → 56:71"
+      },
+      {
+        "claim": "Successor sweep n−1 of the verse beat: 56:73",
+        "url": "`.../56:73`",
+        "verified": "✅ `تَذْكِرَةً وَمَتَـٰعًا لِّلْمُقْوِينَ` — a reminder and provision. Clean"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 56:75",
+        "url": "`.../56:75`",
+        "verified": "✅ an oath by the setting of the stars. Clean"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 58)",
+        "url": "`collectible_names.json` id 50",
+        "verified": "✅ all three fields asserted present (§9cb). **It is 56:74 turned into the worshipper's own words**"
+      }
     ]
   },
   {
@@ -716,6 +1043,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Originator of the heavens and the earth.\"* (beat 3, **bar-4 carrier**)",
+        "url": "`.../2:117`",
+        "verified": "✅ `بَدِيعُ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضِ` — first clause. **Reserved for this deck by `al-ahad@1`**, which elided it"
+      },
+      {
+        "claim": "*\"When He decrees a matter, He only says to it: 'Be' — and it is.\"* (beats 4–6, **bar-1 carrier**)",
+        "url": "`.../2:117`",
+        "verified": "✅ `وَإِذَا قَضَىٰٓ أَمْرًا فَإِنَّمَا يَقُولُ لَهُۥ كُن فَيَكُونُ` — second clause"
+      },
+      {
+        "claim": "Successor sweep n−1: 2:116",
+        "url": "`.../2:116`",
+        "verified": "⚠️ polemic — *they say Allah has taken a son*, answered `سُبْحَـٰنَهُۥ`. **No punishment. Not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 2:118",
+        "url": "`.../2:118`",
+        "verified": "✅ people demanding a sign; closes `قَدْ بَيَّنَّا ٱلْـَٔايَـٰتِ لِقَوْمٍ يُوقِنُونَ`. Not rendered"
+      },
+      {
+        "claim": "Root sweep — **complete at 4 occurrences**",
+        "url": "`corpus…?q=bdE`",
+        "verified": "✅ 57:27 (human), 46:9 (the Prophet), **2:117 and 6:101 — the only two predications of Allah, and the same two words**"
+      },
+      {
+        "claim": "Cross-check against production",
+        "url": "`assets/content/name_stories.json`",
+        "verified": "⚠️ **shipped `al-aleem@1`'s duʿā renders *Originator of the heavens and the earth*** — id 97's exact `english` gloss, from a different root (`ف-ط-ر`)"
       }
     ]
   },
@@ -807,6 +1166,43 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"…we will never believe you until we see Allah outright’; so the thunderbolt took you while you were looking on\"* (beat 3)",
+        "url": "`.../2:55`",
+        "verified": "✅ `فَأَخَذَتْكُمُ ٱلصَّـٰعِقَةُ وَأَنتُمْ تَنظُرُونَ` — **rendered deliberately.** See the bars note"
+      },
+      {
+        "claim": "*\"Then We revived you after your death that perhaps you would be grateful.\"* (beats 4–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../2:56`",
+        "verified": "✅ `ثُمَّ بَعَثْنَـٰكُم مِّنۢ بَعْدِ مَوْتِكُمْ لَعَلَّكُمْ تَشْكُرُونَ` — **whole āyah**"
+      },
+      {
+        "claim": "*\"…and that Allah will resurrect those in the graves.\"* (beat 6)",
+        "url": "`.../22:7`",
+        "verified": "✅ `وَأَنَّ ٱللَّهَ يَبْعَثُ مَن فِى ٱلْقُبُورِ` — closing clause only"
+      },
+      {
+        "claim": "Successor sweep n+1: 2:57",
+        "url": "`.../2:57`",
+        "verified": "✅ **provision** — clouds for shade, manna and quails"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 22:8",
+        "url": "`.../22:8`",
+        "verified": "⚠️ disputation about Allah without knowledge. **No punishment.** Not rendered"
+      },
+      {
+        "claim": "Successor sweep n−1 of the verse beat: **22:6** ⚠️ **R3 — never fetched at R0**, an undocumented gap on the verse beat's own predecessor",
+        "url": "`.../22:6`",
+        "verified": "✅ `ذَٰلِكَ بِأَنَّ ٱللَّهَ هُوَ ٱلْحَقُّ وَأَنَّهُۥ يُحْىِ ٱلْمَوْتَىٰ` — **clean, no punishment.** Note it carries **`al-muhyi@1`'s root** (`يُحْىِ`) and shipped **`al-haqq@1`'s** word — **rendered on no beat here**, which is why the gap was benign"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=bEv`",
+        "verified": "✅ **67 occurrences, 5 forms**; 52× form I, **most of them *sending messengers*** rather than raising the dead"
+      }
     ]
   },
   {
@@ -896,6 +1292,56 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"No disaster strikes upon the earth or among yourselves except that it is in a register before We bring it into being\" (beat 3 — **the bar-1 and bar-4 carrier**)",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:22`",
+        "verified": "✅ `مَآ أَصَابَ مِن مُّصِيبَةٍ فِى ٱلْأَرْضِ وَلَا فِىٓ أَنفُسِكُمْ إِلَّا فِى كِتَـٰبٍ مِّن قَبْلِ أَن نَّبْرَأَهَآ ۚ إِنَّ ذَٰلِكَ عَلَى ٱللَّهِ يَسِيرٌ`. Beat 3 renders to the first `ۚ` and **omits the closing `إِنَّ ذَٰلِكَ عَلَى ٱللَّهِ يَسِيرٌ`** — deliberate, see bar 3(a)",
+        "grading": "Qur'an (Uthmani verified live)"
+      },
+      {
+        "claim": "\"…in order that you not despair over what has eluded you…\" (beat 5) — **R1 fix:** R0 read *\"so that\"*; Saheeh reads *\"In order that\"*, and no other published translation reads *\"so that you not despair\"* either. Corrected to the fetched text",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:23`",
+        "verified": "✅ `لِّكَيْلَا تَأْسَوْا۟ عَلَىٰ مَا فَاتَكُمْ` — **first clause only**, visible ellipsis both sides. The rest of 57:23 is **not** rendered; it is the bar-5 hazard, see below",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "\"…the Producer…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/59:24`",
+        "verified": "✅ `هُوَ ٱللَّهُ ٱلْخَـٰلِقُ ٱلْبَارِئُ ٱلْمُصَوِّرُ …`. Beat 6 renders **one word**, `ٱلْبَارِئُ`, Saheeh *\"the Producer\"*. **Does not carry bar 1** (trailing/appositive epithet chain — §9bk)",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n−1 of the carrier: 57:21",
+        "url": "`…/57:21`",
+        "verified": "✅ `سَابِقُوٓا۟ إِلَىٰ مَغْفِرَةٍ …` — forgiveness and the Garden. No punishment. Not quoted",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1 of the carrier: 57:23",
+        "url": "`…/57:23`",
+        "verified": "⚠️ **first half clean, tail is a rebuke** — `وَٱللَّهُ لَا يُحِبُّ كُلَّ مُخْتَالٍ فَخُورٍ`. **Real finding, handled by truncation.** See bar 5",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n−1 of the verse beat: 59:23",
+        "url": "`…/59:23`",
+        "verified": "✅ the Names chain (`ٱلْمَلِكُ ٱلْقُدُّوسُ …`) closing on `سُبْحَـٰنَ ٱللَّهِ`. Pure exaltation. Not quoted",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1 of the verse beat: 59:25",
+        "url": "`…/59:25`",
+        "verified": "✅ **HTTP 404 — sūrah-final.** 59:24 closes Sūrat al-Ḥashr. Per the brief this is **the strongest bar-5 form**. (Contrast: a quarantined Haiku draft *fabricated* a 404 on 59:**24**, which returns 200. This 404 is on 59:**25**, and is real — verified by `curl -o /dev/null -w \"%{http_code}\"`)",
+        "grading": "—"
+      },
+      {
+        "claim": "The locked duʿā (beat 7)",
+        "url": "`assets/content/collectible_names.json` id 20",
+        "verified": "✅ all three fields asserted as substrings of this file (§9cb check). **No ḥadīth or āyah is claimed for it** — see catalogue findings",
+        "grading": "catalogue-locked, **not scripture**"
       }
     ]
   },
@@ -987,6 +1433,68 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 3: setting — Paradise, mutual questioning",
+        "url": "[Qur'an 52:25](https://quran.com/52/25)",
+        "verified": "✅ verified by live fetch `api.quran.com/api/v4/verses/by_key/52:25`, 2026-08-03",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beat 4, quotation: \"We used to live in fear, among our own people, of displeasing our Lord.\"",
+        "url": "[Qur'an 52:26](https://quran.com/52/26)",
+        "verified": "✅ verified — same fetch batch. Arabic: `قَالُوٓا۟ إِنَّا كُنَّا قَبْلُ فِىٓ أَهْلِنَا مُشْفِقِينَ`",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beat 5, quotation: \"So Allah favoured us, and protected us from the punishment of the Scorching Fire.\"",
+        "url": "[Qur'an 52:27](https://quran.com/52/27)",
+        "verified": "✅ verified — same fetch batch. Arabic: `فَمَنَّ ٱللَّهُ عَلَيْنَا وَوَقَىٰنَا عَذَابَ ٱلسَّمُومِ`",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beat 6, verse anchor: \"We used to call on Him before this. He is truly the Good…\"",
+        "url": "[Qur'an 52:28](https://quran.com/52/28)",
+        "verified": "✅ verified — live fetch, 2026-08-03. Arabic in full: `إِنَّا كُنَّا مِن قَبْلُ نَدْعُوهُ ۖ إِنَّهُۥ هُوَ ٱلْبَرُّ ٱلرَّحِيمُ`. **The beat renders only up to \"the Good\" — a visible ellipsis marks the cut before `ٱلرَّحِيمُ`.**",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beat 7 duʿā",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog across `dua_arabic`/`dua_transliteration`/`dua_translation`, checked programmatically. Authored catalogue invocation, checked against the Qur'ān and found no match (see the header note); **unpinned by design.**",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 2 `name_intro`",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog across `arabic`/`transliteration`/`english` (`الْبَرُّ`/`Al-Barr`/`The Source of Goodness`). No authored gloss appended.",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Card `hadith` field",
+        "url": "catalog only",
+        "verified": "✅ confirmed **empty** by direct read; the prior Muslim 1342 mis-citation is gone, not replaced. **No change recommended.**",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Full-text root sweep, ب ر ر",
+        "url": "[corpus.quran.com](https://corpus.quran.com/qurandictionary.jsp?q=brr)",
+        "verified": "✅ **32 occurrences, cross-checked against corpus.quran.com**, itemised by form in the claim file and in \"Bar 4\" above; own count summed and matches the corpus total.",
+        "grading": "Qur'an (cross-check)"
+      },
+      {
+        "claim": "Predecessor sweep, 52:17–24",
+        "url": "[52:17](https://quran.com/52/17)–[52:24](https://quran.com/52/24)",
+        "verified": "✅ all fetched live 2026-08-03",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, 52:29–30",
+        "url": "[52:29](https://quran.com/52/29)–[52:30](https://quran.com/52/30)",
+        "verified": "✅ fetched live 2026-08-03",
+        "grading": "Qur'an"
+      }
     ]
   },
   {
@@ -1076,6 +1584,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"We have created the human and We know what their soul whispers to them, and We are closer to them than their jugular vein\" (beats 3–5, primary carrier)",
+        "url": "`api.quran.com/api/v4/verses/by_key/50:16`",
+        "verified": "✅ `وَلَقَدْ خَلَقْنَا ٱلْإِنسَـٰنَ وَنَعْلَمُ مَا تُوَسْوِسُ بِهِۦ نَفْسُهُۥ ۖ وَنَحْنُ أَقْرَبُ إِلَيْهِ مِنْ حَبْلِ ٱلْوَرِيدِ` — Allah's own first-person speech (`خَلَقْنَا`, `نَعْلَمُ`, `نَحْنُ`), demonstrating hiddenness in two fused dimensions: intimate knowledge of what's hidden in the heart (the soul's whispers) + hidden/interior closeness (nearer than the jugular vein). Spans beats 3–5; no truncation or elision",
+        "grading": "Qur'an (Uthmani verified live)"
+      },
+      {
+        "claim": "Successor sweep, n−1: Qur'an 50:15",
+        "url": "`api.quran.com/api/v4/verses/by_key/50:15`",
+        "verified": "✅ `أَفَعَيِينَا بِٱلْخَلْقِ ٱلْأَوَّلِ ۚ بَلْ هُمْ فِى لَبْسٍ مِّنْ خَلْقٍ جَدِيدٍ` — disbelievers in doubt about resurrection, no punishment adjacent, no hazard. Not quoted or alluded to",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1: Qur'an 50:17",
+        "url": "`api.quran.com/api/v4/verses/by_key/50:17`",
+        "verified": "✅ `إِذْ يَتَلَقَّى ٱلْمُتَلَقِّيَانِ عَنِ ٱلْيَمِينِ وَعَنِ ٱلشِّمَالِ قَعِيدٌ` — the two recording angels (on right and left), observation without accusation. No punishment. Bar 5 clean",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "\"…and the Hidden…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:3`",
+        "verified": "✅ same fetch as Az-Zahir's source row 4. Beat 6 renders only `وَٱلْبَاطِنُ` with visible ellipsis both sides (continuation of four-Name clause after Az-Zahir's `وَٱلظَّـٰهِرُ`). **Does NOT carry bar 1** — 50:16 carries it",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The duʿā (catalogue id 82) traced to Sahih Muslim 2713a",
+        "url": "Verified by Az-Zahir draft (which independently fetched via Wayback capture of `sunnah.com/muslim:2713`)",
+        "verified": "✅ identical to Az-Zahir's row 6 — full treatment in that deck's shared duʿā section",
+        "grading": "**Sahih (collection-level)**"
       }
     ]
   },
@@ -1167,6 +1707,80 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Story quote, verbatim: *\"O My servants, you will not attain harming Me so as to harm Me, and will not attain benefitting Me so as to benefit Me.\"*",
+        "url": "`web.archive.org/web/20260801213232id_/https://sunnah.com/muslim:2577a`",
+        "verified": "✅ fetched live 2026-08-03. Arabic confirmed: `يَا عِبَادِي إِنَّكُمْ لَنْ تَبْلُغُوا ضَرِّي فَتَضُرُّونِي وَلَنْ تَبْلُغُوا نَفْعِي فَتَنْفَعُونِي`. English is the page's own, quoted verbatim, no re-rendering. Narrator chain confirmed: ʿAbdullāh b. ʿAbd ar-Raḥmān ← Marwān ← Saʿīd b. ʿAbd al-ʿAzīz ← Rabīʿa b. Yazīd ← Abū Idrīs al-Khawlānī ← **Abū Dharr** ← the Prophet ﷺ, reporting from Allah.",
+        "grading": "**Ṣaḥīḥ Muslim** (2577a) — no separate printed grade line (collection-level inference, same convention `al-quddus@1`/`al-khaliq@1` record for Bukhārī/Muslim pages that print none)"
+      },
+      {
+        "claim": "This clause is unspent — checked, not assumed",
+        "url": "`assets/content/name_stories.json`, all 45 decks; `al-quddus@1`'s own draft §5 (its itemised clause table)",
+        "verified": "✅ programmatic search for `harm`, `benefit`, `attain`, `ḍarr`, `nafʿ` and Arabic `ضر`/`نفع` across all rendered strings — zero hits before this draft. Cross-checked against `al-quddus@1`'s own clause-by-clause table, which records clause 6 as considered for **its own** beat 8 and explicitly **not used**, for a reason (hapax count) unrelated to whether a different Name could use it.",
+        "grading": "catalogue/project artifact"
+      },
+      {
+        "claim": "Verse quote, verbatim, all three āyāt: 35:15–17",
+        "url": "`api.quran.com/api/v4/verses/by_key/35:15`, `35:16`, `35:17` (`fields=text_uthmani,text_imlaei&translations=20`)",
+        "verified": "✅ fetched live 2026-08-03, each āyah individually. No `<sup>` footnote markers in any of the three translations. Rendered English is Saheeh International verbatim across all three āyāt, concatenated with no material cut (they are three short, consecutive, complete sentences).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Successor sweep, 35:14 (n−1) and 35:18 (n+1)",
+        "url": "`api.quran.com/api/v4/verses/by_key/35:14`, `35:18`",
+        "verified": "✅ fetched live 2026-08-03 (reused from R1, re-confirmed present in this draft's citation set).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Register finding — 35:15 addresses \"O mankind\" generally, not a rebuked party; 35:14's idols-do-not-hear theme does not carry over as an accusation of the reader",
+        "url": "`api.quran.com/api/v4/verses/by_key/35:14`, `35:15`",
+        "verified": "✅ read directly; the coordinator's ruling is adopted with this specific textual check named, not adopted on authority alone.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Full-text `gh-n-y` sweep (18 Allah-predicated occurrences of `الْغَنِيُّ`, all 114 sūrahs)",
+        "url": "reused from R1: `2026-08-03-al-ghaniyy-REFUSAL.md` §2, `.context/claims/92.md`",
+        "verified": "✅ run twice independently in R1, not re-run here (no reason to — the sweep's result is unchanged by the carrier/story split; only the *use* of its output changed).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Id 92's `dua_arabic` is a truncated fragment of Jamiʿ at-Tirmidhi 3563",
+        "url": "`web.archive.org/web/20260608103401id_/https://sunnah.com/tirmidhi:3563`",
+        "verified": "✅ reused from R1, verified live at that time; not re-fetched (no new claim being made about it — shipping unpinned per instruction).",
+        "grading": "*ḥasan gharīb* / printed **Ḥasan (Darussalam)**"
+      },
+      {
+        "claim": "Token/n-gram sweep of every beat in this draft against the **45-deck** asset (954 rendered strings)",
+        "url": "`assets/content/name_stories.json`, extracted programmatically, 2026-08-03",
+        "verified": "✅ run twice (once before the story-2 rewrite, once after); results in §7b, reproducible.",
+        "grading": "—"
+      },
+      {
+        "claim": "Deck-internal self-diff, all 28 beat pairs",
+        "url": "this draft's own beats",
+        "verified": "✅ run programmatically; §7d.",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 2's isnād claim (Abū Dharr, not Abū Idrīs al-Khawlānī, as the Companion narrator)",
+        "url": "same fetch as row 1",
+        "verified": "✅ read directly off the Arabic chain on the page.",
+        "grading": "—"
+      },
+      {
+        "claim": "`name_intro` beat, byte-identical to catalogue id 92",
+        "url": "`assets/content/collectible_names.json`, id 92",
+        "verified": "✅ read programmatically: `arabic`=`الْغَنِيُّ`, `transliteration`=`Al-Ghaniyy`, `english`=`The Self-Sufficient`.",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "Duʿā beat, byte-identical to catalogue id 92",
+        "url": "same file",
+        "verified": "✅ read programmatically, all three fields.",
+        "grading": "catalogue"
+      }
     ]
   },
   {
@@ -1256,6 +1870,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Indeed, it is We who sent down the message… and indeed, We will be its guardian.\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../15:9`",
+        "verified": "✅ `إِنَّا نَحْنُ نَزَّلْنَا ٱلذِّكْرَ وَإِنَّا لَهُۥ لَحَـٰفِظُونَ` — **whole āyah**, split at the `وَ`"
+      },
+      {
+        "claim": "*\"…Allah is Guardian over them…\"* (beat 6)",
+        "url": "`.../42:6`",
+        "verified": "✅ `ٱللَّهُ حَفِيظٌ عَلَيْهِمْ` — the clause only, ellipsis both sides; `وَمَآ أَنتَ عَلَيْهِم بِوَكِيلٍ` **not rendered** (`al-wakeel@1`'s Name)"
+      },
+      {
+        "claim": "Successor sweep n−1: 15:8",
+        "url": "`.../15:8`",
+        "verified": "⚠️ carries *\"they would not then be reprieved\"*. **No punishment, not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 15:10",
+        "url": "`.../15:10`",
+        "verified": "✅ clean — messengers sent among former peoples"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=HfZ`",
+        "verified": "✅ **44 occurrences, 8 forms**, 42 distinct āyāt; `ḥafīẓ` 12×"
       }
     ]
   },
@@ -1347,6 +1988,43 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"All sovereignty that Day is for Allah; He will judge between them. So they who believed and did righteous deeds will be in the Gardens of Pleasure\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../22:56`",
+        "verified": "✅ `ٱلْمُلْكُ يَوْمَئِذٍ لِّلَّهِ يَحْكُمُ بَيْنَهُمْ ۚ فَٱلَّذِينَ ءَامَنُوا۟ وَعَمِلُوا۟ ٱلصَّـٰلِحَـٰتِ فِى جَنَّـٰتِ ٱلنَّعِيمِ` — rendered from `يَحْكُمُ` onward; `ٱلْمُلْكُ يَوْمَئِذٍ لِّلَّهِ` **left for id 88**"
+      },
+      {
+        "claim": "*\"Is not Allah the most just of judges?\"* (beat 6)",
+        "url": "`.../95:8`",
+        "verified": "✅ `أَلَيْسَ ٱللَّهُ بِأَحْكَمِ ٱلْحَـٰكِمِينَ` — whole āyah, no truncation"
+      },
+      {
+        "claim": "Successor sweep n−1: 22:55",
+        "url": "`.../22:55`",
+        "verified": "⚠️ **punishment** — `عَذَابُ يَوْمٍ عَقِيمٍ`. Not rendered"
+      },
+      {
+        "claim": "Successor sweep n+1: 22:57",
+        "url": "`.../22:57`",
+        "verified": "⚠️ **punishment** — `فَأُو۟لَـٰٓئِكَ لَهُمْ عَذَابٌ مُّهِينٌ`. Not rendered"
+      },
+      {
+        "claim": "Successor sweep n−1 of the verse beat: 95:7",
+        "url": "`.../95:7`",
+        "verified": "✅ rhetorical question, no punishment"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 95:9",
+        "url": "`.../95:9`",
+        "verified": "✅ **HTTP 404 — sūrah-final**, verified by status code"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 47",
+        "verified": "✅ all three fields asserted present (§9cb). **`source: \"\"` — not Qurʾānic, §9cf**"
+      }
     ]
   },
   {
@@ -1436,6 +2114,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Your parents or your children — you know not which of them are nearest to you in benefit\"* (beats 3–5, **bar-1 and bar-4 carrier**) — **R1 fix:** R0 read *\"is nearer\"*, which is the 1997 Saheeh printing; `translations=20` as served today reads *\"are nearest\"*, and the beat now matches the source the table claims to have fetched",
+        "url": "`.../4:11`",
+        "verified": "✅ `ءَابَآؤُكُمْ وَأَبْنَآؤُكُمْ لَا تَدْرُونَ أَيُّهُمْ أَقْرَبُ لَكُمْ نَفْعًا ۚ فَرِيضَةً مِّنَ ٱللَّهِ ۗ إِنَّ ٱللَّهَ كَانَ عَلِيمًا حَكِيمًا` — **the clause only.** The inheritance fractions themselves are described, never quoted"
+      },
+      {
+        "claim": "*\"…And He is the Wise…\"* (beat 6)",
+        "url": "`.../34:1`",
+        "verified": "✅ `ٱلْحَكِيمُ` — **one word** of `وَهُوَ ٱلْحَكِيمُ ٱلْخَبِيرُ`, ellipsis both sides. `ٱلْخَبِيرُ` **left to `al-khabeer@1`**"
+      },
+      {
+        "claim": "Successor sweep n−1: 4:10",
+        "url": "`.../4:10`",
+        "verified": "⚠️ **Fire** — `يَأْكُلُونَ فِى بُطُونِهِمْ نَارًا ۖ وَسَيَصْلَوْنَ سَعِيرًا`. **Not rendered.** The deck's weakest point"
+      },
+      {
+        "claim": "Successor sweep n+1: 4:12",
+        "url": "`.../4:12`",
+        "verified": "✅ more inheritance shares. No punishment"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 34:2",
+        "url": "`.../34:2`",
+        "verified": "✅ closes `وَهُوَ ٱلرَّحِيمُ ٱلْغَفُورُ`. 34:1 is **sūrah-opening**, so there is no n−1 within the sūrah"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 49)",
+        "url": "`collectible_names.json` id 26",
+        "verified": "✅ all three fields asserted present (§9cb). **Its vocative is Al-Lateef's**"
       }
     ]
   },
@@ -1527,6 +2237,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"[All] praise is due to Allah, to whom belongs whatever is in the heavens and whatever is in the earth… and to Him belongs [all] praise in the Hereafter.\"* (beats 3–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../34:1`",
+        "verified": "✅ `ٱلْحَمْدُ لِلَّهِ ٱلَّذِى لَهُۥ مَا فِى ٱلسَّمَـٰوَٰتِ وَمَا فِى ٱلْأَرْضِ وَلَهُ ٱلْحَمْدُ فِى ٱلْـَٔاخِرَةِ` — **both `ٱلْحَمْد` clauses.** `وَهُوَ ٱلْحَكِيمُ ٱلْخَبِيرُ` **not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 34:2",
+        "url": "`.../34:2`",
+        "verified": "✅ closes `وَهُوَ ٱلرَّحِيمُ ٱلْغَفُورُ`. **34:1 is sūrah-opening**, so no n−1 within the sūrah"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=Hmd`",
+        "verified": "✅ **63 occurrences, 5 forms**; `ḥamd` 43×, `ḥamīd` 17× — **and `ٱلْحَمِيد` is almost always welded to another Name**"
+      },
+      {
+        "claim": "Cross-check: what `al-majeed@1` renders",
+        "url": "this session's drafts",
+        "verified": "⚠️ **11:73's `حَمِيدٌ مَّجِيدٌ` is spent** — inseparable clause, recorded in `.context/claims/50-58.md`"
+      },
+      {
+        "claim": "Cross-check: the 34:1 partition",
+        "url": "this session's drafts",
+        "verified": "✅ `al-hakeem@1` takes `ٱلْحَكِيمُ`, `al-khabeer@1` takes `ٱلْخَبِيرُ`, **neither touches `ٱلْحَمْد`** — verified by reading their beat text"
+      }
     ]
   },
   {
@@ -1616,6 +2353,43 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And if there is [even] the weight of a mustard seed, We will bring it forth. And sufficient are We as accountant\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../21:47`",
+        "verified": "✅ `وَإِن كَانَ مِثْقَالَ حَبَّةٍ مِّنْ خَرْدَلٍ أَتَيْنَا بِهَا ۗ وَكَفَىٰ بِنَا حَـٰسِبِينَ` — **second half only**, beginning after the āyah's own `ۖ`. First half **left to `al-muqsit@1`**"
+      },
+      {
+        "claim": "*\"…Indeed Allah is ever, over all things, an Accountant\"* (beat 6)",
+        "url": "`.../4:86`",
+        "verified": "✅ `إِنَّ ٱللَّهَ كَانَ عَلَىٰ كُلِّ شَىْءٍ حَسِيبًا` — closing clause only, visible ellipsis; the greeting law is not rendered"
+      },
+      {
+        "claim": "Successor sweep n−1: 21:46",
+        "url": "`.../21:46`",
+        "verified": "⚠️ **punishment** — `عَذَابِ رَبِّكَ`, *\"O woe to us\"*. Not rendered"
+      },
+      {
+        "claim": "Successor sweep n+1: 21:48",
+        "url": "`.../21:48`",
+        "verified": "✅ clean — Mūsā and Hārūn given the criterion"
+      },
+      {
+        "claim": "Successor sweep n−1 of the verse beat: 4:85",
+        "url": "`.../4:85`",
+        "verified": "✅ no punishment — but closes `مُّقِيتًا`, **Al-Muqeet's (id 54) Name-form. Left entirely**"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 4:87",
+        "url": "`.../4:87`",
+        "verified": "✅ Day-of-Resurrection assembly, **no punishment**"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 55",
+        "verified": "✅ all three fields asserted present (§9cb). **`source: \"\"` — not Qurʾānic, §9cf**"
       }
     ]
   },
@@ -1707,6 +2481,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Everyone upon it will perish…\"* (beat 3)",
+        "url": "`.../55:26`",
+        "verified": "✅ `كُلُّ مَنْ عَلَيْهَا فَانٍ` — whole āyah"
+      },
+      {
+        "claim": "*\"…and there will remain the Face of your Lord, Owner of Majesty and Honor.\"* (beats 4–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../55:27`",
+        "verified": "✅ `وَيَبْقَىٰ وَجْهُ رَبِّكَ ذُو ٱلْجَلَـٰلِ وَٱلْإِكْرَامِ` — whole āyah"
+      },
+      {
+        "claim": "Successor sweep n+1: 55:28",
+        "url": "`.../55:28`",
+        "verified": "✅ the sūrah's refrain. No punishment"
+      },
+      {
+        "claim": "Root sweep — **complete at 2 occurrences**",
+        "url": "`corpus…?q=jll`",
+        "verified": "✅ *\"occurs **twice** in the Quran as the noun `jalāl`\"* — **55:27 and 55:78, both the same phrase**"
+      },
+      {
+        "claim": "Cross-check against production",
+        "url": "`assets/content/name_stories.json`",
+        "verified": "⚠️ **shipped `as-salam@1`'s duʿā renders `يَا ذَا الْجَلَالِ وَالْإِكْرَامِ`** — a 5-word English run, unavoidable"
+      }
     ]
   },
   {
@@ -1796,6 +2597,56 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 7 duʿā = Qur'an 3:9",
+        "url": "[Qur'an 3:9](https://quran.com/3/9)",
+        "verified": "✅ verified — live fetch `api.quran.com/api/v4/verses/by_key/3:9?fields=text_uthmani,text_imlaei&translations=20`, 2026-08-03. Rasm-identical (3 alif-wasla marks differ), full āyah, no truncation.",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beat 6, verse anchor",
+        "url": "[Qur'an 64:9](https://quran.com/64/9)",
+        "verified": "✅ verified — live fetch, 2026-08-03. Arabic: `يَوْمَ يَجْمَعُكُمْ لِيَوْمِ ٱلْجَمْعِ ۖ ذَٰلِكَ يَوْمُ ٱلتَّغَابُنِ ۗ وَمَن يُؤْمِنۢ بِٱللَّهِ وَيَعْمَلْ صَـٰلِحًا يُكَفِّرْ عَنْهُ سَيِّـَٔاتِهِۦ وَيُدْخِلْهُ جَنَّـٰتٍ تَجْرِى مِن تَحْتِهَا ٱلْأَنْهَـٰرُ خَـٰلِدِينَ فِيهَآ أَبَدًا ۚ ذَٰلِكَ ٱلْفَوْزُ ٱلْعَظِيمُ`. Translation (resource 20): *\"The Day He will assemble you for the Day of Assembly - that is the Day of Deprivation. And whoever believes in Allāh and does righteousness - He will remove from him his misdeeds and admit him to gardens beneath which rivers flow, wherein they will abide forever. That is the great attainment.\"* Quoted **in full, byte-exact but for `Allāh`→`Allah`** — no ellipsis needed.",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Beats 3–5, story",
+        "url": "[Ṣaḥīḥ al-Bukhārī 6167](https://sunnah.com/bukhari:6167)",
+        "verified": "✅ **verified by live fetch** of `web.archive.org/web/20260511152722id_/https://sunnah.com/bukhari:6167` (sunnah.com 403s automation). Narrator **Anas b. Mālik**; chain ʿAmr b. ʿĀṣim ← Hammām ← Qatāda ← Anas. In-book ref: Book 78, Ḥadīth 193. Arabic confirmed on the page: `أَنَّ رَجُلاً مِنْ أَهْلِ الْبَادِيَةِ أَتَى النَّبِيَّ ﷺ فَقَالَ: يَا رَسُولَ اللَّهِ، مَتَى السَّاعَةُ قَائِمَةٌ؟ قَالَ: وَيْلَكَ وَمَا أَعْدَدْتَ لَهَا؟ قَالَ: مَا أَعْدَدْتُ لَهَا إِلاَّ أَنِّي أُحِبُّ اللَّهَ وَرَسُولَهُ. قَالَ: إِنَّكَ مَعَ مَنْ أَحْبَبْتَ. فَقُلْنَا: وَنَحْنُ كَذَلِكَ؟ قَالَ: نَعَمْ. فَفَرِحْنَا يَوْمَئِذٍ فَرَحًا شَدِيدًا...` (narration continues with an unrelated remark about a boy's age, not quoted — see the successor table).",
+        "grading": "**ṣaḥīḥ** (Ṣaḥīḥ al-Bukhārī)"
+      },
+      {
+        "claim": "Corroborating route, quoted on no beat",
+        "url": "[Ṣaḥīḥ al-Bukhārī 6171](https://sunnah.com/bukhari:6171)",
+        "verified": "✅ **verified by live fetch** of `web.archive.org/web/20260308103422id_/https://sunnah.com/bukhari:6171`. **Independent chain** (ʿAbdān ← his father ← Shuʿba ← ʿAmr b. Murra ← Sālim b. Abī al-Jaʿd ← Anas). Arabic: `أَنَّ رَجُلاً سَأَلَ النَّبِيَّ ﷺ مَتَّى السَّاعَةُ يَا رَسُولَ اللَّهِ؟ قَالَ: مَا أَعْدَدْتَ لَهَا؟ قَالَ: مَا أَعْدَدْتُ لَهَا مِنْ كَثِيرِ صَلاَةٍ وَلاَ صَوْمٍ وَلاَ صَدَقَةٍ، وَلَكِنِّي أُحِبُّ اللَّهَ وَرَسُولَهُ. قَالَ: أَنْتَ مَعَ مَنْ أَحْبَبْتَ.` No age/Hour tail at all — confirms the shorter stopping point is the narration's own, not this deck's invention. In-book ref: Book 78, Ḥadīth 197.",
+        "grading": "**ṣaḥīḥ** (Ṣaḥīḥ al-Bukhārī)"
+      },
+      {
+        "claim": "Beat 2 `name_intro`",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog across `arabic`/`transliteration`/`english` (`الْجَامِعُ`/`Al-Jami`/`The Gatherer`). No authored gloss appended.",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Card `hadith` field — quoted on no beat, and cannot be",
+        "url": "catalog only, cites \"(Seerah)\"",
+        "verified": "⚠️ **finding, no change recommended.** Id 91's `hadith` field reads *\"Salman al-Farsi spent his life searching... until Al-Jami' gathered every step in Madinah with the Prophet ﷺ. (Seerah)\"* — no collection, no number, nothing to fetch and verify. **Same class as the ledger's §9h finding on id 40** (a card citing only a narrator's name, \"not an assertion of fabrication — an assertion that as printed it cannot be checked\"). Not used as this deck's source for that reason; Bukhārī 6167/6171 substituted instead. **No catalogue change recommended.**",
+        "grading": "**uncitable as printed**"
+      },
+      {
+        "claim": "Full-text root sweep, ج م ع",
+        "url": "[corpus.quran.com](https://corpus.quran.com/qurandictionary.jsp?q=jmE)",
+        "verified": "✅ **129 occurrences, 11 forms, cross-checked against corpus.quran.com**; the 22 Form-I verb occurrences hand-classified in the bar-3 table above.",
+        "grading": "Qur'an (cross-check)"
+      },
+      {
+        "claim": "Successor/predecessor sweep",
+        "url": "[3:8](https://quran.com/3/8) · [3:10](https://quran.com/3/10) · [64:6](https://quran.com/64/6)–[64:11](https://quran.com/64/11) · [6:34](https://quran.com/6/34)–[36](https://quran.com/6/36) · [34:24](https://quran.com/34/24)–[27](https://quran.com/34/27) · [42:13](https://quran.com/42/13)–[16](https://quran.com/42/16)",
+        "verified": "✅ all fetched live 2026-08-03",
+        "grading": "Qur'an"
       }
     ]
   },
@@ -1887,6 +2738,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Allah has promised the believing men and believing women gardens beneath which rivers flow … but approval from Allah is greater.\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../9:72`",
+        "verified": "✅ `وَعَدَ ٱللَّهُ … وَرِضْوَٰنٌ مِّنَ ٱللَّهِ أَكْبَرُ` — **whole āyah**, described and quoted"
+      },
+      {
+        "claim": "*\"…the Grand…\"* (beat 6)",
+        "url": "`.../13:9`",
+        "verified": "✅ `ٱلْكَبِيرُ` — **one word**, ellipsis both sides. **Reserved for this Name by `al-mutaali@1`**, which renders only `ٱلْمُتَعَالِ`"
+      },
+      {
+        "claim": "Successor sweep n−1: 9:71",
+        "url": "`.../9:71`",
+        "verified": "✅ clean — believers as allies, closes `سَيَرْحَمُهُمُ ٱللَّهُ`"
+      },
+      {
+        "claim": "Successor sweep n+1: 9:73",
+        "url": "`.../9:73`",
+        "verified": "⚠️ **Hell** — `وَمَأْوَىٰهُمْ جَهَنَّمُ`. **Not rendered**"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=kbr`",
+        "verified": "✅ **161 occurrences, 18 forms** — the second-largest root in the project"
+      }
     ]
   },
   {
@@ -1976,6 +2854,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"O mankind, indeed We have created you from male and female and made you peoples and tribes that you may know one another. Indeed, the most noble of you in the sight of Allah is the most righteous of you\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../49:13`",
+        "verified": "✅ `يَـٰٓأَيُّهَا ٱلنَّاسُ إِنَّا خَلَقْنَـٰكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَـٰكُمْ شُعُوبًا وَقَبَآئِلَ لِتَعَارَفُوٓا۟ ۚ إِنَّ أَكْرَمَكُمْ عِندَ ٱللَّهِ أَتْقَىٰكُمْ ۚ إِنَّ ٱللَّهَ عَلِيمٌ خَبِيرٌ` — **whole āyah**"
+      },
+      {
+        "claim": "*\"…and the Aware.\"* (beat 6)",
+        "url": "`.../34:1`",
+        "verified": "✅ `ٱلْخَبِيرُ` — **one word**, leading ellipsis; the āyah's last word, so no trailing ellipsis. `ٱلْحَكِيمُ` **left to `al-hakeem@1`**. **R1 fix:** R0 read *\"…And He is the Aware.\"*, which silently deleted `ٱلْحَكِيمُ` from **inside** the clause and told the reader 34:1 ends *\"And He is the Aware\"* — it ends *\"And He is the Wise, the Aware.\"* The ellipsis was at the edge, but the omission was interior. `al-hakeem@1`'s beat 6 got the same clause right (*\"…And He is the Wise…\"*, ellipsis on both sides), which is what made the divergence findable"
+      },
+      {
+        "claim": "Successor sweep n−1: 49:12",
+        "url": "`.../49:12`",
+        "verified": "⚠️ **rebuke** — suspicion, spying, backbiting, `أَيُحِبُّ أَحَدُكُمْ أَن يَأْكُلَ لَحْمَ أَخِيهِ مَيْتًا`. **Not rendered.** Closes `تَوَّابٌ رَّحِيمٌ`"
+      },
+      {
+        "claim": "Successor sweep n+1: 49:14",
+        "url": "`.../49:14`",
+        "verified": "⚠️ correction of the bedouins, `قُلْ`-framed. **No punishment**; closes `غَفُورٌ رَّحِيمٌ`"
+      },
+      {
+        "claim": "Successor sweep n+1 of the verse beat: 34:2",
+        "url": "`.../34:2`",
+        "verified": "✅ closes `ٱلرَّحِيمُ ٱلْغَفُورُ`. 34:1 is sūrah-opening"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 26)",
+        "url": "`collectible_names.json` id 49",
+        "verified": "✅ all three fields asserted present (§9cb). **Its vocative is Al-Lateef's**"
       }
     ]
   },
@@ -2067,6 +2977,43 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "The scene: Ibrāhīm's wife is told she will bear a child, and laughs (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../11:73`",
+        "verified": "✅ `قَالُوٓا۟ أَتَعْجَبِينَ مِنْ أَمْرِ ٱللَّهِ ۖ رَحْمَتُ ٱللَّهِ وَبَرَكَـٰتُهُۥ عَلَيْكُمْ أَهْلَ ٱلْبَيْتِ ۚ إِنَّهُۥ حَمِيدٌ مَّجِيدٌ` — **whole āyah.** Bar 1 contested: the words are the angels', the narration is Allah's"
+      },
+      {
+        "claim": "*\"…Indeed, He is Praiseworthy and Honorable.\"* (beat 6, **R1 re-cut**)",
+        "url": "`.../11:73`",
+        "verified": "✅ `إِنَّهُۥ حَمِيدٌ مَّجِيدٌ` — **the closing clause of the carrier āyah**, visible leading ellipsis. Saheeh International verbatim"
+      },
+      {
+        "claim": "~~Successor sweep n−1 of the verse beat: 85:14~~",
+        "url": "~~`.../85:14`~~",
+        "verified": "**MOOT after R2** — Sūrat al-Burūj is no longer touched by this deck at all. Row kept struck so the surrender is auditable"
+      },
+      {
+        "claim": "~~Successor sweep n+1 of the verse beat: 85:16~~",
+        "url": "~~`.../85:16`~~",
+        "verified": "**MOOT after R2** — see row 3"
+      },
+      {
+        "claim": "~~Register check on the verse beat's sūrah: 85:12~~",
+        "url": "~~`.../85:12`~~",
+        "verified": "**MOOT after R2.** `إِنَّ بَطْشَ رَبِّكَ لَشَدِيدٌ` was this deck's worst bar-5 exposure; surrendering 85:15 removed it. **It did not disappear — it moved to `al-majid@1`, which now discloses the identical finding**"
+      },
+      {
+        "claim": "Root sweep — **complete at 4 occurrences**",
+        "url": "`corpus…?q=mjd`",
+        "verified": "✅ *\"occurs four times in the Quran as the adjective majīd\"*: 11:73, 50:1, 85:15, 85:21. **Two are about the Qurʾān**"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 50)",
+        "url": "`collectible_names.json` id 58",
+        "verified": "✅ all three fields asserted present (§9cb). **It names Al-Azeem, not this Name**"
+      }
     ]
   },
   {
@@ -2156,6 +3103,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And We have certainly honored the children of Adam and carried them on the land and sea and provided for them of the good things and preferred them over much of what We have created, with definite preference.\"* (beats 3–5, **bar-1 carrier**)",
+        "url": "`.../17:70`",
+        "verified": "✅ `وَلَقَدْ كَرَّمْنَا بَنِىٓ ءَادَمَ …` — **whole āyah.** Carries `ك-ر-م`, **not** this Name's root"
+      },
+      {
+        "claim": "*\"Honorable Owner of the Throne\"* (beat 6, **bar-4 carrier**)",
+        "url": "`.../85:15`",
+        "verified": "✅ `ذُو ٱلْعَرْشِ ٱلْمَجِيدُ` — whole āyah. **Surrendered to this deck by the `al-majeed@1` R1 re-cut**"
+      },
+      {
+        "claim": "Successor sweep n−1: 17:69",
+        "url": "`.../17:69`",
+        "verified": "⚠️ **drowning** — `فَيُغْرِقَكُم بِمَا كَفَرْتُمْ`. **Not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 17:71",
+        "url": "`.../17:71`",
+        "verified": "✅ records given in right hands, `وَلَا يُظْلَمُونَ فَتِيلًا`. No punishment"
+      },
+      {
+        "claim": "Register check on the verse beat's sūrah: 85:12",
+        "url": "`.../85:12`",
+        "verified": "⚠️ `إِنَّ بَطْشَ رَبِّكَ لَشَدِيدٌ`, three āyāt before. **Not rendered.** 85:14 and 85:16 are clean"
+      },
+      {
+        "claim": "Root sweep — **complete at 4 occurrences**",
+        "url": "`corpus…?q=mjd`",
+        "verified": "✅ 50:1 and 85:21 describe **the Qurʾān**; 11:73 is **`al-majeed@1`'s**; 85:15 is this deck's"
       }
     ]
   },
@@ -2247,6 +3226,13 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Citation table lives in this deck's draft and its blind-verification verdict, both committed to this repo.",
+        "url": "docs/superpowers/content/decks/2026-08-03-al-mani-DRAFT.md",
+        "verified": "see verdicts/2026-08-04-DECISION-SHEET.md"
+      }
     ]
   },
   {
@@ -2336,6 +3322,62 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Story beats 3–5: a woman's excessive prayer; \"take on only what you can sustain…\"; the closing note on consistency",
+        "url": "Wayback capture of `sunnah.com/bukhari:43`, ts `20251216144437`",
+        "verified": "✅ Arabic verified: `تَذْكُرُ مِنْ صَلاَتِهَا` (mentioning her prayer); `مَهْ، عَلَيْكُمْ بِمَا تُطِيقُونَ، فَوَاللَّهِ لاَ يَمَلُّ اللَّهُ حَتَّى تَمَلُّوا` (**quoted in full, no elision**); `وَكَانَ أَحَبَّ الدِّينِ إِلَيْهِ مَا دَامَ عَلَيْهِ صَاحِبُهُ` — closing note, re-rendered from the Arabic (see translation table)",
+        "grading": "**Ṣaḥīḥ al-Bukhārī** — no printed grade line (collection-level inference)"
+      },
+      {
+        "claim": "Parallel corroboration, quoted on no beat",
+        "url": "Wayback captures of `sunnah.com/muslim:782a` (ts `20260208053507`) and `muslim:782b` (ts `20260302163843`)",
+        "verified": "✅ same clause (`فَإِنَّ ٱللَّهَ لاَ يَمَلُّ حَتَّى تَمَلُّوا`) confirmed in a second collection; not needed for bar 1, recorded for completeness",
+        "grading": "Ṣaḥīḥ Muslim"
+      },
+      {
+        "claim": "Beat 6, quoted in full: \"We created the heavens and the earth and all that is between them in six days, and no weariness even touched Us.\" — **Mufti Taqi Usmani (`translations=84`), verbatim, named.** ⚠️ **R1 fix:** R0 printed a wording that is **no published translation** — Saheeh (`20`) reads *\"And We did certainly create the heavens and earth and what is between them in six days, and there touched Us no weariness\"* — while the row below claimed it came from `translations=20`. That is an unattributed re-rendering presented as a fetch (§9bh). Corrected to a single published translation, quoted whole and attributed",
+        "url": "`api.quran.com/api/v4/verses/by_key/50:38?translations=20,84`",
+        "verified": "✅ `وَلَقَدْ خَلَقْنَا ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضَ وَمَا بَيْنَهُمَا فِى سِتَّةِ أَيَّامٍ وَمَا مَسَّنَا مِن لُّغُوبٍ` — quoted whole, no ellipsis",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep: 50:36, 50:37, 50:39, 50:40 fetched and read; 46:33/34 and 50:12–15 fetched for the same-theme comparison",
+        "url": "`api.quran.com/api/v4/verses/by_key/{k}`",
+        "verified": "✅ all live 2026-08-03; findings in the sweep tables above",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The `m-t-n` enumeration: exactly 3 occurrences, all rejected",
+        "url": "full 6,236-āyah Uthmānī corpus, `api.quran.com/api/v4/verses/by_chapter/{1..114}`",
+        "verified": "✅ run against the full text, cross-checked against corpus.quran.com's root م-ت-ن listing (3, matching exactly)",
+        "grading": "—"
+      },
+      {
+        "claim": "Bukhārī 6384 fetched and confirmed to carry the shakk",
+        "url": "Wayback capture, ts `20240617221329`",
+        "verified": "✅ `أَوْ قَالَ ‏\"‏ أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ …` — confirmed; not used on any beat",
+        "grading": "Ṣaḥīḥ al-Bukhārī"
+      },
+      {
+        "claim": "Duʿā splice report (shared with `al-qawiyy@1`)",
+        "url": "Wayback captures of 6610/4205/6384/Muslim 385 + `api.quran.com/api/v4/verses/by_key/2:255`",
+        "verified": "✅ all checked directly for `ٱلْعَلِيِّ ٱلْعَظِيمِ` (absent in all four ḥadīth routes); 2:255's ending confirmed live",
+        "grading": "mixed"
+      },
+      {
+        "claim": "Beat 2 (`name_intro`) and beat 7 (`dua`) fields",
+        "url": "`collectible_names.json` id 63",
+        "verified": "✅ byte-identical, read programmatically",
+        "grading": "—"
+      },
+      {
+        "claim": "`.context/claims/` read at claim time and re-read at report time",
+        "url": "`.context/claims/*.md`",
+        "verified": "✅ 38 files at claim time; re-read immediately before this table — no new file touches 62/63, `m-t-n`, `q-w-y`, 50:38, or Bukhārī 43/782",
+        "grading": "project artifact"
       }
     ]
   },
@@ -2427,6 +3469,80 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "**Beat 2 quotes Dr. Muhammad Muhsin Khan's published English translation of Sahih al-Bukhari, own half only.** Full sentence: *\"You are the One Who makes the things go ahead and You are the One Who delays them, and You are the Omnipotent.\"* Beat renders: *\"…and You are the One Who delays them.\"*",
+        "url": "*The Translation Of The Meanings Of Sahih al-Bukhari*, tr. Dr. Muhammad Muhsin Khan, [archive.org](https://archive.org/details/the-translation-of-the-meanings-of-sahih-al-bukhari-translated-by-dr.-muhammad-muhsin-khan) — same source as the twin's §8 row 1",
+        "verified": "✅ **fetched 2026-08-03**, same footnote as the twin's citation (Book 80, Ḥadīth 6398, chapter 60). Leading ellipsis drops the twin's half; trailing content (\"and You are the Omnipotent\") already excluded from the full sentence quoted, per `al-qadir@1`'s declination of that clause. **Independently corroborated** by a second published translation (hadithunlocked.com, see twin's §8 row 2), which renders this Name's half as *\"You are the One who delays\"* — agreeing in substance.",
+        "grading": "Ṣaḥīḥ (Bukhārī, collection-level)"
+      },
+      {
+        "claim": "Beats 4–5 quotation: *\"To worship Allah, fear Him and obey me.\"* / *\"He will forgive you of your sins and delay you for a specified term. Indeed, the time [set by] Allah, when it comes, will not be delayed, if you only knew.\"*",
+        "url": "Saheeh International (translation id 20) via [Qur'an 71:3](https://quran.com/71/3) and [71:4](https://quran.com/71/4)",
+        "verified": "✅ **verified byte-exact.** Arabic 71:3: `أَنِ ٱعْبُدُوا۟ ٱللَّهَ وَٱتَّقُوهُ وَأَطِيعُونِ`. Arabic 71:4: `يَغْفِرْ لَكُم مِّن ذُنُوبِكُمْ وَيُؤَخِّرْكُمْ إِلَىٰٓ أَجَلٍ مُّسَمًّى ۚ إِنَّ أَجَلَ ٱللَّهِ إِذَا جَآءَ لَا يُؤَخَّرُ ۖ لَوْ كُنتُمْ تَعْلَمُونَ`. **Translator reverted to project-default Saheeh International, per coordinator ruling** — R1's Usmani substitution was collision-avoidance, disallowed by §9at. **Does not carry bar 1** — see §3.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 3, authored paraphrase: *\"Nuh was sent to call his people, plainly, to worship Allah alone.\"*",
+        "url": "71:1–2, Arabic: `إِنَّآ أَرْسَلْنَا نُوحًا إِلَىٰ قَوْمِهِۦٓ أَن أَنذِرْ قَوْمَكَ مِن قَبْلِ أَن يَأْتِيَهُمْ عَذَابٌ أَلِيمٌ. قَالَ يَـٰقَوْمِ إِنِّى لَكُمْ نَذِيرٌ مُّبِينٌ`",
+        "verified": "⚠️ **marked as paraphrase, per spec**, and deliberately elides the \"painful punishment\" clause of 71:1 — not quoted, not paraphrased in English either.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "The `ʾ-kh-r` full-root enumeration: 250 total occurrences, 6 forms; all 15 Form-II instances individually classified, **71:4 now correctly excluded from bar-1 candidacy**",
+        "url": "`https://corpus.quran.com/qurandictionary.jsp?q=Axr`, fetched 2026-08-03",
+        "verified": "✅ **run against corpus.quran.com per §9av.** Table in §2.",
+        "grading": "—"
+      },
+      {
+        "claim": "11:8, 11:104, 14:42, 15:5, 23:43 fetched and rejected on register/bar-5 grounds",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/{...}`",
+        "verified": "✅ all fetched and read as candidates (ledger §9r discipline).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "63:10–11 confirmed as spent ground, not re-derived",
+        "url": "`.context/claims/70.md`, read 2026-08-03 and re-read for this R2 draft",
+        "verified": "✅ **re-read.** Confirms `al-mumeet@1` claims 63:11 with 63:10 as disclosed context. This deck avoids both.",
+        "grading": "project artifact"
+      },
+      {
+        "claim": "Successor sweep: 71:1, 71:2, 71:5, 71:6, 71:7–14 fetched and read",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/{71:1..71:14}`",
+        "verified": "✅ all live 2026-08-03. Readings in §4.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "The `112:1` `قُلْ`-rejection precedent",
+        "url": "`2026-08-03-al-ahad-DRAFT.md`, read in full for this R2 draft",
+        "verified": "✅ **read directly**, not inferred from a summary — confirmed the ruling text: *\"`قُلْ` is Allah commanding the Prophet ﷺ to recite the content that follows… 112:1 fails bar 1 on this reading.\"* Applied to 71:3–4 in §2 above.",
+        "grading": "project artifact"
+      },
+      {
+        "claim": "Beat 1 `name_intro` = *\"The Delayer\"*",
+        "url": "`collectible_names.json` id 78 `english`",
+        "verified": "✅ byte-identical to the catalogue.",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 6 duʿā, all three fields",
+        "url": "`collectible_names.json` id 78",
+        "verified": "✅ byte-identical, verified programmatically. **UNPINNED.**",
+        "grading": "—"
+      },
+      {
+        "claim": "**The \"for a specified term\" overlap with `al-haleem@1`: 4-word run, not 2**",
+        "url": "`assets/content/name_stories.json`, `al-haleem@1`'s exact shipped beat text extracted and diffed word-for-word against 71:4's Saheeh International text",
+        "verified": "✅ **measured, not asserted.** Full working in §5b. Correction of R1's own undercount, disclosed rather than silently fixed, per ledger §9ak/§9bb discipline.",
+        "grading": "project artifact"
+      },
+      {
+        "claim": "Bar-3 token sweep run against **45 decks**, current asset state",
+        "url": "`assets/content/name_stories.json`, re-fetched and re-counted immediately before finalising this R2 draft",
+        "verified": "✅ **re-swept, count stated as a number (45), per ledger §9bi.**",
+        "grading": "project artifact"
+      }
     ]
   },
   {
@@ -2516,6 +3632,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"The Day when We will fold the heaven like the folding of a sheet for the records. As We began the first creation, We will repeat it. [That is] a promise binding upon Us. Indeed, We will do it.\"* (beats 3–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../21:104`",
+        "verified": "✅ `يَوْمَ نَطْوِى ٱلسَّمَآءَ … كَمَا بَدَأْنَآ أَوَّلَ خَلْقٍ نُّعِيدُهُۥ ۚ وَعْدًا عَلَيْنَآ ۚ إِنَّا كُنَّا فَـٰعِلِينَ` — **whole āyah**, split across beats"
+      },
+      {
+        "claim": "Successor sweep n−1: 21:103",
+        "url": "`.../21:103`",
+        "verified": "⚠️ names `ٱلْفَزَعُ ٱلْأَكْبَرُ` — **inside a negation** for the righteous. Not rendered"
+      },
+      {
+        "claim": "Successor sweep n+1: 21:105",
+        "url": "`.../21:105`",
+        "verified": "✅ clean — the righteous inherit the land"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=bdA`",
+        "verified": "✅ **15 occurrences, 2 forms**; 12× form I `bada-a`, 3× form IV `yub'di-u`"
+      },
+      {
+        "claim": "Cross-check: what `al-muid@1` renders",
+        "url": "this session's drafts",
+        "verified": "⚠️ its verse beat is **30:27, whole** — which contains `يَبْدَؤُا۟`, **this Name's root.** 21:104 is cited there but **not rendered**"
       }
     ]
   },
@@ -2607,6 +3750,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And We have revealed to you the Book in truth, confirming that which preceded it of the Scripture — and as a criterion over it.\"* (beats 3–5, **bar-4 carrier**)",
+        "url": "`.../5:48`",
+        "verified": "✅ `وَأَنزَلْنَآ إِلَيْكَ ٱلْكِتَـٰبَ بِٱلْحَقِّ مُصَدِّقًا لِّمَا بَيْنَ يَدَيْهِ مِنَ ٱلْكِتَـٰبِ وَمُهَيْمِنًا عَلَيْهِ` — the first clause only. **`فَٱحْكُم بَيْنَهُم` onward not rendered**"
+      },
+      {
+        "claim": "*\"…the Overseer…\"* (beat 6)",
+        "url": "`.../59:23`",
+        "verified": "✅ `ٱلْمُهَيْمِنُ` — **one word** of an eight-epithet chain, ellipsis both sides"
+      },
+      {
+        "claim": "Successor sweep n−1: 5:47",
+        "url": "`.../5:47`",
+        "verified": "⚠️ ends `فَأُو۟لَـٰٓئِكَ هُمُ ٱلْفَـٰسِقُونَ`. **Not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 5:49",
+        "url": "`.../5:49`",
+        "verified": "⚠️ warns `أَن يُصِيبَهُم بِبَعْضِ ذُنُوبِهِمْ`. **Not rendered**"
+      },
+      {
+        "claim": "Root inventory",
+        "url": "direct fetch of both occurrences",
+        "verified": "⚠️ **`corpus?q=hymn` returns the wrong root** (it returns آدم entries — §9by). The two occurrences were established **by fetching 5:48 and 59:23 directly.** Stated as a limit"
+      }
     ]
   },
   {
@@ -2696,6 +3866,50 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"Indeed, it is We who bring the dead to life and record what they have put forth and what they left behind… and all things We have enumerated in a clear register\" (beats 3–4 — **the bar-1 and bar-4 carrier**)",
+        "url": "`api.quran.com/api/v4/verses/by_key/36:12`",
+        "verified": "✅ `إِنَّا نَحْنُ نُحْىِ ٱلْمَوْتَىٰ وَنَكْتُبُ مَا قَدَّمُوا۟ وَءَاثَـٰرَهُمْ ۚ وَكُلَّ شَىْءٍ أَحْصَيْنَـٰهُ فِىٓ إِمَامٍ مُّبِينٍ` — **whole āyah, split across two beats at the āyah's own `ۚ` pause.** Nothing elided",
+        "grading": "Qur'an (Uthmani verified live)"
+      },
+      {
+        "claim": "\"And if you should count the favors of Allāh, you could not enumerate them. Indeed, Allāh is Forgiving and Merciful.\" (beat 6)",
+        "url": "`…/16:18`",
+        "verified": "✅ `وَإِن تَعُدُّوا۟ نِعْمَةَ ٱللَّهِ لَا تُحْصُوهَآ ۗ إِنَّ ٱللَّهَ لَغَفُورٌ رَّحِيمٌ` — **whole āyah, no ellipsis.** Root present as `تُحْصُوهَآ`",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n−1 of the carrier: 36:11",
+        "url": "`…/36:11`",
+        "verified": "✅ *\"So give him good tidings of **forgiveness and noble reward**.\"* Not merely clean — the predecessor is itself good news. Not quoted",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1 of the carrier: 36:13",
+        "url": "`…/36:13`",
+        "verified": "✅ *\"And present to them an example: the people of the city…\"* — opens a parable, no punishment in the āyah. **Not quoted — and it is `al-azeez@1`'s ground**, see bar 3(a)",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n−1 of the verse beat: 16:17",
+        "url": "`…/16:17`",
+        "verified": "✅ *\"Then is He who creates like one who does not create?\"* — rhetorical question, no punishment. Not quoted",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1 of the verse beat: 16:19",
+        "url": "`…/16:19`",
+        "verified": "✅ *\"And Allāh knows what you conceal and what you declare.\"* No punishment. Not quoted",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The locked duʿā (beat 7)",
+        "url": "`assets/content/collectible_names.json` id 66",
+        "verified": "✅ all three fields asserted as substrings of this file (§9cb check). **No ḥadīth or āyah is claimed for it**",
+        "grading": "catalogue-locked, **not scripture**"
       }
     ]
   },
@@ -2787,6 +4001,86 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "`لَمُحْىِ ٱلْمَوْتَىٰ` (\"Giver of Life to the dead\") appears in Allah's own words, as a clause subject, at 30:50",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/30:50` (`text_uthmani`, `text_imlaei`, translation resource 20)",
+        "verified": "✅ fetched live 2026-08-03, text matches quoted beat word-for-word against `text_imlaei`",
+        "grading": "Qur'an — no grading required"
+      },
+      {
+        "claim": "Same clause recurs at 41:39, an independent second attestation",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/41:39`",
+        "verified": "✅ fetched live, verified",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "30:48 (winds/clouds/rain/rejoicing) and 30:49 (despair before) are the immediate narrative setup to 30:50",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/30:48`, `.../30:49`",
+        "verified": "✅ fetched live; beats 3–4 are disclosed paraphrase, checked clause-by-clause against `text_uthmani`, not a copy of Saheeh International's English",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep: 30:47, 30:51, 30:52, 41:38, 41:40 fetched and read",
+        "url": "quran.com API, `by_key` for each",
+        "verified": "✅ all five fetched live; findings in §4",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "No 404 / sūrah-final boundary on this deck's citations",
+        "url": "inferred from successor fetches succeeding (no 4xx)",
+        "verified": "✅ (see §4 note — the maximal form belongs to the companion deck)",
+        "grading": "—"
+      },
+      {
+        "claim": "Trailing `قَدِيرٌ` clause is present in both 30:50 and 41:39 and was trimmed from the rendered beats",
+        "url": "same verse fetches",
+        "verified": "✅ confirmed present in both `text_uthmani` strings; trim applied and disclosed with ellipsis in beats 5 and 6",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "**Full-text sweep: the Qur'an's fixed `يُحْىِ`/`نُحْىِ` + `يُمِيتُ`/`نُمِيتُ` doublet formula is paired 16/16, zero exceptions** (2:28, 2:258, 3:156, 7:158, 9:116, 10:56, 15:23, 22:66, 23:80, 26:81, 30:40, 40:68, 44:8, 45:26, 50:43, 57:2)",
+        "url": "fetched all 114 chapters via `verses/by_chapter`, concatenated to 6,236 verses, regex-searched after diacritic-stripping, **run in two passes** (a first pass on the mudāriʿ prefixes, a second on the hamza-alif past-tense spellings the first missed)",
+        "verified": "✅ run and counted; claim **narrowed during drafting** after the second pass found two true exceptions among the broader \"every causative death-verb\" claim (2:259, 80:21 — both independently unusable for other reasons). **This sweep belongs to and is shared with the Al-Mumeet draft**, since it is what justifies that deck's bar-4 trade, not this one — recorded here because this deck's own root is the other half of every one of the 16 doublet occurrences. Full correction in that draft's §5.",
+        "grading": "Qur'an, full-corpus grep, reproducible"
+      },
+      {
+        "claim": "`dua_arabic`/`dua_transliteration`/`dua_translation` on the `dua` beat are byte-identical to catalogue id 69",
+        "url": "`assets/content/collectible_names.json`, id 69",
+        "verified": "✅ diffed programmatically against the fetched JSON, byte-identical",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "`name_intro` primary/arabic/transliteration are byte-identical to catalogue id 69",
+        "url": "same file",
+        "verified": "✅ diffed, byte-identical",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "Catalogue id 69's duʿā has no locatable narrated source",
+        "url": "`WebSearch`, 2 queries on distinctive clauses",
+        "verified": "✅ **stated at true strength**: two searches run, no match found; not an exhaustive sunnah.com/Shamela sweep (method limit, §8)",
+        "grading": "—"
+      },
+      {
+        "claim": "Catalogue id 59 (Al-Baith) shares a 2-word Arabic / 3-word English run with id 69's own duʿā",
+        "url": "`assets/content/collectible_names.json`, id 59, longest-common-substring computed programmatically over both `dua_arabic` and `dua_translation`",
+        "verified": "✅ computed: `['أَحْيِ', 'قَلْبِي']` (Arabic), `['revive', 'my', 'heart']` (English) — measurement, not adjective",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "Bar-3 clearance against `al-qadir@1`, `al-muid@1`, Al-Hayy (`.context/claims/15.md`)",
+        "url": "COLLISION-LEDGER §1/§2a/§2d/§5, `.context/claims/15.md`, `.context/claims/10.md`, `.context/claims/25.md`, `.context/claims/41.md` (all cross-confirm 30:50/41:39 reserved for id 69)",
+        "verified": "✅ read in full; see §3c",
+        "grading": "project artifacts"
+      },
+      {
+        "claim": "`.context/claims/` directory re-read immediately before finalizing this table, and again immediately before reporting",
+        "url": "`.context/claims/*.md` — 21 files at the first re-read, **38 files at the final re-read** (2026-08-03, directly before this report)",
+        "verified": "✅ re-read twice; grepped the newer files (74, 79, 80, 85, 91, 92, 94, 95, 96) for `63:1[01]`, `1339`, `3407`, `30:4[89]`, `30:50`, `41:39`, `al-muhyi`, `al-mumeet` — no hits at either re-read",
+        "grading": "project artifact"
+      }
     ]
   },
   {
@@ -2876,6 +4170,92 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Charity does not decrease wealth, no one forgives another except that Allah increases his honor, and no one humbles himself for the sake of Allah except that Allah raises his status.\"* (beats 2–4, split across three, verbatim)",
+        "url": "Ṣaḥīḥ Muslim 2588, narrated Abū Hurayra",
+        "verified": "✅ **verified (archive)** — Arabic and English both read off the capture. Arabic: `مَا نَقَصَتْ صَدَقَةٌ مِنْ مَالٍ وَمَا زَادَ اللَّهُ عَبْدًا بِعَفْوٍ إِلاَّ عِزًّا وَمَا تَوَاضَعَ أَحَدٌ لِلَّهِ إِلاَّ رَفَعَهُ اللَّهُ`",
+        "grading": "**ṣaḥīḥ** (Ṣaḥīḥ Muslim; no separate grade line — Muslim's own collection). In-book reference: Book 45, Ḥadīth 90."
+      },
+      {
+        "claim": "*\"…You honor whom You will…\"* (beat 5)",
+        "url": "Qur'ān 3:26",
+        "verified": "✅ **verified** — Saheeh International, quoted verbatim as a substring; both ellipses mark a mid-sentence excerpt on the beat",
+        "grading": "—"
+      },
+      {
+        "claim": "3:26's n−1 (3:25), n+1 (3:27), n+2 (3:28) — independently re-fetched this session, not only inherited",
+        "url": "Qur'ān 3:25, 3:27, 3:28",
+        "verified": "✅ **fetched and read in this session**; readings in §4",
+        "grading": "—"
+      },
+      {
+        "claim": "Muslim 2587 (n−1) and 2589 (n+1) are unrelated topics, no punishment bearing on this deck",
+        "url": "Ṣaḥīḥ Muslim 2587, 2589",
+        "verified": "✅ **verified (archive)**",
+        "grading": "ṣaḥīḥ (Muslim)"
+      },
+      {
+        "claim": "The `ʿ-z-z` full-mushaf enumeration (3 finite verbs; 3:26 the only unspent)",
+        "url": "inherited from `.context/claims/8.md`, **independently re-run** this session over `api.quran.com/api/v4/quran/verses/uthmani`",
+        "verified": "✅ **re-run and reproduces**; not trusted unverified",
+        "grading": "—"
+      },
+      {
+        "claim": "The `dh-l-l` full-mushaf enumeration (28 skeleton hits, 4 excluded as `r-dh-l`, exactly 1 Allah-subject \"humiliate a person\" finite verb)",
+        "url": "run fresh this session, no prior claim covers this root",
+        "verified": "✅ **computed in this session**; script and table in §2",
+        "grading": "—"
+      },
+      {
+        "claim": "Catalogue ids 43 and 44 share `dua_arabic`/`dua_transliteration`/`dua_translation` byte-for-byte",
+        "url": "`assets/content/collectible_names.json` ids 43, 44",
+        "verified": "✅ **verified programmatically**, exact string equality",
+        "grading": "—"
+      },
+      {
+        "claim": "The duʿā has no locatable primary narration",
+        "url": "sunnah.com search index, general web search",
+        "verified": "⚠️ **searched, not found — see the limits section below.** One non-primary web result attributes a version to Aḥmad ibn Ḥanbal as an *athar*; **not independently verified, not acted on.**",
+        "grading": "—"
+      },
+      {
+        "claim": "The 6-word run *\"honor me through obedience to You\"* is byte-identical between ids 8 and 43/44",
+        "url": "`collectible_names.json` ids 8, 43",
+        "verified": "✅ **verified programmatically**",
+        "grading": "—"
+      },
+      {
+        "claim": "Zero ≥4-word rendered-English overlap with any of the 34 shipped decks, except the disclosed bridge-template class",
+        "url": "`assets/content/name_stories.json` (34 decks)",
+        "verified": "✅ **run in this session**; output in §5b",
+        "grading": "—"
+      },
+      {
+        "claim": "Twin diff against `al-muzill@1`: zero shared 4-grams outside the template class and the āyah's own repeated frame",
+        "url": "both drafts",
+        "verified": "✅ **run in this session**; table in §5d",
+        "grading": "—"
+      },
+      {
+        "claim": "35:10 closes on `لَهُمْ عَذَابٌ شَدِيدٌ` in the same āyah",
+        "url": "Qur'ān 35:10",
+        "verified": "✅ **re-fetched and re-confirmed**, not only inherited from `.context/claims/8.md`",
+        "grading": "—"
+      },
+      {
+        "claim": "63:8's successor sweep (63:5–11), sūrah-final at 63:11",
+        "url": "Qur'ān 63:5–63:11",
+        "verified": "✅ **fetched**; not used on any beat, reasons in §\"Explicitly NOT claimed\" of the claim file",
+        "grading": "—"
+      },
+      {
+        "claim": "isnād of Muslim 2588",
+        "url": "—",
+        "verified": "❌ **NOT audited.** See §9.",
+        "grading": "—"
       }
     ]
   },
@@ -2967,6 +4347,74 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "The angel of death, Musa, the struck eye, the offer of years, \"then, now\", burial near the Sacred Land — full narration",
+        "url": "Wayback capture of `https://sunnah.com/bukhari:1339`, CDX-located, fetched 2026-08-03 (`https://web.archive.org/web/20230131204345/https://sunnah.com/bukhari:1339`)",
+        "verified": "✅ fetched and read in full, both Arabic and English; beats are disclosed paraphrase, checked against the Arabic (`أُرْسِلَ مَلَكُ الْمَوْتِ`, `صَكَّهُ`, `فَرَدَّ اللَّهُ عَلَيْهِ عَيْنَهُ`, `ثُمَّ الْمَوْتُ`, `فَالآنَ`, `الأَرْضِ الْمُقَدَّسَةِ`) rather than copied from the page's published English. **One disclosed inferential step:** the hadith's own text narrates the *request* (\"he asked Allah to bring him near the sacred land\") and then jumps to the Prophet's ﷺ closing remark about knowing his grave \"by the road, near the red sand hill\" — it does not narrate \"and he died there\" as a separate clause. Beat 5's \"there, close to it, he died\" is the standard, uncontested reading (the grave-remark presupposes it), but it is a one-step inference from the text, not a directly narrated sentence, and is named here rather than left silent.",
+        "grading": "**Ṣaḥīḥ al-Bukhārī 1339** — no separate grade line printed on the page (standard for Bukhārī; collection-level inference, same convention COLLISION-LEDGER §9ag records for Bukhārī 6227)"
+      },
+      {
+        "claim": "63:11, full āyah, and its sūrah-final position",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/63:11` (fetched); `.../63:12` (fetched, HTTP 404)",
+        "verified": "✅ both fetched live 2026-08-03; 404 confirms sūrah-final",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "63:10 (n−1) read as context",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/63:10`",
+        "verified": "✅ fetched, disclosed in §4, not quoted on any beat",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Catalogue id 70's `hadith` field (Tirmidhī 2307) independently re-verified, accurate as printed",
+        "url": "Wayback capture, `https://web.archive.org/web/20231205184808/https://sunnah.com/tirmidhi:2307`",
+        "verified": "✅ fetched, text and grade match the catalogue card; not placed on a beat (§1)",
+        "grading": "**Ḥasan (Darussalam)**"
+      },
+      {
+        "claim": "39:42 / Bukhārī 595 not used anywhere in this deck",
+        "url": "this draft's own beats + COLLISION-LEDGER §2a cross-check",
+        "verified": "✅ confirmed by re-reading every beat above and the ledger's own row for `al-qayyum@1`",
+        "grading": "—"
+      },
+      {
+        "claim": "**Full-text sweep: the Qur'an's fixed doublet formula (`يُحْىِ`/`نُحْىِ` + `يُمِيتُ`/`نُمِيتُ`) is paired 16/16, zero exceptions; two exceptions found and disclosed among the broader, narrower-claimed `أَمَاتَ`-form set (2:259, 80:21), both independently unusable**",
+        "url": "fetched all 114 chapters, 6,236 verses, local regex after diacritic-stripping, two passes",
+        "verified": "✅ run and counted; enumerated in §5, shared method with `al-muhyi@1`'s draft; claim narrowed mid-draft after self-check (§9aj discipline)",
+        "grading": "Qur'an, full-corpus grep, reproducible"
+      },
+      {
+        "claim": "`dua_arabic`/`dua_transliteration`/`dua_translation` on the `dua` beat byte-identical to catalogue id 70",
+        "url": "`assets/content/collectible_names.json`, id 70",
+        "verified": "✅ diffed programmatically, byte-identical",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "`name_intro` primary/arabic/transliteration byte-identical to catalogue id 70",
+        "url": "same file",
+        "verified": "✅ diffed, byte-identical",
+        "grading": "catalogue"
+      },
+      {
+        "claim": "Catalogue id 70's duʿā has no locatable narrated source",
+        "url": "`WebSearch`, 1 targeted query",
+        "verified": "✅ stated at true strength: one search run, no exact match; not exhaustive (method limit, §8)",
+        "grading": "—"
+      },
+      {
+        "claim": "Bar-3 clearance against `al-qayyum@1`, `al-baqi@1`, and the twin-deck diff against `al-muhyi@1`",
+        "url": "COLLISION-LEDGER §1/§2a/§3, this draft's own §3c table",
+        "verified": "✅ read in full; beat-by-beat table in §3c",
+        "grading": "project artifacts"
+      },
+      {
+        "claim": "`.context/claims/` directory re-read immediately before finalizing this table, and again immediately before reporting",
+        "url": "`.context/claims/*.md` — 21 files at the first re-read, **38 files at the final re-read** (2026-08-03) — specifically checked `.context/claims/43.md`, which independently fetched and swept 63:5–11 for its own (rejected) candidate and confirms the same sūrah-final result at 63:11/63:12, without claiming 63:11 itself; and grepped every file added after the first re-read (74, 79, 80, 85, 91, 92, 94, 95, 96) for `63:1[01]`, `1339`, `3407`, `angel of death`, `al-mumeet`",
+        "verified": "✅ re-read twice; no other agent's claim touches Bukhārī 1339, 63:10, or 63:11 at either re-read",
+        "grading": "project artifact"
+      }
     ]
   },
   {
@@ -3056,6 +4504,74 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "**Beats 3–4 quote Dr. Muhammad Muhsin Khan's published English translation of Sahih al-Bukhari, verbatim.** Full clause: *\"O Allah! Forgive my sins of the past which I did openly or secretly, and also of the future. You are the One Who makes the things go ahead and You are the One Who delays them, and You are the Omnipotent.\"*",
+        "url": "*The Translation Of The Meanings Of Sahih al-Bukhari*, translated by Dr. Muhammad Muhsin Khan — the edition sunnah.com's own page cites as its \"USC-MSA web (English) reference: Vol. 8, Book 75, Hadith 407\" for this exact ḥadīth. Full text at [archive.org](https://archive.org/details/the-translation-of-the-meanings-of-sahih-al-bukhari-translated-by-dr.-muhammad-muhsin-khan)",
+        "verified": "✅ **fetched 2026-08-03**, footnote (1) to Ḥadīth 6398 in the book's own text (Book 80, \"The Book of Invocations,\" chapter 60), located by searching the full OCR text for \"qaddamtu.\" Quoted verbatim, footnote marker and page-break artifacts removed. **This is the fix for R1's blocker** — no drafter translation used anywhere in this R2 draft.",
+        "grading": "Ṣaḥīḥ (Bukhārī, collection-level)"
+      },
+      {
+        "claim": "**Independent second published translation, corroborating.** *\"O Allah, forgive me what I have sent forward and what I have left behind, what I have concealed and what I have made public. You are the One who brings forward and You are the One who delays, and You have power over all things.\"*",
+        "url": "[hadithunlocked.com/bukhari:6398](https://hadithunlocked.com/bukhari:6398), attributed on the page to \"Hadith Unlocked (Luʾluʾ wa-al-Marjān)\"",
+        "verified": "✅ **fetched 2026-08-03.** Different published translation from a different source, **agreeing in substance** on both epithets (Al-Muqaddim → \"makes things go ahead\" / \"brings forward\"; Al-Mu'akhkhir → \"delays\"). Not the beat's quoted text (Muhsin Khan is, per row 1) — recorded as corroboration per the coordinator's instruction. Arabic on that page matches the Wayback-fetched Arabic byte-for-byte, cross-checked.",
+        "grading": "Ṣaḥīḥ (same narration)"
+      },
+      {
+        "claim": "Beat 4's visible ellipsis renders **only** this Name's half, dropping \"and You are the One Who delays them, and You are the Omnipotent\"",
+        "url": "same page (row 1)",
+        "verified": "✅ **deliberate, disclosed in §1 note 1 and §5a.** Two reasons in one cut: (a) `al-qadir@1` was offered the `qadīr` clause and declined it (ledger §2d); (b) the coordinator's ruling that each twin renders only its own half.",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 2, authored paraphrase: *\"The Prophet ﷺ once asked forgiveness for everything at once — his mistakes, his ignorance, his excess — without picking which ones to name.\"*",
+        "url": "Muhsin Khan's translation, opening clauses (\"Forgive my sins and my ignorance and my exceeding the limits… Forgive my mistakes, those done intentionally or out of my ignorance or… with seriousness…\")",
+        "verified": "⚠️ **marked as paraphrase, per spec.** Names the *shape* of the confession (comprehensive, unfiltered) without quoting or inventing specific words.",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 5 quotation: *\"O you who have believed, do not put [yourselves] before Allah and His Messenger… Indeed, Allah is Hearing and Knowing.\"*",
+        "url": "Saheeh International (translation id 20) via [Qur'an 49:1](https://quran.com/49/1)",
+        "verified": "✅ **verified byte-exact as a substring**, `<sup>` footnote marker stripped. Substring test run programmatically against the live API response, 2026-08-03. Arabic: `يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ لَا تُقَدِّمُوا۟ بَيْنَ يَدَىِ ٱللَّهِ وَرَسُولِهِۦ ۖ وَٱتَّقُوا۟ ٱللَّهَ ۚ إِنَّ ٱللَّهَ سَمِيعٌ عَلِيمٌ`. **Does not carry bar 1** — see §3.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "The `q-d-m` full-root enumeration: 48 total occurrences, 8 forms, Allah never the finite subject of a positive act",
+        "url": "`https://corpus.quran.com/qurandictionary.jsp?q=qdm`, fetched 2026-08-03; cross-checked by summing my own extraction (27+2+2+4 = 35, matching the page's stated per-form counts)",
+        "verified": "✅ **run against corpus.quran.com per §9av.** Own breakdown table summed and confirmed against the corpus page's stated totals. **Stated limit:** one independent source, not cross-checked against a second morphological database.",
+        "grading": "—"
+      },
+      {
+        "claim": "25:23 fetched and rejected (Allah-subject, but nullification-of-deeds register)",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/25:23`",
+        "verified": "✅ fetched and read as a candidate, not a neighbour (ledger §9r discipline).",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Successor sweep: 48:29, 49:2, 49:3 fetched and read",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/{48:29,49:2,49:3}`",
+        "verified": "✅ all live 2026-08-03. Readings in §4.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "2:110 fetched and rejected as the verse-beat candidate",
+        "url": "`https://api.quran.com/api/v4/verses/by_key/2:110`; shipped `al-baqi@1`'s full beat text read from `assets/content/name_stories.json`",
+        "verified": "✅ **fetched; rejection is a bar-3 finding.** Root `q-d-m` present (`تُقَدِّمُوا`), human subject, positive; register clean. **Rejected because its engine — \"what is given, you find preserved with Allah\" — is `al-baqi@1`'s own shipped engine**, confirmed by reading `al-baqi@1`'s actual rendered beats, not merely its takeaway line.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 1 `name_intro` = *\"The Expediter\"*",
+        "url": "`collectible_names.json` id 77 `english`",
+        "verified": "✅ byte-identical to the catalogue. No `english`-gloss collision found against ledger §7a.6 or any live sibling claim.",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 6 duʿā, all three fields",
+        "url": "`collectible_names.json` id 77",
+        "verified": "✅ byte-identical, verified programmatically. **UNPINNED.**",
+        "grading": "—"
       }
     ]
   },
@@ -3147,6 +4663,38 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And He placed on it firmly set mountains over its surface, and He blessed it and determined therein its sustenance in four days without distinction — for those who ask.\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../41:10`",
+        "verified": "✅ `وَجَعَلَ فِيهَا رَوَٰسِىَ مِن فَوْقِهَا وَبَـٰرَكَ فِيهَا وَقَدَّرَ فِيهَآ أَقْوَٰتَهَا فِىٓ أَرْبَعَةِ أَيَّامٍ سَوَآءً لِّلسَّآئِلِينَ` — **whole āyah**"
+      },
+      {
+        "claim": "*\"…And ever is Allah, over all things, a Keeper.\"* (beat 6)",
+        "url": "`.../4:85`",
+        "verified": "✅ `وَكَانَ ٱللَّهُ عَلَىٰ كُلِّ شَىْءٍ مُّقِيتًا` — closing clause only; the intercession clause **not rendered**"
+      },
+      {
+        "claim": "Successor sweep n−1: 41:9",
+        "url": "`.../41:9`",
+        "verified": "⚠️ `قُلْ`-framed challenge to disbelievers. **Not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 41:11",
+        "url": "`.../41:11`",
+        "verified": "✅ **clean** — the heaven addressed while smoke; `قَالَتَآ أَتَيْنَا طَآئِعِينَ`"
+      },
+      {
+        "claim": "Successor sweep n−1 of the verse beat: 4:84",
+        "url": "`.../4:84`",
+        "verified": "⚠️ fighting, closes `أَشَدُّ تَنكِيلًا`. **Not rendered**"
+      },
+      {
+        "claim": "Root sweep — **complete at 2 occurrences, both rendered**",
+        "url": "`corpus…?q=qwt`",
+        "verified": "✅ *\"occurs **twice** in the Quran, in two derived forms\"* — `أَقْوَٰت` (41:10) and `مُّقِيت` (4:85)"
+      }
     ]
   },
   {
@@ -3236,6 +4784,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"And We place the scales of justice for the Day of Resurrection, so no soul will be treated unjustly at all\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../21:47`",
+        "verified": "✅ `وَنَضَعُ ٱلْمَوَٰزِينَ ٱلْقِسْطَ لِيَوْمِ ٱلْقِيَـٰمَةِ فَلَا تُظْلَمُ نَفْسٌ شَيْـًٔا` — **first half only**, stopping at the āyah's own `ۖ`. Second half **left to `al-haseeb@1`**"
+      },
+      {
+        "claim": "*\"…maintaining [creation] in justice…\"* (beat 6)",
+        "url": "`.../3:18`",
+        "verified": "✅ `قَآئِمًۢا بِٱلْقِسْطِ` — **four words**, ellipsis both sides. `شَهِدَ ٱللَّهُ` **left for id 60**; `ٱلْعَزِيزُ ٱلْحَكِيمُ` **left for id 26**"
+      },
+      {
+        "claim": "Successor sweep n−1: 21:46",
+        "url": "`.../21:46`",
+        "verified": "⚠️ **punishment** — `عَذَابِ رَبِّكَ`, *\"O woe to us\"*. Not rendered"
+      },
+      {
+        "claim": "Successor sweep n+1: 21:48",
+        "url": "`.../21:48`",
+        "verified": "✅ clean"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 90",
+        "verified": "✅ all three fields asserted present (§9cb). **`source: \"\"` — not Qurʾānic, §9cf**"
       }
     ]
   },
@@ -3327,6 +4902,38 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Indeed, the righteous will be among gardens and rivers…\"* (beat 3)",
+        "url": "`.../54:54`",
+        "verified": "✅ `إِنَّ ٱلْمُتَّقِينَ فِى جَنَّـٰتٍ وَنَهَرٍ` — whole āyah"
+      },
+      {
+        "claim": "*\"…in a seat of honor near a Sovereign, Perfect in Ability.\"* (beats 4–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../54:55`",
+        "verified": "✅ `فِى مَقْعَدِ صِدْقٍ عِندَ مَلِيكٍ مُّقْتَدِرٍۭ` — whole āyah"
+      },
+      {
+        "claim": "*\"…indeed, We are Perfect in Ability.\"* (beat 6)",
+        "url": "`.../43:42`",
+        "verified": "✅ `فَإِنَّا عَلَيْهِم مُّقْتَدِرُونَ` — closing clause only, visible ellipsis"
+      },
+      {
+        "claim": "Successor sweep n+1: 54:56",
+        "url": "`.../54:56`",
+        "verified": "✅ **HTTP 404 — sūrah-final.** Verified by status code, and **independently re-verified as a genuine 404** at R3 (a fabricated 404 is in this project's failure catalogue)"
+      },
+      {
+        "claim": "Successor sweep n−1: **54:53** ⚠️ **R3 — R0 never fetched its own stated predecessor**, though the bar-5 argument depends on framing the whole sūrah",
+        "url": "`.../54:53`",
+        "verified": "✅ `وَكُلُّ صَغِيرٍ وَكَبِيرٍ مُّسْتَطَرٌ` — *\"And every small and great [thing] is inscribed.\"* **Clean, no punishment** — it strengthens the deck rather than threatening it. **Not rendered**"
+      },
+      {
+        "claim": "Root sweep on the Name-form",
+        "url": "`corpus…?q=qdr`",
+        "verified": "✅ **132 occurrences, 11 forms**; **`muqtadir` exactly 4** — 18:45, 43:42, 54:42, 54:55, **all four fetched and dispositioned**"
+      }
     ]
   },
   {
@@ -3416,6 +5023,13 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Citation table lives in this deck's draft and its blind-verification verdict, both committed to this repo.",
+        "url": "docs/superpowers/content/decks/2026-08-03-al-musawwir-DRAFT.md",
+        "verified": "see verdicts/2026-08-04-DECISION-SHEET.md"
       }
     ]
   },
@@ -3507,6 +5121,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Is He [not best] who guides you through the darknesses of the land and sea, and who sends the winds as good tidings before His mercy? … High is Allah above whatever they associate with Him\"* (beats 3–5, **bar-1 and bar-4 carrier**)",
+        "url": "`.../27:63`",
+        "verified": "✅ `أَمَّن يَهْدِيكُمْ فِى ظُلُمَـٰتِ ٱلْبَرِّ وَٱلْبَحْرِ وَمَن يُرْسِلُ ٱلرِّيَـٰحَ بُشْرًۢا بَيْنَ يَدَىْ رَحْمَتِهِۦٓ ۗ أَءِلَـٰهٌ مَّعَ ٱللَّهِ ۚ تَعَـٰلَى ٱللَّهُ عَمَّا يُشْرِكُونَ` — the clause `أَءِلَـٰهٌ مَّعَ ٱللَّهِ` is **not rendered**"
+      },
+      {
+        "claim": "*\"…the Exalted.\"* (beat 6)",
+        "url": "`.../13:9`",
+        "verified": "✅ `ٱلْمُتَعَالِ` — **one word**, ellipsis both sides. `عَـٰلِمُ ٱلْغَيْبِ وَٱلشَّهَـٰدَةِ` **left for id 60** and `al-aleem@1`; `ٱلْكَبِيرُ` **left for id 53**"
+      },
+      {
+        "claim": "Successor sweep n−1: 27:62",
+        "url": "`.../27:62`",
+        "verified": "✅ **the warmest predecessor in this wave** — *He who responds to the desperate one when he calls*. Not rendered; `al-mujeeb@1`'s ground"
+      },
+      {
+        "claim": "Successor sweep n+1: 27:64",
+        "url": "`.../27:64`",
+        "verified": "✅ creation and provision, closes on a challenge to produce proof. **No punishment**"
+      },
+      {
+        "claim": "The locked duʿā (shared with id 52)",
+        "url": "`collectible_names.json` id 84",
+        "verified": "✅ all three fields asserted present (§9cb)"
+      }
     ]
   },
   {
@@ -3596,6 +5237,92 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Allah commanded the angels to prostrate to Adam; all did except Iblis (beat 2, paraphrased)",
+        "url": "Qur'ān 7:11",
+        "verified": "✅ **verified**",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"I am better than him. You created me from fire and created him from clay.\"* (beat 3)",
+        "url": "Qur'ān 7:12",
+        "verified": "✅ **verified verbatim** against Saheeh International — marked in the beat as Iblīs's own speech",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"…it is not for you to be arrogant therein…\"* (beat 4, partial, visible ellipsis both sides); remainder paraphrased",
+        "url": "Qur'ān 7:13",
+        "verified": "✅ **verified verbatim** — full āyah fetched; only the root-bearing clause quoted verbatim, remainder marked as paraphrase in the beat's own prose (\"He was told to leave\")",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"And to Him belongs all greatness in the heavens and the earth…\"* (beat 5, partial, visible ellipsis)",
+        "url": "Qur'ān 45:37",
+        "verified": "✅ **verified** — trailing `وَهُوَ ٱلْعَزِيزُ ٱلْحَكِيمُ` deliberately not rendered",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "45:37's sūrah-final status",
+        "url": "`verses/by_key/45:38`",
+        "verified": "✅ **HTTP 404 confirmed**, 2026-08-03",
+        "grading": "—"
+      },
+      {
+        "claim": "7:13's successor chain through 7:18 (explicit punishment, 5 āyāt out)",
+        "url": "Qur'ān 7:14–18",
+        "verified": "✅ **fetched and read in full**, disclosed at length in §6",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "The `ك-ب-ر` full-mushaf enumeration; `ٱلْمُتَكَبِّرُ` exactly once (59:23); Form-V verb exactly twice (7:13, 7:146); noun `ٱلْكِبْرِيَآءُ` exactly twice (10:78, 45:37)",
+        "url": "`api.quran.com/api/v4/quran/verses/uthmani` (full call) + `corpus.quran.com/qurandictionary.jsp?q=kbr`",
+        "verified": "✅ **independently run and cross-checked**, exact match, §2",
+        "grading": "—"
+      },
+      {
+        "claim": "Catalogue ids 19 and 22 share `dua_arabic`/`dua_transliteration`/`dua_translation` byte-for-byte",
+        "url": "`assets/content/collectible_names.json` ids 19, 22",
+        "verified": "✅ **verified programmatically**",
+        "grading": "—"
+      },
+      {
+        "claim": "Id 19's duʿā embeds id 9 Al-Jabbar's `dua_arabic` verbatim; this Name's own vocative absent",
+        "url": "`collectible_names.json` ids 9, 19",
+        "verified": "✅ **verified programmatically**",
+        "grading": "—"
+      },
+      {
+        "claim": "Zero ≥4-word rendered-English overlap with any of the 45 shipped/drafted decks except the disclosed formulaic/template classes",
+        "url": "`assets/content/name_stories.json` (45 decks)",
+        "verified": "✅ **run against 45 decks**, output in §4b",
+        "grading": "—"
+      },
+      {
+        "claim": "Twin diff against `al-qahhar@1`: zero shared n≥4-grams outside the shared duʿā screen",
+        "url": "both drafts",
+        "verified": "✅ **run in this session**",
+        "grading": "—"
+      },
+      {
+        "claim": "Move-adjacency to `al-muzill@1` disclosed, not self-cleared",
+        "url": "`.context/claims/44.md`, `2026-08-03-al-muzill-DRAFT.md`",
+        "verified": "✅ **read directly**, disclosed in §4c per ledger §9bd",
+        "grading": "—"
+      },
+      {
+        "claim": "Sahih Muslim 2788a's content — attempted verification",
+        "url": "`web.archive.org/web/20250730094609/https://sunnah.com/muslim:2788a`",
+        "verified": "⚠️ **HTTP 200, page fetched, hadith text did not resolve from static HTML in this pass — inconclusive, not used regardless**",
+        "grading": "—"
+      },
+      {
+        "claim": "isnād of Muslim 2788a (not used on any beat)",
+        "url": "—",
+        "verified": "n/a — not cited",
+        "grading": "—"
       }
     ]
   },
@@ -3687,6 +5414,92 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"…a calf, an image having a lowing sound.\"* (beat 2, verbatim quoted fragment)",
+        "url": "Qur'ān 7:148",
+        "verified": "✅ **verified** — byte-exact substring of Saheeh International's rendering",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"It could not speak to them, and it could not guide them anywhere.\"* (beat 2, remainder)",
+        "url": "Qur'ān 7:148",
+        "verified": "⚠️ **PARAPHRASE, marked as such here.** The āyah's actual form is a rhetorical question: *\"Did they not see that it could neither speak to them nor guide them to a way?\"* Converted to declarative for the beat; no fact added beyond what the question already asserts.",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"Indeed, those who took the calf [for worship] will obtain anger from their Lord and humiliation in the life of this world…\"* (beat 3, verbatim)",
+        "url": "Qur'ān 7:152",
+        "verified": "✅ **verified byte-exact substring**; bracketed `[for worship]` is the translator's own, retained, matching the bracket convention already shipped in `al-qadir@1`",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"…and thus do We recompense the inventors [of falsehood].\"* (beat 4, verbatim, remainder of 7:152)",
+        "url": "Qur'ān 7:152",
+        "verified": "✅ **verified byte-exact substring**",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"The anger and the loss of standing are named in the same breath as the cause — not as chance.\"* (beat 4, authored)",
+        "url": "—",
+        "verified": "✅ **quotes nothing; entailed by the single `وَ`-joined sentence structure of 7:152 itself**, checked against the fetched Arabic",
+        "grading": "authored"
+      },
+      {
+        "claim": "*\"…You humble whom You will…\"* (beat 5)",
+        "url": "Qur'ān 3:26",
+        "verified": "✅ **verified** — Saheeh International, quoted verbatim as a substring; ellipses mark a mid-sentence excerpt",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "The `dh-l-l` full-mushaf enumeration (28 skeleton hits, 4 `r-dh-l` excluded, exactly 1 Allah-subject \"humiliate a person\" finite verb)",
+        "url": "run fresh this session",
+        "verified": "✅ **computed in this session**; full table in §3",
+        "grading": "—"
+      },
+      {
+        "claim": "7:152's n+1 (7:153) is a mercy/repentance clause, not quoted",
+        "url": "Qur'ān 7:153",
+        "verified": "✅ **fetched and read**; deliberately not rendered, reasons in §6",
+        "grading": "—"
+      },
+      {
+        "claim": "7:149–151 carry `gh-f-r`/`r-ḥ-m` and violent imagery, deliberately unused",
+        "url": "Qur'ān 7:149, 7:150, 7:151",
+        "verified": "✅ **fetched and read**; not quoted or paraphrased on any beat",
+        "grading": "—"
+      },
+      {
+        "claim": "Catalogue ids 43/44 share `dua_arabic`/`dua_transliteration`/`dua_translation` byte-for-byte",
+        "url": "`assets/content/collectible_names.json`",
+        "verified": "✅ **verified programmatically** — see `al-muizz@1`'s §6 for the full shared-screen analysis, present verbatim there",
+        "grading": "—"
+      },
+      {
+        "claim": "Zero ≥4-word rendered-English overlap with any of the 34 shipped decks, except the disclosed `وَكَذَٰلِكَ`-formula adjacency with `al-mujeeb@1`",
+        "url": "`assets/content/name_stories.json` (34 decks)",
+        "verified": "✅ **run in this session**; table in §5b",
+        "grading": "—"
+      },
+      {
+        "claim": "Twin diff against `al-muizz@1`: zero shared 4-grams outside the disclosed template class and the āyah's own grammatical frame",
+        "url": "both drafts",
+        "verified": "✅ **run in this session**; joined table lives in `al-muizz@1`'s §5d",
+        "grading": "—"
+      },
+      {
+        "claim": "isnād of any narration cited",
+        "url": "—",
+        "verified": "❌ **NOT audited.** See §10.",
+        "grading": "—"
+      },
+      {
+        "claim": "The \"arrogance → Hellfire\" ḥadīth class",
+        "url": "—",
+        "verified": "❌ **NOT fetched, by design.** See §8.",
+        "grading": "—"
+      }
     ]
   },
   {
@@ -3776,6 +5589,92 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Have you not considered how your Lord dealt with the companions of the elephant?\"* (beat 2, verbatim)",
+        "url": "Qur'ān 105:1",
+        "verified": "✅ **verified verbatim** — `text_uthmani`, `text_imlaei` and Saheeh International all fetched live",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"Did He not make their plan into misguidance? And He sent against them birds in flocks,\"* (beat 3)",
+        "url": "Qur'ān 105:2–3",
+        "verified": "✅ **verified verbatim** against Saheeh International — checked against all 45 decks, zero n≥4 collisions",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"striking them with stones of hard clay. And He made them like eaten straw.\"* (beat 4)",
+        "url": "Qur'ān 105:4–5",
+        "verified": "✅ **verified verbatim** against Saheeh International",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "*\"And He is the subjugator over His servants…\"* (beat 5, partial, visible ellipsis)",
+        "url": "Qur'ān 6:18",
+        "verified": "✅ **verified** — trailing `وَهُوَ ٱلْحَكِيمُ ٱلْخَبِيرُ` deliberately not rendered, ellipsis marks the cut",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "6:18's n−1 (6:17), n+1 (6:19)",
+        "url": "Qur'ān 6:17, 6:19",
+        "verified": "✅ **fetched and read**, table in §7",
+        "grading": "—"
+      },
+      {
+        "claim": "105's sūrah-final status",
+        "url": "`verses/by_key/105:6`",
+        "verified": "✅ **HTTP 404 confirmed**, 2026-08-03",
+        "grading": "—"
+      },
+      {
+        "claim": "Sūrat Quraysh (106) continues positively; 106:4 already shipped on `al-mumin@1`",
+        "url": "`assets/content/name_stories.json` (45 decks) + Qur'ān 106:1–4",
+        "verified": "✅ **verified** by direct file read and live fetch",
+        "grading": "—"
+      },
+      {
+        "claim": "The `ق-ه-ر` full-mushaf enumeration (10 total: 1 verb, 6 epithet-pair, 3 participle)",
+        "url": "`api.quran.com/api/v4/quran/verses/uthmani` (full call) + `corpus.quran.com/qurandictionary.jsp?q=qhr`",
+        "verified": "✅ **independently run and cross-checked**, exact match, §2",
+        "grading": "—"
+      },
+      {
+        "claim": "Catalogue ids 19 and 22 share `dua_arabic`/`dua_transliteration`/`dua_translation` byte-for-byte",
+        "url": "`assets/content/collectible_names.json` ids 19, 22",
+        "verified": "✅ **verified programmatically**, exact string equality",
+        "grading": "—"
+      },
+      {
+        "claim": "Id 19's duʿā embeds id 9 Al-Jabbar's `dua_arabic` verbatim",
+        "url": "`collectible_names.json` ids 9, 19",
+        "verified": "✅ **verified programmatically**",
+        "grading": "—"
+      },
+      {
+        "claim": "Zero ≥4-word rendered-English overlap with any of the 45 shipped/drafted decks except the disclosed formulaic-opener and template classes",
+        "url": "`assets/content/name_stories.json` (45 decks)",
+        "verified": "✅ **run against 45 decks**, output in §4b",
+        "grading": "—"
+      },
+      {
+        "claim": "Twin diff against `al-mutakabbir@1`: zero shared n≥4-grams outside the shared duʿā screen",
+        "url": "both drafts",
+        "verified": "✅ **run in this session**, table in §4d",
+        "grading": "—"
+      },
+      {
+        "claim": "`al-mumin@1`'s draft calls Sūrat al-Fīl \"a punishment narrative, refused on bar 5\"",
+        "url": "`docs/superpowers/content/decks/2026-08-03-al-mumin-DRAFT.md`",
+        "verified": "✅ **read directly, quoted verbatim, engaged with in §6**",
+        "grading": "—"
+      },
+      {
+        "claim": "isnād / ḥadīth authenticity",
+        "url": "not applicable — no ḥadīth cited on this deck",
+        "verified": "n/a",
+        "grading": "—"
       }
     ]
   },
@@ -3867,6 +5766,74 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Story beats 3–5, verbatim/paraphrase of: companions straining voices on a journey; \"go easy on yourselves…\"; \"shall I teach you… a treasure… there is no power and no strength except through Allah\"",
+        "url": "Wayback capture of `sunnah.com/bukhari:6610`, ts `20260315043934`",
+        "verified": "✅ Arabic verified: `فَجَعَلْنَا لاَ نَصْعَدُ شَرَفًا وَلاَ نَعْلُو شَرَفًا وَلاَ نَهْبِطُ فِي وَادٍ إِلاَّ رَفَعْنَا أَصْوَاتَنَا بِالتَّكْبِيرِ`; `يَا أَيُّهَا النَّاسُ ارْبَعُوا عَلَى أَنْفُسِكُمْ فَإِنَّكُمْ لاَ تَدْعُونَ أَصَمَّ وَلاَ غَائِبًا` (**visible ellipsis on the beat — the clause continues `إِنَّمَا تَدْعُونَ سَمِيعًا بَصِيرًا`, dropped to avoid rendering Al-Baseer's gloss, shipped**); `يَا عَبْدَ اللَّهِ بْنَ قَيْسٍ، أَلاَ أُعَلِّمُكَ كَلِمَةً هِيَ مِنْ كُنُوزِ الْجَنَّةِ، لاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ` — quoted in full",
+        "grading": "**Ṣaḥīḥ al-Bukhārī** — no printed grade line (collection-level inference, §9ag)"
+      },
+      {
+        "claim": "Corroborating, undoubted route, quoted on no beat",
+        "url": "Wayback capture of `sunnah.com/bukhari:4205`, ts `20260308160402`",
+        "verified": "✅ `أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ مِنْ كَنْزٍ مِنْ كُنُوزِ الْجَنَّةِ… لاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ` — **no shakk on this clause.** Its own shakk (`أَوْ قَالَ لَمَّا تَوَجَّهَ`) concerns whether the occasion was the Khaybar campaign specifically — a different clause, disclosed, not used on any beat",
+        "grading": "Ṣaḥīḥ al-Bukhārī"
+      },
+      {
+        "claim": "Bukhārī 6384 fetched and **excluded**",
+        "url": "Wayback capture, ts `20240617221329`",
+        "verified": "⚠️ **CONFIRMED CARRIES THE SHAKK** on the exact clause: `فَقَالَ … أَوْ قَالَ ‏\"‏ أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ …`. Recorded so no future drafter reaches for it",
+        "grading": "Ṣaḥīḥ al-Bukhārī"
+      },
+      {
+        "claim": "Beat 6, excerpt: \"Allah is the One who created you in a state of weakness, then He created strength after weakness, then created weakness and old age after strength…\" — **Mufti Taqi Usmani (`translations=84`), verbatim, named.** ⚠️ **R1 fix:** R0 kept Saheeh's syntax but swapped in *\"old age\"* for Saheeh's *\"white hair\"* (`شَيْبَة`) — a **splice of two translations**, which §9bh bans outright, and it was presented as the `translations=20` fetch. *\"Old age\"* is attested (Usmani), so the phrasing survives; it now comes from one translation, whole",
+        "url": "`api.quran.com/api/v4/verses/by_key/30:54?translations=20,84`",
+        "verified": "✅ `ٱللَّهُ ٱلَّذِى خَلَقَكُم مِّن ضَعْفٍ ثُمَّ جَعَلَ مِنۢ بَعْدِ ضَعْفٍ قُوَّةً ثُمَّ جَعَلَ مِنۢ بَعْدِ قُوَّةٍ ضَعْفًا وَشَيْبَةً…` — **visible ellipsis; trailing `يَخْلُقُ مَا يَشَآءُ ۖ وَهُوَ ٱلْعَلِيمُ ٱلْقَدِيرُ` dropped** to avoid rendering Al-Aleem (shipped)/Al-Qadeer",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep: 30:53, 30:55, 30:56, 30:57 fetched and read",
+        "url": "`api.quran.com/api/v4/verses/by_key/{k}`",
+        "verified": "✅ all live 2026-08-03; findings in the sweep table above",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The `q-w-y` enumeration: 42 occurrences, 9 divine `qawiyy`, all trailing `ʿazeez`",
+        "url": "full 6,236-āyah Uthmānī corpus, `api.quran.com/api/v4/verses/by_chapter/{1..114}`",
+        "verified": "✅ run against the full text, not a search API (§9ac); cross-checked against corpus.quran.com's own root ق-و-ي listing (42, matching); construct-state instance at 11:52 confirmed by direct fetch",
+        "grading": "—"
+      },
+      {
+        "claim": "18:39 rejected on bar 5 (18:40 destroys the garden)",
+        "url": "`api.quran.com/api/v4/verses/by_key/18:39`, `18:40`",
+        "verified": "✅ fetched live; `فَعَسَىٰ رَبِّىٓ أَن يُؤْتِيَنِ خَيْرًا مِّن جَنَّتِكَ وَيُرْسِلَ عَلَيْهَا حُسْبَانًا مِّنَ ٱلسَّمَآءِ فَتُصْبِحَ صَعِيدًا زَلَقًا` confirms the threat",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "2:165 rejected on grammar + register",
+        "url": "`api.quran.com/api/v4/verses/by_key/2:165`",
+        "verified": "✅ fetched; subordinate clause confirmed unexcerptable without the punishment frame",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Duʿā splice report — 6610/4205/6384/Muslim 385 all lack `ٱلْعَلِيِّ ٱلْعَظِيمِ`; 2:255 carries it",
+        "url": "Wayback captures as above + `api.quran.com/api/v4/verses/by_key/2:255`",
+        "verified": "✅ all four ḥadīth pages checked directly for the phrase (absent in all four); 2:255's `وَهُوَ ٱلْعَلِىُّ ٱلْعَظِيمُ` confirmed live",
+        "grading": "mixed"
+      },
+      {
+        "claim": "Beat 2 (`name_intro`) and beat 7 (`dua`) fields",
+        "url": "`collectible_names.json` id 62",
+        "verified": "✅ byte-identical, read programmatically",
+        "grading": "—"
+      },
+      {
+        "claim": "`.context/claims/` read at claim time and re-read at report time",
+        "url": "`.context/claims/*.md`",
+        "verified": "✅ 38 files at claim time; re-read immediately before this table — no new file touches 62/63, `q-w-y`, `m-t-n`, 30:54, or Bukhārī 43/6610/4205",
+        "grading": "project artifact"
+      }
     ]
   },
   {
@@ -3956,6 +5923,62 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 1 bridge",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy, no scripture claim",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 2 `name_intro`",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog: `arabic`=`الْوَاحِدُ`, `transliteration`=`Al-Wahid`, `english`=`The One`, checked via direct Python equality against `collectible_names.json` 2026-08-03",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 3, verbatim: *\"Or have they taken for themselves gods from the earth who resurrect [the dead]?\"*",
+        "url": "[Qur'an 21:21](https://quran.com/21/21)",
+        "verified": "✅ verified — live fetch `api.quran.com/api/v4/verses/by_key/21:21`, 2026-08-03. `text_uthmani`: `أَمِ ٱتَّخَذُوٓا۟ ءَالِهَةً مِّنَ ٱلْأَرْضِ هُمْ يُنشِرُونَ`. Quoted in full, no ellipsis needed.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 4, verbatim: *\"Had there been within them [i.e., the heavens and earth] gods besides Allah, they both would have been ruined.\"*",
+        "url": "[Qur'an 21:22](https://quran.com/21/22)",
+        "verified": "✅ verified — live fetch 2026-08-03. `text_uthmani`: `لَوْ كَانَ فِيهِمَآ ءَالِهَةٌ إِلَّا ٱللَّهُ لَفَسَدَتَا`. This is the āyah's first clause only; the second clause is beat 5. **Translator's bracket `[i.e., the heavens and earth]` retained.** No word inside either quoted clause is changed, added, dropped or reordered.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 5, verbatim: *\"So exalted is Allah, Lord of the Throne, above what they describe.\"*",
+        "url": "[Qur'an 21:22](https://quran.com/21/22)",
+        "verified": "✅ verified — same fetch as 4.1. `text_uthmani`: `فَسُبْحَـٰنَ ٱللَّهِ رَبِّ ٱلْعَرْشِ عَمَّا يَصِفُونَ`. Second clause of the same āyah; both clauses together are the whole āyah, split across two beats for the format's one-breath rule.",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 6, partial, ellipsis on the beat: *\"…And Allah has said, 'Do not take for yourselves two deities. He [i.e., Allah] is but one God…'\"*",
+        "url": "[Qur'an 16:51](https://quran.com/16/51)",
+        "verified": "✅ verified — live fetch 2026-08-03. `text_uthmani`: `وَقَالَ ٱللَّهُ لَا تَتَّخِذُوٓا۟ إِلَـٰهَيْنِ ٱثْنَيْنِ ۖ إِنَّمَا هُوَ إِلَـٰهٌ وَٰحِدٌ ۖ فَإِيَّـٰىَ فَٱرْهَبُونِ`. **Quoted region ends at `وَٰحِدٌ`; `فَإِيَّـٰىَ فَٱرْهَبُونِ` (\"so fear only Me\") is cut, register reason recorded above, and the beat's own leading \"…\" plus trailing \"…\" mark both the mid-passage entry and the cut. Translator's brackets (footnote marker after \"two\"; `[i.e., Allah]` before \"is but one God\") — footnote marker stripped, `[i.e., Allah]` retained.**",
+        "grading": "Qurʾān"
+      },
+      {
+        "claim": "Beat 7 duʿā",
+        "url": "catalog only",
+        "verified": "✅ verified byte-identical to catalog across `dua_arabic`/`dua_transliteration`/`dua_translation` — Python string equality against id 73's fields, 2026-08-03. **UNPINNED, `source` empty.**",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 8 takeaway",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy. Traces: \"world…held together\" → beat 4 (21:22); \"not divided between rivals\" → the counterfactual's own logic; \"answers to One\" → beat 6 (16:51).",
+        "grading": "n/a"
+      },
+      {
+        "claim": "Beat 9 reflection",
+        "url": "authored",
+        "verified": "✅ honest label — authored copy, no scripture claim. No `source`/`arabic` field, per §9br's ship-gate requirement. AI-personalised at runtime; this is the fallback text, written to stand alone.",
+        "grading": "n/a"
       }
     ]
   },
@@ -4047,6 +6070,68 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Beat 5 quotation, verbatim: *\"And He found you lost…\"* (elided, dropping *\"and guided [you],\"*)",
+        "url": "Saheeh International via [Qur'an 93:7](https://quran.com/93/7)",
+        "verified": "✅ verified byte-exact as a substring, zero `<sup>` markers. Visible trailing `…`; omitted content disclosed in §2.",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Beat 2 quotation, verbatim, in full: *\"Your Lord has not taken leave of you, [O Muḥammad], nor has He detested [you].\"*",
+        "url": "Saheeh International via [Qur'an 93:3](https://quran.com/93/3)",
+        "verified": "✅ verified byte-exact, no elision needed (complete SI sentence)",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Beat 3 quotation, verbatim, in full: *\"And the Hereafter is better for you than the first [life].\"*",
+        "url": "Saheeh International via [Qur'an 93:4](https://quran.com/93/4)",
+        "verified": "✅ verified byte-exact",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Beat 4 quotation, verbatim, in full: *\"And your Lord is going to give you, and you will be satisfied.\"*",
+        "url": "Saheeh International via [Qur'an 93:5](https://quran.com/93/5)",
+        "verified": "✅ verified byte-exact",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Beat 1 `name_intro` = \"The Finder\"",
+        "url": "`collectible_names.json` id 71 `english`",
+        "verified": "✅ byte-identical",
+        "grading": "—"
+      },
+      {
+        "claim": "Beat 6 duʿā, all three fields",
+        "url": "`collectible_names.json` id 71",
+        "verified": "✅ byte-identical, verified programmatically. **UNPINNED** — search not exhaustive (§9k), unchanged from the refusal file's finding.",
+        "grading": "—"
+      },
+      {
+        "claim": "Successor sweep: 93:2, 93:6, 93:8 fetched and read; `verses/by_key/93:12` → HTTP 404",
+        "url": "quran.com API v4",
+        "verified": "✅ all live 2026-08-03",
+        "grading": "—"
+      },
+      {
+        "claim": "Route 3 (lost-camel ḥadīth): Bukhārī 6308, 6309; Muslim 2747, 2747a, 2747b fetched via Wayback CDX",
+        "url": "Wayback Machine, exact bare cited numbers",
+        "verified": "✅ all five captures fetched and read in full; none carries `w-j-d`; narrative already spent by shipped `al-wadud@1`",
+        "grading": "ṣaḥīḥ (both collections, undisputed)"
+      },
+      {
+        "claim": "Bar-3 token/n-gram sweep against the current 45-deck, 771-string asset",
+        "url": "`assets/content/name_stories.json`, read live 2026-08-03",
+        "verified": "✅ programmatic, full working in §5b–c",
+        "grading": "—"
+      },
+      {
+        "claim": "3:26 three-way-split precedent (`al-malik@1` shipped; `al-muizz@1`/`al-muzill@1` drafted)",
+        "url": "live asset + `docs/superpowers/content/decks/2026-08-03-al-muizz-DRAFT.md` / `-al-muzill-DRAFT.md`, read",
+        "verified": "✅ read directly, technique replicated on 93:7/`h-d-y`",
+        "grading": "—"
+      }
     ]
   },
   {
@@ -4136,6 +6221,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Indeed, your Lord is Allah, who created the heavens and the earth in six days and then established Himself above the Throne, arranging the matter [of His creation].\"* (beats 3–5, **bar-1 carrier**)",
+        "url": "`.../10:3`",
+        "verified": "✅ `إِنَّ رَبَّكُمُ ٱللَّهُ ٱلَّذِى خَلَقَ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضَ فِى سِتَّةِ أَيَّامٍ ثُمَّ ٱسْتَوَىٰ عَلَى ٱلْعَرْشِ ۖ يُدَبِّرُ ٱلْأَمْرَ` — rendered to that pause. The intercession and `فَٱعْبُدُوهُ` clauses **not rendered**"
+      },
+      {
+        "claim": "*\"…And there is not for them besides Him any patron.\"* (beat 6, **bar-4 carrier**)",
+        "url": "`.../13:11`",
+        "verified": "✅ `وَمَا لَهُم مِّن دُونِهِۦ مِن وَالٍ` — **the Name's only Qurʾānic occurrence**, and a negation. Everything before it in 13:11, **including `وَإِذَآ أَرَادَ ٱللَّهُ بِقَوْمٍ سُوٓءًا`, is not rendered**"
+      },
+      {
+        "claim": "Successor sweep n−1: 10:2",
+        "url": "`.../10:2`",
+        "verified": "⚠️ disbelievers call the Prophet a magician. **Not rendered**"
+      },
+      {
+        "claim": "Successor sweep n+1: 10:4",
+        "url": "`.../10:4`",
+        "verified": "⚠️ ends `شَرَابٌ مِّنْ حَمِيمٍ وَعَذَابٌ أَلِيمٌ`. **Not rendered**"
+      },
+      {
+        "claim": "Cross-check: the 13:11 rejection ⚠️ **R3 correction — it is in the DRAFT, not in the shipped deck.** Shipped `al-waliyy@1` never touches 13:11; its verse beat is **93:6** and its story is Tirmidhī 3438, read directly from `name_stories.json`. The rejection lives in the unshipped `2026-08-03-al-waliyy-DRAFT.md`",
+        "url": "`2026-08-03-al-waliyy-DRAFT.md` (pending)",
+        "verified": "⚠️ it **rejected** 13:11 under *\"Negative construction\"*. This deck takes it knowingly, as a verse beat only"
       }
     ]
   },
@@ -4227,6 +6339,68 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "Ibn ʿAbbās riding behind the Prophet ﷺ; \"be mindful of Allah and He will protect you… find Him in front of you\" (beats 3–4)",
+        "url": "`sunnah.com/tirmidhi:2516` — Wayback `20241014011600`, `id_` raw",
+        "verified": "✅ `يَا غُلاَمُ إِنِّي أُعَلِّمُكَ كَلِمَاتٍ احْفَظِ اللَّهَ يَحْفَظْكَ احْفَظِ اللَّهَ تَجِدْهُ تُجَاهَكَ`. Narrated ʿAbdullāh b. ʿAbbās, via Ḥanash aṣ-Ṣanʿānī",
+        "grading": "**Hasan (Darussalam)**; Tirmidhī's own classification on the page: *ḥasan ṣaḥīḥ*"
+      },
+      {
+        "claim": "\"When you ask, ask Allah… seek help from Allah\" (beat 4)",
+        "url": "same page",
+        "verified": "✅ `إِذَا سَأَلْتَ فَاسْأَلِ اللَّهَ وَإِذَا اسْتَعَنْتَ فَاسْتَعِنْ بِاللَّهِ`",
+        "grading": "Hasan (Darussalam)"
+      },
+      {
+        "claim": "\"…if the whole creation gathered to benefit you… except with something Allah had already written for you. And if they gathered to harm you… except with something Allah had already written against you. The pens are lifted, and the pages are dry.\" (beat 5 — **bar 1's carrier**)",
+        "url": "same page",
+        "verified": "✅ `وَاعْلَمْ أَنَّ الأُمَّةَ لَوِ اجْتَمَعَتْ عَلَى أَنْ يَنْفَعُوكَ بِشَيْءٍ لَمْ يَنْفَعُوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ لَكَ وَلَوِ اجْتَمَعُوا عَلَى أَنْ يَضُرُّوكَ بِشَيْءٍ لَمْ يَضُرُّوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ عَلَيْكَ رُفِعَتِ الأَقْلاَمُ وَجَفَّتِ الصُّحُفُ` — **quoted whole, no elision.** Re-rendered from the Arabic (see translation table)",
+        "grading": "Hasan (Darussalam)"
+      },
+      {
+        "claim": "\"…the [great] ships which sail through the sea with that which benefits people, and what Allah has sent down from the heavens of rain, giving life thereby to the earth after its lifelessness…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/2:164?fields=text_uthmani,text_imlaei&translations=20`",
+        "verified": "✅ `وَٱلْفُلْكِ ٱلَّتِى تَجْرِى فِى ٱلْبَحْرِ بِمَا يَنفَعُ ٱلنَّاسَ وَمَآ أَنزَلَ ٱللَّهُ مِنَ ٱلسَّمَآءِ مِن مَّآءٍ فَأَحْيَا بِهِ ٱلْأَرْضَ بَعْدَ مَوْتِهَا` — **partial quotation, visible `…` at both ends** (the full āyah also lists the heavens, earth, day/night, animals, wind and clouds, itemised as fetched, not quoted)",
+        "grading": "Qur'ān, Saheeh International"
+      },
+      {
+        "claim": "Successor sweep n−1",
+        "url": "`verses/by_key/2:163`",
+        "verified": "✅ fetched, quoted nowhere: *\"And your god is one God. There is no deity except Him, the Entirely Merciful, the Especially Merciful.\"* Positive; `r-ḥ-m` sibling root, off-screen",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Successor sweep n+1",
+        "url": "`verses/by_key/2:165`",
+        "verified": "✅ fetched, quoted nowhere: *\"...and Allāh is severe in punishment.\"* Addressee shifts to *\"those who have wronged\"* (third person, idolaters), not the reader; disclosed below",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "Full-text `n-f-ʿ` enumeration",
+        "url": "full Uthmānī text + `corpus.quran.com/qurandictionary.jsp?q=nfE`",
+        "verified": "✅ **50 occurrences, 3 forms. Allah finite-subject of `yanfaʿu`: 0 of 31**, verse-for-verse cross-checked, exact match on first pass",
+        "grading": "—"
+      },
+      {
+        "claim": "Duʿā provenance",
+        "url": "`sunnah.com/ibnmajah:925` — Wayback `20250417150324`, `id_` raw",
+        "verified": "✅ `اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلاً مُتَقَبَّلاً`. Narrated Umm Salama; said by the Prophet ﷺ on completing the Fajr salām. Codepoint diff run — rasm-identical, not byte-identical (tanwīn-mark ordering, ×2). **PIN proposed**",
+        "grading": "**Sahih (Darussalam)**"
+      },
+      {
+        "claim": "5:119 fetched, evaluated, **rejected**",
+        "url": "`verses/by_key/5:116` through `5:120`",
+        "verified": "✅ fetched in full; rejection reasoning below",
+        "grading": "Qur'ān"
+      },
+      {
+        "claim": "12:21, 28:9 fetched, evaluated, **rejected**",
+        "url": "`verses/by_key/12:21`, `verses/by_key/28:7` through `28:13`",
+        "verified": "✅ fetched; rejection reasoning below",
+        "grading": "Qur'ān"
+      }
     ]
   },
   {
@@ -4316,6 +6490,38 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "The Sleepers retreat to the cave (beat 3, **described, not quoted**)",
+        "url": "`.../18:16`",
+        "verified": "✅ `فَأْوُۥٓا۟ إِلَى ٱلْكَهْفِ يَنشُرْ لَكُمْ رَبُّكُم مِّن رَّحْمَتِهِۦ` — **the youths' own speech**, so described rather than rendered as the carrier"
+      },
+      {
+        "claim": "*\"And you would see the sun when it rose, inclining away from their cave on the right, and when it set, passing away from them on the left…\"* + *\"He whom Allah guides is the rightly guided\"* (beats 4–5, **bar-1 carrier**)",
+        "url": "`.../18:17`",
+        "verified": "✅ `وَتَرَى ٱلشَّمْسَ إِذَا طَلَعَت تَّزَٰوَرُ عَن كَهْفِهِمْ … مَن يَهْدِ ٱللَّهُ فَهُوَ ٱلْمُهْتَدِ` — **the beat stops there.** `وَمَن يُضْلِلْ` onward **not rendered**"
+      },
+      {
+        "claim": "*\"It guides to the right course…\"* (beat 6, **bar-4 carrier**)",
+        "url": "`.../72:2`",
+        "verified": "✅ `يَهْدِىٓ إِلَى ٱلرُّشْدِ` — the clause only. **Its grammatical subject is the Qurʾān**, and the speakers are the jinn"
+      },
+      {
+        "claim": "Successor sweep: 72:1, 72:3",
+        "url": "`.../72:1` · `.../72:3`",
+        "verified": "✅ both clean — an amazing recitation; `تَعَـٰلَىٰ جَدُّ رَبِّنَا`"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=r$d`",
+        "verified": "✅ **19 occurrences, 7 forms.** The three `rashīd` occurrences (11:78, 11:87, 11:97) are **all human**"
+      },
+      {
+        "claim": "Cross-check: what is already spent",
+        "url": "shipped asset",
+        "verified": "⚠️ **2:186 is `al-mujeeb@1`'s verse beat**; **18:10 is `ar-raheem@1`'s** (three story beats and its duʿā)"
       }
     ]
   },
@@ -4407,6 +6613,48 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"He arranges [each] matter from the heaven to the earth; then it will ascend to Him in a Day, the extent of which is a thousand years of those which you count\"* (beats 3–5, **bar-1 carrier**)",
+        "url": "`.../32:5`",
+        "verified": "✅ `يُدَبِّرُ ٱلْأَمْرَ مِنَ ٱلسَّمَآءِ إِلَى ٱلْأَرْضِ ثُمَّ يَعْرُجُ إِلَيْهِ فِى يَوْمٍ كَانَ مِقْدَارُهُۥٓ أَلْفَ سَنَةٍ مِّمَّا تَعُدُّونَ` — **whole āyah**, split at the `يَوْمٍ` boundary"
+      },
+      {
+        "claim": "*\"…And indeed, a day with your Lord is like a thousand years of those which you count.\"* (beat 6)",
+        "url": "`.../22:47`",
+        "verified": "✅ `وَإِنَّ يَوْمًا عِندَ رَبِّكَ كَأَلْفِ سَنَةٍ مِّمَّا تَعُدُّونَ` — **the closing clause only.** 22:47 opens `وَيَسْتَعْجِلُونَكَ بِٱلْعَذَابِ` (*they urge you to hasten the punishment*) — **not rendered**, visible ellipsis"
+      },
+      {
+        "claim": "Successor sweep n−1: 32:4",
+        "url": "`.../32:4`",
+        "verified": "✅ creation in six days, the Throne. **No punishment.** Not rendered; cited in the `al-waliyy` draft"
+      },
+      {
+        "claim": "Successor sweep n+1: 32:6",
+        "url": "`.../32:6`",
+        "verified": "✅ closes `ٱلْعَزِيزُ ٱلرَّحِيمُ` — **the Merciful.** Not rendered; cited in the `al-khaliq` draft"
+      },
+      {
+        "claim": "Root sweep, **complete on the question asked**",
+        "url": "`corpus…?q=Sbr`",
+        "verified": "✅ *\"occurs **103 times**… in **eight derived forms**\"*, 93 distinct āyāt. **Every form takes a human subject.** Enumerated below"
+      },
+      {
+        "claim": "**Bukhārī 7378** — the one ṣaḥīḥ predication of the root to Allah",
+        "url": "`sunnah.com/bukhari:7378` via Wayback (direct = **HTTP 403**, Cloudflare)",
+        "verified": "✅ `مَا أَحَدٌ أَصْبَرُ عَلَى أَذًى سَمِعَهُ مِنَ اللَّهِ…` — **Ṣaḥīḥ.** ⚠️ **Rendered in full by shipped `al-haleem@1`. Not used here**"
+      },
+      {
+        "claim": "**Tirmidhī 3507** — the 99-Names enumeration, the only attestation of the **Name-form** `ٱلصَّبُور`",
+        "url": "`sunnah.com/tirmidhi:3507` via Wayback",
+        "verified": "⚠️ **`الصبور` confirmed present** (last Name in the list). **Grade: `Daʿīf` (Darussalam)**; Tirmidhī's own comment: `هذا حديث غريب`. **Not cited on any beat**"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 32",
+        "verified": "✅ three fields asserted present (§9cb). ⚠️ **byte-identical to shipped `al-haleem@1`'s duʿā beat** — verified against `name_stories.json`"
+      }
     ]
   },
   {
@@ -4496,6 +6744,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"But Allah bears witness to that which He has revealed to you. He has sent it down with His knowledge, and the angels bear witness [as well]. And sufficient is Allah as Witness\"* (beats 3–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../4:166`",
+        "verified": "✅ `لَّـٰكِنِ ٱللَّهُ يَشْهَدُ بِمَآ أَنزَلَ إِلَيْكَ ۖ أَنزَلَهُۥ بِعِلْمِهِۦ ۖ وَٱلْمَلَـٰٓئِكَةُ يَشْهَدُونَ ۚ وَكَفَىٰ بِٱللَّهِ شَهِيدًا` — **whole āyah**, split across the story beats with the closing clause on the verse beat"
+      },
+      {
+        "claim": "Successor sweep n−1: 4:165",
+        "url": "`.../4:165`",
+        "verified": "✅ clean — `رُّسُلًا مُّبَشِّرِينَ وَمُنذِرِينَ`, messengers as bringers of good tidings"
+      },
+      {
+        "claim": "Successor sweep n+1: 4:167",
+        "url": "`.../4:167`",
+        "verified": "⚠️ **rebuke, not punishment** — *\"have certainly gone far astray.\"* No `عَذَاب`, no Fire. **Not rendered**"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 60",
+        "verified": "✅ all three fields asserted present (§9cb). ⚠️ **byte-identical to shipped `al-baseer@1`'s duʿā beat** — verified against `name_stories.json`"
+      },
+      {
+        "claim": "Cross-check: what `al-baseer@1` renders",
+        "url": "`assets/content/name_stories.json`",
+        "verified": "⚠️ its duʿā beat carries `فَٱشْهَدْ لِى` — **this Name's root, in production**"
       }
     ]
   },
@@ -4587,6 +6862,33 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "*\"…those who recite the Book of Allah and establish prayer and spend out of what We have provided them, secretly and publicly, [can] expect a transaction that will never perish\"* (beat 3)",
+        "url": "`.../35:29`",
+        "verified": "✅ `إِنَّ ٱلَّذِينَ يَتْلُونَ كِتَـٰبَ ٱللَّهِ … يَرْجُونَ تِجَـٰرَةً لَّن تَبُورَ` — described and partially quoted"
+      },
+      {
+        "claim": "*\"That He may give them in full their rewards and increase for them of His bounty. Indeed, He is Forgiving and Appreciative.\"* (beats 4–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../35:30`",
+        "verified": "✅ `لِيُوَفِّيَهُمْ أُجُورَهُمْ وَيَزِيدَهُم مِّن فَضْلِهِۦ ۚ إِنَّهُۥ غَفُورٌ شَكُورٌ` — **whole āyah**"
+      },
+      {
+        "claim": "Successor sweep n−1: 35:28",
+        "url": "`.../35:28`",
+        "verified": "✅ clean — colours of people and livestock, closes `عَزِيزٌ غَفُورٌ`"
+      },
+      {
+        "claim": "Successor sweep n+1: 35:31",
+        "url": "`.../35:31`",
+        "verified": "✅ clean — closes `لَخَبِيرٌۢ بَصِيرٌ`"
+      },
+      {
+        "claim": "Root sweep",
+        "url": "`corpus…?q=$kr`",
+        "verified": "✅ **75 occurrences, 6 forms**; `shakūr` 10×, **the rest human gratitude**"
+      }
     ]
   },
   {
@@ -4676,6 +6978,44 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "\"We will show them Our signs in the horizons and within themselves until it becomes clear to them that it is the truth\" (beats 3–4, primary carrier)",
+        "url": "`api.quran.com/api/v4/verses/by_key/41:53`",
+        "verified": "✅ `سَنُرِيهِمْ ءَايَـٰتِنَا فِى ٱلْـَٔافَاقِ وَفِىٓ أَنفُسِهِمْ حَتَّىٰ يَتَبَيَّنَ لَهُمْ أَنَّهُ ٱلْحَقُّ` — Allah's own first-person speech (`سَنُرِيهِمْ`, finite verb, grammatical subject Allah), demonstrating manifestness as an unfolding act of revelation. Spans two beats; beat 3 opens the promise, beat 4 specifies the dual location (horizons and self). No truncation",
+        "grading": "Qur'an (Uthmani text verified live)"
+      },
+      {
+        "claim": "Successor sweep, n−1: Qur'an 41:52",
+        "url": "`api.quran.com/api/v4/verses/by_key/41:52`",
+        "verified": "✅ `أَفَلَمْ يَرَوْا...` — disbelievers in denial, no punishment, no hazard. Not quoted or alluded to",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Successor sweep, n+1: Qur'an 41:54",
+        "url": "`api.quran.com/api/v4/verses/by_key/41:54`",
+        "verified": "✅ `أَلَآ إِنَّهُمْ فِى مِرْيَةٍ...` — verses 41:55–end do not exist (verified: `verses/by_key/41:55` → HTTP 404). **41:54 is sūrah-final** — strongest available bar-5 form. No punishment in n+1",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "\"…and the Manifest…\" (beat 6)",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:3`",
+        "verified": "✅ `text_uthmani`: `هُوَ ٱلْأَوَّلُ وَٱلْـَٔاخِرُ وَٱلظَّـٰهِرُ وَٱلْبَاطِنُ ۖ وَهُوَ بِكُلِّ شَىْءٍ عَلِيمٌ`. Beat 6 renders only `وَٱلظَّـٰهِرُ` with visible ellipsis both sides (mid four-Name clause). **Does NOT carry bar 1** — 41:53 carries it. Saheeh International rendering *\"Ascendant\"* would contradict catalogue id 81's own locked `english` = *\"The Manifest\"*, so Mufti Taqi Usmani (id 84) used instead, disclosed",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "Context fetch: 57:2 and 57:4",
+        "url": "`api.quran.com/api/v4/verses/by_key/57:2` and `57:4`",
+        "verified": "✅ fetched. 57:2 continues the sequence but does not complicate bar 5. 57:4 contains `وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ` — omnipresence, inside/outside knowledge — **flagged for Al-Batin's consideration in that deck's claim file, not used here.** No quoted or alluded to on this deck",
+        "grading": "Qur'an"
+      },
+      {
+        "claim": "The duʿā (catalogue id 81) traced to Sahih Muslim 2713a",
+        "url": "Verified by Al-Awwal draft (Wayback capture `20250811110019` of `sunnah.com/muslim:2713`)",
+        "verified": "✅ rasm-identical (orthographic variants only) to the second half of the bedtime protection duʿā: `وَأَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَىْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَىْءٌ` — see shared duʿā section for full treatment",
+        "grading": "**Sahih (collection-level)**"
       }
     ]
   },
@@ -4767,6 +7107,38 @@
         "translation": "",
         "source": ""
       }
+    ],
+    "sources": [
+      {
+        "claim": "The sūrah's repeated question (beat 3, **described, not quoted as a beat**)",
+        "url": "`.../55:77`",
+        "verified": "✅ `فَبِأَىِّ ءَالَآءِ رَبِّكُمَا تُكَذِّبَانِ` — the refrain, immediately before the carrier"
+      },
+      {
+        "claim": "*\"Blessed is the name of your Lord, Owner of Majesty and Honor.\"* (beats 5–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../55:78`",
+        "verified": "✅ `تَبَـٰرَكَ ٱسْمُ رَبِّكَ ذِى ٱلْجَلَـٰلِ وَٱلْإِكْرَامِ` — **whole āyah**"
+      },
+      {
+        "claim": "Successor sweep n+1: 55:79",
+        "url": "`.../55:79`",
+        "verified": "✅ **HTTP 404 — sūrah-final.** Verified by status code"
+      },
+      {
+        "claim": "Root sweep — **complete at 2 occurrences**",
+        "url": "`corpus…?q=jll`",
+        "verified": "✅ **55:27 and 55:78 only.** 55:27 **left to `al-jaleel@1`**"
+      },
+      {
+        "claim": "Cross-check against production",
+        "url": "`assets/content/name_stories.json`",
+        "verified": "⚠️ **shipped `as-salam@1`'s duʿā renders this Name in full** — `تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ`"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 89",
+        "verified": "✅ three fields asserted present (§9cb). ⚠️ **it names the Fire** — see bars note"
+      }
     ]
   },
   {
@@ -4856,6 +7228,33 @@
         "transliteration": "",
         "translation": "",
         "source": ""
+      }
+    ],
+    "sources": [
+      {
+        "claim": "*\"Whatever is in the heavens and whatever is on the earth is exalting Allah.\"* (beats 3–4)",
+        "url": "`.../64:1`",
+        "verified": "✅ `يُسَبِّحُ لِلَّهِ مَا فِى ٱلسَّمَـٰوَٰتِ وَمَا فِى ٱلْأَرْضِ` — first clause"
+      },
+      {
+        "claim": "*\"…To Him belongs dominion…\"* (beats 5–6, **bar-1 and bar-4 carrier**)",
+        "url": "`.../64:1`",
+        "verified": "✅ `لَهُ ٱلْمُلْكُ` — the ownership clause only. **`وَلَهُ ٱلْحَمْدُ` left for `al-hameed@1` (id 65)**; `وَهُوَ عَلَىٰ كُلِّ شَىْءٍ قَدِيرٌ` left for `al-qadir@1`"
+      },
+      {
+        "claim": "Successor sweep n+1: 64:2",
+        "url": "`.../64:2`",
+        "verified": "✅ believer and disbeliever named, **no punishment**; closes `وَٱللَّهُ بِمَا تَعْمَلُونَ بَصِيرٌ`. **64:1 is sūrah-opening**, so no n−1"
+      },
+      {
+        "claim": "Cross-check: what `al-malik@1` renders",
+        "url": "`assets/content/name_stories.json`",
+        "verified": "⚠️ **3:26 as verse beat AND duʿā**, and its duʿā string `اللَّهُمَّ مَالِكَ الْمُلْكِ تُؤْتِي الْمُلْكَ مَنْ تَشَاءُ` is **a strict prefix of id 88's**"
+      },
+      {
+        "claim": "The locked duʿā",
+        "url": "`collectible_names.json` id 88",
+        "verified": "✅ three fields asserted present (§9cb). ⚠️ **superset of a shipped deck's duʿā**"
       }
     ]
   }
