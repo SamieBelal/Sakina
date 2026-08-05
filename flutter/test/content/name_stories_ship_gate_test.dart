@@ -83,6 +83,15 @@ void main() {
     'al-ghafur@1': 'Sunan Abi Dawud 1516',
     'al-afuw@1': 'Sunan Ibn Majah 3850',
     'al-mujeeb@1': "Qur'an 21:87",
+    // 2026-08-05. Replaced a shared `yā Laṭīf` invocation that named neither
+    // this deck's Name nor its pair's — see
+    // `docs/superpowers/content/decks/2026-08-05-DUA-COLLISION-RESEARCH.md`.
+    // Verified against sunnah.com/muslim:2696 individually, not off a listing
+    // page: Book 48 (Dhikr, Supplication, Repentance and Istighfār), Hadith 43,
+    // chapter "The Virtue Of Tahlil, Tasbih And Du'a". Ṣaḥīḥ by collection —
+    // sunnah.com prints no grade line for the Ṣaḥīḥayn, so this is a
+    // collection-level inference and is recorded as one.
+    'al-hakeem@1': 'Sahih Muslim 2696',
     'al-waliyy@1': 'Sahih Muslim 1342',
     // Wave 1, transcribed 2026-08-03. Same rule: each read off the deck's own
     // duʿa beat by the agent that transcribed it, never copied from a report.
@@ -323,6 +332,88 @@ void main() {
       for (final b in d['beats'] as List) {
         expect(((b['primary'] ?? '') as String).trim().isNotEmpty, isTrue,
             reason: '${d['deck_id']} ${b['kind']} beat has no primary text');
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Must-ship-together Name pairs.
+  //
+  // Five pairs are ruled inseparable (COLLISION-LEDGER §9bg): each deck's
+  // takeaway hands the reader to its partner by name, and Ad-Darr's in
+  // particular — The Distresser — "structurally cannot resolve into relief"
+  // on its own material. Half a pair is not half a lesson; it is a setup with
+  // no payoff, delivered to someone in distress.
+  //
+  // This CANNOT be expressed through `chip_keys`. Those are the seven mood
+  // tags the free-text matcher uses, all seven already spoken for, and the
+  // pair assertions above only iterate over decks carrying one — so every
+  // deck below was invisible to them. Populating `chip_keys` to reach those
+  // tests would newly FAIL them, because none of these decks declares
+  // `position_in_pair` 1 or 2 and none carries a synergy beat. The relation
+  // is a different relation and needs its own assertion.
+  const mustShipTogether = {
+    'ad-darr@1': 'an-nafi@1',
+    'an-nafi@1': 'ad-darr@1',
+    'al-qabid@1': 'al-basit@1',
+    'al-basit@1': 'al-qabid@1',
+    'al-khafid@1': 'ar-rafi@1',
+    'ar-rafi@1': 'al-khafid@1',
+    'al-muizz@1': 'al-muzill@1',
+    'al-muzill@1': 'al-muizz@1',
+    'al-muqaddim@1': 'al-muakhkhir@1',
+    'al-muakhkhir@1': 'al-muqaddim@1',
+  };
+
+  test('SHIP GATE: a must-ship-together deck never ships without its partner',
+      () {
+    final present = decks.map((d) => d['deck_id'] as String).toSet();
+    for (final entry in mustShipTogether.entries) {
+      if (!present.contains(entry.key)) continue;
+      expect(
+        present.contains(entry.value),
+        isTrue,
+        reason: '${entry.key} is in the asset but ${entry.value} is not. '
+            'These two are ruled inseparable — the first hands the reader to '
+            'the second by name, so shipping it alone delivers a setup with '
+            'no resolution. Ship both or neither.',
+      );
+    }
+  });
+
+  test('a must-ship-together deck that names its partner still resolves alone',
+      () {
+    // The gate above guarantees the partner is in the ASSET. It cannot
+    // guarantee the reader has drawn it — decks are served one Name at a time
+    // by `deckForName`, so a user can meet Ad-Darr months before An-Nafi.
+    // The takeaway may therefore point forward, but must not DEPEND on the
+    // partner to land: no beat may end on the partner's name as its final
+    // clause, which is what turns a pointer into a cliffhanger.
+    for (final d in decks) {
+      final partner = mustShipTogether[d['deck_id']];
+      if (partner == null) continue;
+      // Hyphens are normalised on BOTH sides. Stripping them from the deck_id
+      // alone produced `an nafi`, which can never match the rendered `An-Nafi`
+      // — the assertion below looked thorough and matched nothing, so it
+      // passed for every deck by finding zero candidates rather than by the
+      // content being right. A gate that cannot fail is not a gate.
+      final partnerName =
+          partner.replaceAll('@1', '').replaceAll('-', ' ').toLowerCase();
+      for (final b in d['beats'] as List) {
+        final text = ((b['primary'] ?? '') as String).trim();
+        if (text.isEmpty) continue;
+        final tail = text.length < 60 ? text : text.substring(text.length - 60);
+        final tailNorm = tail.toLowerCase().replaceAll('-', ' ');
+        expect(
+          tailNorm.contains(partnerName) &&
+              (tail.endsWith('.') || tail.endsWith('!')) &&
+              tailNorm.indexOf(partnerName) >
+                  tail.length - partnerName.length - 25,
+          isFalse,
+          reason: '${d['deck_id']} ${b['kind']} beat ends on its partner\'s '
+              'name. The partner is a pointer, not a dependency — this beat '
+              'has to resolve for a reader who has not drawn $partner yet',
+        );
       }
     }
   });
