@@ -1,7 +1,36 @@
 -- Catalogue repair — public.collectible_names.hadith, 27 of 99 rows.
+--
+-- ============================================================================
+-- ✅ APPLIED TO PRODUCTION 2026-08-05, on founder instruction. P0 CLOSED.
+--
+-- Applied via PostgREST (service role) rather than by executing this file,
+-- because the tooling available could not pipe a file to the database and
+-- retyping 27 rows of Arabic-bearing religious text by hand was the larger
+-- risk. The three passes below were replicated exactly:
+--   PASS 1  read-before-write drift check across all 27 rows  -> no drift
+--   PASS 2  write only rows still holding the old value       -> 27 written
+--   PASS 3  per-row post-condition                            -> all ok
+-- Equivalence proved before applying: every `new` value in this file was
+-- confirmed byte-identical to assets/content/collectible_names.json, so the
+-- writes were sourced from the asset and no religious text passed through a
+-- human or model transcription step.
+--
+-- ONE DIFFERENCE, stated: PostgREST issues 27 separate writes, so this did NOT
+-- run in a single transaction the way `BEGIN … COMMIT` below would have. A
+-- partial apply would have been caught by PASS 3 and is idempotently
+-- re-runnable, but the atomicity guarantee was not available.
+--
+-- Post-conditions verified after apply:
+--   99 rows · 0 NULL hadith · 14 emptied · 13 replaced
+--   0 rows still carrying "(Derived from Names teachings)" / "(Yaqeen…" / "(Hadith)"
+--   re-export vs committed asset: 0 field-level differences across all 99 rows
+--   (1 byte differs — the exporter writes a trailing newline the committed
+--    asset lacks. Pre-existing and cosmetic; content is identical.)
+--
+-- Re-running this file is safe: PASS 2 updates 0 rows once applied.
+-- ============================================================================
+--
 -- STAGED: do not apply to any remote database from this file. See README.md.
--- Nothing in this repair pass was applied to any database. The founder
--- applies this, after reading the companion report.
 --
 -- Companion report:
 --   docs/superpowers/content/decks/2026-08-03-CATALOGUE-HADITH-FIX-REPORT.md
