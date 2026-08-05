@@ -502,10 +502,21 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // card says "The Trustee" and the deck says "The Trustee — the Guardian you
     // hand your affairs to". Comparing keeps that clause; a boolean deleted it.
     final meaningAlreadyRead = state.engagedCard?.english;
+    // ALREADY RESOLVED — this method does no selecting (deck personalisation
+    // Wave 5). `DeckVariantSelector.select` is async and this runs inside
+    // `build()`, so resolving here would render `primary` on the first frame
+    // and swap the bridge sentence while the user is reading it. The provider
+    // latched it beside the deck at reveal time; see
+    // [DailyLoopState.revealVariant].
+    //
+    // Null (no deck, or a selector that failed) means an empty selection, which
+    // renders every `primary` — byte-identical to the pre-personalisation
+    // reveal.
     final deckScreens = deck == null
         ? null
         : buildBeatScreensFromDeck(deck,
-            meaningAlreadyShown: meaningAlreadyRead);
+            meaningAlreadyShown: meaningAlreadyRead,
+            selection: state.revealVariant?.selection);
     final hasDeck = deckScreens != null && deckScreens.isNotEmpty;
     final unrenderableDeck = deck != null && !hasDeck;
     // Only a deck the user can actually move through is abandonable — an

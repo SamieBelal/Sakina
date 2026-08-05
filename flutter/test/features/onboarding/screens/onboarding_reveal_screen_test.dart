@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_reveal_screen.dart';
@@ -37,6 +38,16 @@ void main() {
       );
 
   setUp(() {
+    // The reveal reads `SharedPreferences` before its first beat now (the deck
+    // variant selector's seen set, Wave 5). An UNMOCKED prefs channel in
+    // `flutter_test` returns a future that never completes — not one that
+    // throws — so without this the screen would sit on the kindling beat until
+    // the selector's own bound fired, which is a harness artifact no device
+    // has. Mocking it is what keeps these tests measuring the reveal instead of
+    // the bound. Nothing here is asserted on; the store starts empty, which is
+    // a first encounter, which is what every one of these tests already
+    // assumed.
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     // The kindling beat's lantern sits in a VisibilityDetector, whose
     // batching timer would otherwise outlive the tree.
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
@@ -103,8 +114,26 @@ void main() {
     expect(find.text('Preparing your reflection…'), findsNothing);
 
     await tester.pumpAndSettle();
-    // As-Salam's bridge line opens the deck.
-    expect(find.textContaining('there is a Name'), findsOneWidget);
+    // As-Salam's bridge line opens the deck — and WHICH bridge line is now the
+    // variant selector's answer (Wave 5), not unconditionally `primary`.
+    //
+    // This call passes no `problemCategory`, so the reader is `unmatched`, and
+    // on the unmatched ladder `default` outranks `primary`. That inversion is
+    // the entire point of the Wave 2 chip-echo fix and `as-salam@1` is the deck
+    // it was written for: its `primary` — "For the weight you named — a mind
+    // that won't stop racing" — reads back a chip label at a reader who named
+    // nothing, which is simply false for them. The assertion below is
+    // deliberately BOTH halves, so the day someone drops the selection argument
+    // this fails rather than quietly re-shipping the chip echo.
+    expect(
+      find.text(
+        'Whatever you came in carrying tonight, this is the Name for what is '
+        'meant to sit underneath it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('the weight you named'), findsNothing,
+        reason: 'a reader who named nothing must never be told they did');
   });
 
   testWidgets('the sign contract opens on recognition — deck order, untouched',

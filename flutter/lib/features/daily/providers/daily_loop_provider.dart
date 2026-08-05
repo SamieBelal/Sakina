@@ -29,6 +29,10 @@ import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
+// The deterministic variant selector (deck personalisation Wave 5). Policy —
+// rotation, the seen set, the fallback ladder — lives entirely behind
+// `select()`; this provider only latches the answer next to the deck.
+import 'package:sakina/services/deck_variant_selector.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
 // Re-exports `launch_gate_state.dart`, which is where `markDailyLaunchShown`
@@ -191,6 +195,28 @@ class DailyLoopState {
   /// `buildBeatScreensFromDeck` instead of a [ReflectResponse].
   final NameStoryDeck? revealDeck;
 
+  /// The variant selection LATCHED for [revealDeck] at reveal time (deck
+  /// personalisation Wave 5, §4.3).
+  ///
+  /// It lives here — beside the deck, resolved by the same async code that
+  /// resolved the deck — for one reason: `DeckVariantSelector.select` is async
+  /// (it reads prefs) and `muhasabah_screen._buildBeatFlow` runs inside
+  /// `build()`. Resolving it there would render `primary` on the first frame
+  /// and swap the bridge sentence out from under a reader mid-sentence, which
+  /// is precisely the failure §4.3 names ("selection latches at flow entry").
+  /// The screen therefore does no resolving at all; it reads
+  /// [DeckVariantSelection.selection] and hands it to
+  /// `buildBeatScreensFromDeck`.
+  ///
+  /// Null whenever [revealDeck] is null, and also when the selector failed —
+  /// a null selection renders every `primary`, which is byte-identical to the
+  /// pre-personalisation reveal (D11: `primary` is the safety net, so there is
+  /// no kill switch to build).
+  ///
+  /// Written down only on completion: [DailyLoopNotifier.completeDeeper] calls
+  /// `DeckVariantSelector.markCompleted`, never the abandon path (D12).
+  final DeckVariantSelection? revealVariant;
+
   /// How many positions are still sealed. Lets the home CTA subtitle (Wave 4)
   /// render without a second fetch.
   final int queueSealedRemaining;
@@ -274,6 +300,7 @@ class DailyLoopState {
     this.revealSource = revealSourceGacha,
     this.revealQueuePosition,
     this.revealDeck,
+    this.revealVariant,
     this.queueSealedRemaining = 0,
     this.rewardClaimResult,
     this.streakCount = 0,
@@ -335,6 +362,7 @@ class DailyLoopState {
     String? revealSource,
     int? revealQueuePosition,
     NameStoryDeck? revealDeck,
+    DeckVariantSelection? revealVariant,
     int? queueSealedRemaining,
 
     /// Set only by the reveal write in [DailyLoopNotifier.discoverName], which
@@ -434,6 +462,11 @@ class DailyLoopState {
           ? revealQueuePosition
           : (revealQueuePosition ?? this.revealQueuePosition),
       revealDeck: resetReveal ? revealDeck : (revealDeck ?? this.revealDeck),
+      // Cleared and re-set with the deck it belongs to, never independently —
+      // a selection that outlived its deck would personalise the NEXT reveal
+      // with the previous one's variant id.
+      revealVariant:
+          resetReveal ? revealVariant : (revealVariant ?? this.revealVariant),
       queueSealedRemaining: queueSealedRemaining ?? this.queueSealedRemaining,
       rewardClaimResult: rewardClaimResult ?? this.rewardClaimResult,
       streakCount: streakCount ?? this.streakCount,
@@ -1430,6 +1463,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         } catch (_) {}
       }
 
+      // The variant selection, resolved HERE and latched onto state beside the
+      // deck (Wave 5 wiring). It cannot be resolved in `muhasabah_screen`,
+      // which builds its screens inside `build()` — see the doc on
+      // [DailyLoopState.revealVariant].
+      //
+      // `state.checkinProblemCategory` is passed straight through, INCLUDING
+      // null: `submitDailyAnswer` derived it a few lines earlier from the same
+      // keyword map onboarding uses, and every legacy path (the dormant
+      // `answerCheckin`, a re-roll, a pre-W4 blob) leaves it null on purpose.
+      // The selector treats null and `unmatched` as the same no-category
+      // branch, so there is nothing to synthesise.
+      //
+      // Read-only (D12): nothing is written down until `completeDeeper`, which
+      // is what makes a cold-restart resume re-resolve to the same id.
+      //
+      // Its own catch, and never allowed to unset the deck: a personalisation
+      // failure costs the tailored sentence, never the reveal. A null selection
+      // renders every `primary`, which is exactly the pre-personalisation text.
+      DeckVariantSelection? variant;
+      if (deck != null) {
+        try {
+          variant = await DeckVariantSelector.select(
+            deck: deck,
+            surface: DeckVariantSurface.daily,
+            problemCategory: state.checkinProblemCategory,
+          );
+        } catch (_) {}
+      }
+
       final card = queueCard ??
           pickNextCard(
             collection,
@@ -1466,6 +1528,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         revealSource: queueDriven ? revealSourceQueue : revealSourceGacha,
         revealQueuePosition: queueDriven ? queueRow!.position : null,
         revealDeck: deck,
+        revealVariant: variant,
         queueSealedRemaining: _sealedRemainingAfter(queueRows, queueRow),
       );
       // A deck-backed reveal must NOT spend an OpenAI call whose result is
@@ -2428,11 +2491,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// lifecycle to completed, persists, and opens the daily Noor faucet.
   Future<void> completeDeeper() async {
     if (state.currentStep == DailyLoopStep.completed) return; // idempotent
+    final variant = state.revealVariant;
     state = state.copyWith(
       deeperDone: true,
       questDone: true,
       currentStep: DailyLoopStep.completed,
     );
+    // The ONLY writer of the variant rotation (D12), and deliberately NOT on
+    // any abandon path: a flow the reader backed out of must leave no trace, so
+    // re-entering resolves to the same sentence rather than skipping past it.
+    //
+    // AFTER the state flip, not before. `markCompleted` is deliberately not
+    // idempotent — it increments `completedEncounters` — so the guard above is
+    // the only thing standing between a second call and a second increment, and
+    // the flip is what arms it. Awaiting anything before the flip would leave
+    // that guard open across the await.
+    //
+    // Awaited but harmless: `markCompleted` swallows its own failures, so the
+    // reader's completed night can never be taken down by bookkeeping.
+    if (variant != null) {
+      await DeckVariantSelector.markCompleted(variant);
+    }
     await _persistTodayState();
     await _awardDailyNoor();
     await _markDayOpenSatisfied();
@@ -2968,6 +3047,32 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         }
       }
 
+      // Re-resolve the variant for the restored deck, from the SAME category
+      // the blob persisted (never a re-derivation — `checkinProblemCategory` is
+      // absent from pre-W4 blobs and from every re-roll, and null is the honest
+      // answer there).
+      //
+      // **Re-resolving is safe, and gives the identical id.** `select` is pure
+      // (D12): the seen set only moves in `markCompleted`, which runs on
+      // "Ameen". This branch is reached only while `checkinDone && !deeperDone`
+      // — i.e. before any Ameen for this deck — so the seen set has not moved
+      // since `discoverName` resolved, and the same deck + same seen-set + same
+      // category is by construction the same answer. That property is exactly
+      // why D12 marks on completion rather than on selection.
+      //
+      // The one visible cost is a second `deck_variant_selected` event for one
+      // encounter, which is what a resumed reveal genuinely looks like.
+      DeckVariantSelection? variant;
+      if (deck != null) {
+        try {
+          variant = await DeckVariantSelector.select(
+            deck: deck,
+            surface: DeckVariantSurface.daily,
+            problemCategory: data['checkinProblemCategory'] as String?,
+          );
+        } catch (_) {}
+      }
+
       // Post-await write on the `_initialize` path — see the note there. The
       // `catch (_) { start fresh }` below would otherwise absorb the
       // dispose-time StateError.
@@ -3006,6 +3111,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         revealSource: revealSource,
         revealQueuePosition: (data['revealQueuePosition'] as num?)?.toInt(),
         revealDeck: deck,
+        revealVariant: variant,
       );
 
       // Unchanged rule from `discoverName`: prefetch only when there is no deck

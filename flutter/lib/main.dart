@@ -36,6 +36,7 @@ import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/cosmetics_service.dart';
 import 'services/daily_question_analytics.dart';
+import 'services/deck_variant_selector.dart';
 import 'services/gating_service.dart';
 import 'services/install_id_service.dart';
 import 'services/reel_deep_link_service.dart';
@@ -460,6 +461,13 @@ Future<void> main() async {
   // someone fixing one copy would not know the other overwrote it. One
   // assignment, 2026-08-02.
   OnboardingRevealScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The deck variant selector (deck personalisation Wave 5). One
+  // `deck_variant_selected` for BOTH surfaces, segmented by `source` (D13) —
+  // onboarding reports `chip`, the daily loop reports `category`. The selector
+  // is a static, Riverpod-free service like the ones above, so it bridges the
+  // same way; tests leave the hook null, which makes emission a no-op.
+  DeckVariantSelector.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // First-visit hints (Wave F3). Fires at claim time, so the event count and
   // the number of hints actually spent cannot drift.

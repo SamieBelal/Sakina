@@ -714,6 +714,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         // Read from state (not a field), same reasoning as `_onHookCommitted`
         // above — survives an app kill between the hook and this page.
         contract: ref.read(onboardingProvider).contract,
+        // Deck personalisation Wave 5: which bridge/reflection sentence the
+        // reveal shows. Read from state the same way `contract` is, so it
+        // survives an app kill between the hook and this page.
+        //
+        // ⚠️ `problemCategory`, NOT `chipKey`. The state carries both and they
+        // are different vocabularies (`far_from_allah` vs `far-from-allah`);
+        // the authored variant ids follow the category, and the selector
+        // refuses a chip key rather than half-matching it. Pinned by
+        // `test/features/onboarding/onboarding_reveal_variant_test.dart`.
+        problemCategory: ref.read(onboardingProvider).problemCategory,
         onBack: _back,
         onDone: _onRevealDone,
       ),

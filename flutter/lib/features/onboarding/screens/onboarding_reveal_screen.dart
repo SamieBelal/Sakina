@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/name_story_deck.dart';
 import '../../../services/analytics_event_names.dart';
 import '../../../services/card_collection_service.dart';
+import '../../../services/deck_variant_selector.dart';
 import '../../../services/name_stories_service.dart';
 import '../../../services/supabase_sync_service.dart';
 import '../../../widgets/beat_reveal/beat_reveal_flow.dart';
@@ -43,6 +44,7 @@ class OnboardingRevealScreen extends StatefulWidget {
     this.stories,
     this.latch,
     this.contract,
+    this.problemCategory,
     this.loaderBeat = const Duration(milliseconds: 2200),
     this.showFirstRunHint = true,
     super.key,
@@ -53,6 +55,17 @@ class OnboardingRevealScreen extends StatefulWidget {
   /// unless the test sets it.
   static void Function(String name, Map<String, Object?> props)?
       onAnalyticsEvent;
+
+  /// How long the reveal will wait for a variant selection before giving up on
+  /// personalisation and rendering `primary`.
+  ///
+  /// Roughly half [loaderBeat]'s production value, so a healthy device never
+  /// reaches it: the selection is one `SharedPreferences` read and lands in
+  /// single-digit milliseconds, well inside the beat the lamp is already
+  /// holding. It exists for the case a `try`/`catch` cannot see — a read that
+  /// never answers rather than one that throws — which would otherwise hold
+  /// this screen on the kindling beat forever.
+  static const Duration selectBudget = Duration(milliseconds: 1200);
 
   /// `[name₁, name₂]` from the hook commit. Name₁ is revealed here; Name₂ is
   /// teased sealed.
@@ -73,6 +86,23 @@ class OnboardingRevealScreen extends StatefulWidget {
   /// (the comfort-pair / kill-switch paths still reveal — the contract is
   /// just absent on that emit, not fabricated).
   final String? contract;
+
+  /// [OnboardingState.problemCategory] — the stable snake_case category behind
+  /// the chip the user tapped (or `unmatched`). Feeds the deck variant
+  /// selector, which picks WHICH bridge/reflection sentence this reveal shows.
+  ///
+  /// ⚠️ **This is NOT [OnboardingState.chipKey].** The two vocabularies differ
+  /// (`far-from-allah` the chip key vs `far_from_allah` the category), the
+  /// authored variant ids follow the CATEGORY, and the selector deliberately
+  /// refuses to accept a chip key — it degrades to the unmatched branch rather
+  /// than silently half-matching. Passing the wrong field would look like it
+  /// worked and quietly serve the no-category text to every reader forever.
+  /// `onboarding_screen.dart` reads `problemCategory` for exactly this reason,
+  /// and `onboarding_reveal_variant_test.dart` fails if that ever changes.
+  ///
+  /// Null in tests and on any path with no hook answer — the selector's
+  /// no-category branch, which is a real authored answer, not a degradation.
+  final String? problemCategory;
 
   /// The once-per-onboarding-run latch for the award / abandon emissions.
   ///
@@ -172,6 +202,12 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   bool _failed = false;
   int _lastBeatIndex = 0;
 
+  /// The variant selection latched for [_name1] in [_load], held so [_onAmeen]
+  /// can write it down. Null when there is no deck yet, and — deliberately —
+  /// whenever anything about selection failed: the reveal then renders every
+  /// `primary`, which is exactly what shipped before personalisation existed.
+  DeckVariantSelection? _variant;
+
   @override
   void initState() {
     super.initState();
@@ -210,12 +246,72 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
           two = comfort[1];
         }
       }
+      // ── The variant selection (deck personalisation Wave 5) ──
+      //
+      // Resolved HERE, in the same async `_load` that resolved the deck, and
+      // set in the same `setState` — `build()` is synchronous and
+      // `DeckVariantSelector.select` is not, so resolving at render time would
+      // show `primary` for a frame and then swap the sentence out from under
+      // the reader (§4.3, "selection latches at flow entry").
+      //
+      // **This whole block is failure-proof by construction, and that is not
+      // decoration: this is SHIPPED ONBOARDING.** Every failure mode —
+      // `select` throwing, a prefs error inside it, a malformed selection map —
+      // ends with `selection` null, and a null selection makes
+      // `buildBeatScreensFromDeck` render every beat's `primary`, which is
+      // byte-identical to the reveal that shipped before any of this existed
+      // (D11: `primary` IS the safety net, which is why there is no kill
+      // switch). Personalisation may cost itself; it may never cost the reveal.
+      //
+      // The BOUND is as load-bearing as the catch. Before Wave 5 this
+      // screen reached its first beat with no `SharedPreferences` dependency at
+      // all; `select` reads prefs, and a prefs read that never answers would
+      // hold the reveal on the kindling beat forever — the failure mode a bare
+      // try/catch cannot see, because nothing throws. Bounding it converts the
+      // worst case from "onboarding is bricked" into "this reader gets
+      // `primary`", which is the text that shipped for a year.
+      //
+      // [selectBudget] is ~half the production loader beat, so on any healthy
+      // device the answer is already in hand when the lamp finishes catching
+      // and the bound is never observed.
+      DeckVariantSelection? variant;
+      Map<String, String>? selection;
+      if (one != null) {
+        try {
+          variant = await DeckVariantSelector.select(
+            deck: one,
+            surface: DeckVariantSurface.onboarding,
+            // ⚠️ The CATEGORY, never the chip key — see the field's doc.
+            problemCategory: widget.problemCategory,
+          ).timeout(OnboardingRevealScreen.selectBudget);
+          selection = variant.selection;
+        } catch (_) {
+          variant = null;
+          selection = null;
+        }
+      }
+      // Built BEFORE `setState` and behind its own catch, so that even a
+      // pathological selection map costs the personalisation and not the
+      // reveal: the fallback is the identical call with no selection at all,
+      // i.e. the exact three-argument shape this screen used before Wave 5.
+      // (A throw inside `setState` would land in the outer catch and put the
+      // user on the error view — the one outcome onboarding may not have.)
+      List<BeatScreen> screens = const [];
+      if (one != null) {
+        try {
+          screens = buildBeatScreensFromDeck(one, selection: selection);
+        } catch (_) {
+          variant = null;
+          screens = buildBeatScreensFromDeck(one);
+        }
+      }
       await beat;
       if (!mounted) return;
       setState(() {
         _name1 = one;
         _name2 = two;
-        _screens = one == null ? const [] : buildBeatScreensFromDeck(one);
+        _variant = variant;
+        _screens = screens;
         _failed = one == null;
       });
     } catch (_) {
@@ -250,10 +346,34 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
     });
   }
 
+  /// Records the variant this reader actually met, so their next encounter
+  /// with the same deck rotates past it (D12).
+  ///
+  /// Sits inside [_onAmeen] behind `_latch.completed`, which is what makes it
+  /// once per onboarding run — and that guard is load-bearing, because
+  /// `markCompleted` is deliberately NOT idempotent (it increments
+  /// `completedEncounters`). It is never called from [_emitAbandoned]: an
+  /// abandoned reveal must leave no trace, so re-entering resolves to the same
+  /// sentence.
+  ///
+  /// Deliberately NOT awaited. Awaiting a prefs hop would put bookkeeping
+  /// between the user's "Ameen" and their card, and would open an async gap
+  /// before the `context` use below. `markCompleted` already swallows its own
+  /// failures; the extra catch covers a synchronous throw before its future
+  /// exists.
+  void _markVariantCompleted() {
+    final variant = _variant;
+    if (variant == null) return;
+    try {
+      DeckVariantSelector.markCompleted(variant);
+    } catch (_) {}
+  }
+
   Future<void> _onAmeen() async {
     if (_latch.completed) return;
     _latch.completed = true;
     _emit(AnalyticsEvents.revealDeckCompleted);
+    _markVariantCompleted();
     await pushOnboardingCardReveal(
       context,
       nameId: _name1!.nameId,
