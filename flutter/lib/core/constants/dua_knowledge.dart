@@ -448,8 +448,17 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْحَكِيمُ',
     episode: 26,
     callFor: ['confusion', 'painful decrees', 'not understanding why', 'trusting the plan'],
-    invocationStyle: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
-    samplePhrase: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
+    // Recut 2026-08-05 (Sahih Muslim 2696). This feeds the AI's build-a-dua
+    // prompt context; left stale it would keep proposing Al-Lateef's
+    // invocation for Al-Hakeem, which is the defect being fixed.
+    invocationStyle:
+        "La hawla wa la quwwata illa billahil 'Azeezil Hakeem",
+    // Complete, not elided. This string is handed to the model as "Sample
+    // phrase" (ai_service.dart:1382); an abbreviated supplication with "..."
+    // in the middle invites the model to reproduce the abbreviation. A prompt
+    // has no length budget worth saving here.
+    samplePhrase:
+        "La ilaha illallahu wahdahu la shareeka lah, Allahu akbaru kabeera, wal-hamdu lillahi katheera, subhanallahi rabbil 'alameen, la hawla wa la quwwata illa billahil 'Azeezil Hakeem",
   ),
 
   // Observation cluster

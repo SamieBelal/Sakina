@@ -575,10 +575,17 @@ const List<CollectibleName> allCollectibleNames = [
         "You may not understand the plan, but Al-Hakeem's wisdom never errs.",
     hadith:
         'Yusuf (AS) said: "Indeed my Lord is subtle in what He wills. Indeed He is the All-Knowing, the All-Wise." (Quran 12:100)',
-    duaArabic: 'اللَّهُمَّ يَا لَطِيفُ الْطُفْ بِي فِي أُمُورِي كُلِّهَا',
-    duaTransliteration: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
+    // Recut 2026-08-05 from the shared `yā Laṭīf` duʿā, which invoked neither
+    // this Name nor its pair's. Ṣaḥīḥ Muslim 2696 — the Prophet ﷺ teaching a
+    // bedouin words to say; closes on `بِاللَّهِ الْعَزِيزِ الْحَكِيمِ`.
+    // Byte-identical with assets/content/collectible_names.json and the
+    // `collectible_names` row — edit all three or none (see 323ecd3).
+    duaArabic:
+        'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ اللَّهُ أَكْبَرُ كَبِيرًا وَالْحَمْدُ لِلَّهِ كَثِيرًا سُبْحَانَ اللَّهِ رَبِّ الْعَالَمِينَ لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَزِيزِ الْحَكِيمِ',
+    duaTransliteration:
+        "La ilaha illallahu wahdahu la shareeka lah, Allahu akbaru kabeera, wal-hamdu lillahi katheera, subhanallahi rabbil 'alameen, la hawla wa la quwwata illa billahil 'Azeezil Hakeem",
     duaTranslation:
-        'O Allah, O Gentle One, be gentle with me in all my affairs.',
+        'There is no god but Allah, the One, having no partner with Him. Allah is the Greatest of the great and all praise is due to Him. Exalted is Allah (He is free from imperfection), the Lord of the worlds, there is no Might and Power but that of Allah, the All-Powerful and the Wise.',
   ),
   CollectibleName(
     id: 27,
