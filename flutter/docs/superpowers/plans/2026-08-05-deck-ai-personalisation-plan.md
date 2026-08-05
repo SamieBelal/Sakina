@@ -256,9 +256,56 @@ false.** All 99 bridges and all 91 reflections carry variants, so that branch is
 unreachable in shipped content and is exercised only by a synthetic deck. Wave 5
 must not assume it will ever be hit.
 
-### Wave 5 — Deterministic selector service
-Chip/category → id, seen-set rotation, `SharedPreferences` persistence.
-No network, no proxy, no LLM.
+### Wave 5 — Deterministic selector service ✅ DONE 2026-08-05 (service only, unwired)
+`lib/services/deck_variant_selector.dart`. No network, no proxy, no LLM, no
+`Random`, no clock in the selection itself.
+
+**The resolution ladder is NOT a flat pool.** The first implementation was, and
+it inverted Wave 2's authoring contract on **195 of 693 (deck, category) pairs**.
+The contract: *a category with nothing distinctive to say carries NO variant and
+falls through to `primary`* — `primary` IS the authored text for that category.
+A flat pool served those readers an unrelated category's line instead: a `rizq`
+reader drawing `allah@1` got the **anxiety** variant, when `allah@1` has no
+`rizq` variant precisely because `primary` covers it.
+
+| known live category `C` | | `unmatched` / null |
+|---|---|---|
+| 1. variant `C` → `chip`\|`category` | | 1. variant `default` → `fallback` |
+| 2. `__primary__` → `chip`\|`category` | | 2. `__primary__` → `fallback` |
+| 3. variant `default` → `fallback` | | 3. rest, asset order → `rotation` |
+| 4. rest, asset order → `rotation` | | |
+
+The two orders differ on `default` vs `__primary__` **on purpose**: `default`
+means *the no-category text*, so it outranks `primary` only for `unmatched` —
+which is the Wave 2 chip-echo fix. For a known category `primary` is the
+author's answer and outranks `default`. `as-salam@1` is the one deck where they
+disagree, and both directions are pinned.
+
+⚠️ **`primary`-on-a-known-category is labelled `chip`/`category`, not
+`fallback`.** It is a hit, not a miss. Lumping it in would fire §6's >35%
+fallback alarm on ~28% of normal traffic and make the alarm meaningless.
+Consequence, accepted: `chip`/`category` now covers two outcomes ("the deck had
+a line for C" and "the deck deliberately had none because primary is that
+line"), separated only by `variant_id` — recorded on the property's own
+constant. And `fallback` now tracks roughly the **unmatched rate plus real
+breakage**, making it a taxonomy-health signal rather than a selector-health one.
+
+**`hasPool`, not `source`, gates whether anything is written.** Gating the
+seen-set on `source != fallback` would have frozen every `unmatched` reader on
+one line forever, because their `default`/`primary` hit is now labelled
+`fallback` — and it is a real choice that must advance rotation. Only the
+genuine no-variants/no-bridge shape writes nothing.
+
+Falls out for free: **`rotation` can never fire on a first encounter.**
+
+`generation` (§6) is undefined anywhere in this plan, so it was NOT invented —
+`encounter_index` (completions before this one, monotonic across cycle-clears)
+substitutes for it.
+
+⚠️ **A `chipKey` is not a `problemCategory`** (`far-from-allah` vs
+`far_from_allah`). Whoever wires this must pass `ChipSelection.problemCategory`.
+A chip key passed by mistake degrades to `fallback` rather than silently
+matching, and that is pinned by a test.
 
 ### Wave 6 — ⏸ Classifier — DEFERRED, gated on §2 (D7)
 Revisit only after `1.3.0` is in production and the real `unmatched` rate is
@@ -373,7 +420,7 @@ otherwise the first variants ship unguarded. Wave 6 waits on §2 regardless.
   - Surfaced by: D-scope B — selection needs something to select from
   - Files: `docs/superpowers/content/decks/`, `assets/content/name_stories.json`
   - Verify: ship gate green
-- [ ] **T4 (P1, human: ~4h / CC: ~30min)** — selector service — chip/category → variant id + seen-set rotation
+- [x] **T4 (P1, human: ~4h / CC: ~30min)** — selector service — chip/category → variant id + seen-set rotation
   - Surfaced by: Section 2 — policy must not live in the pure builder
   - Files: `lib/services/deck_variant_selector.dart` (new)
   - Verify: new unit test covering all 6 branches in the §3 diagram
