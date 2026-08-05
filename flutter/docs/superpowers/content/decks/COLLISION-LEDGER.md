@@ -1735,3 +1735,145 @@ Independently confirmed by a verifier, live-fetched: **57:22 carries `نَّبْ
 **Two adjacent occurrences do NOT carry bar 1, so whoever drafts this must not reach for them:** 2:54's `بَارِئِكُمْ` ×2 is **Mūsā's reported speech** (bottom rung, §9bk), and 59:24's `ٱلْبَارِئُ` sits in a **trailing three-epithet chain**. 57:22 is the live candidate; its neighbours 57:21 and 57:23 were checked and carry no punishment.
 
 **Status: a lead, not a deck.** No vocabulary sweep against the 45-deck asset and no twin-diff against `al-khaliq@1`/`al-musawwir@1` has been run. It restores plausibility, nothing further.
+
+### 9cb · Verify the duʿā beat against the **catalogue**, not against the source the catalogue quoted
+
+Two decks in one pair — ids 81 and 82 — got beat 7 wrong in the same way, and both got it wrong *by being careful*.
+
+The catalogue duʿā for both is an excerpt of Sahih Muslim 2713a. Both drafters went and fetched the ḥadīth, read the Arabic, transcribed it faithfully — and rendered **that** on the beat. The result diverged from `collectible_names.json` in three fields at once:
+
+| | rendered | catalogue (locked) |
+|---|---|---|
+| Arabic | `اللَّهُمَّ أَنْتَ الظَّاهِرُ …` | `أَنْتَ الظَّاهِرُ …` — no `اللَّهُمَّ` |
+| translit. | *Allahumma anta al-Zahiru…* | *Anta al-Dhahiru fa-laysa fawqaka shay'…* |
+| English | "O Allah, You are **the Manifest** … nothing **below** You" | "You are **Al-Dhahir** … nothing **closer to me than** You" |
+
+**The failure is not sloppiness — it is verifying against the right text for the wrong question.** "Is this ḥadīth real and accurately transcribed?" and "is this the string that renders?" are two questions, and only the second one is about beat 7. The catalogue is a **locked, verbatim** render target; where it excerpts, paraphrases, or picks an interpretive gloss, that is the deck's text. You design around it (DRAFTING-BRIEF §1.5), you never improve it.
+
+**Two traps that made this attractive, both worth knowing:**
+
+1. **The asset is not symmetric across sibling pairs.** Ids 79/80 genuinely *do* open `اللَّهُمَّ`; ids 81/82 do not — the same ḥadīth, split into two duʿā pairs, excerpted at different boundaries. So "the neighbouring pair has it" is evidence about the neighbouring pair only.
+2. **The catalogue's English can be interpretive.** Id 81/82 render `دُونَكَ` as *"nothing closer to me than You"* rather than the literal *"nothing below You"*. Defensible — `دون` carries both — and **locked**. Report it; do not action it; do not let a future reader mistake it for a typo and "fix" it.
+
+**The ship gate does compare all three duʿā fields to the catalogue**, so this class of error cannot reach production. That is not a reason to relax: a gate catching it at merge means the draft, the drafter's own verification table, and a blind adversarial verifier all passed a beat that was wrong, and the correct string was one file away the whole time.
+
+**Cheap check, run it before you write the report:** load `collectible_names.json`, and assert your rendered `dua_arabic`, `dua_transliteration` and `dua_translation` are **substrings of your own draft file**. It is three lines and it would have caught both decks.
+
+### 9cc · Near-twin āyāt whose bar-5 verdict is decided by the closing clause alone — fetch **every** occurrence, not the ones you use
+
+`ح-ص-ي` has 11 occurrences. Two of them carry the identical clause:
+
+| | | closing clause | bar 5 |
+|---|---|---|---|
+| **14:34** | `وَإِن تَعُدُّوا۟ نِعْمَتَ ٱللَّهِ لَا تُحْصُوهَآ` | `إِنَّ ٱلْإِنسَـٰنَ لَظَلُومٌ كَفَّارٌ` — *"mankind is [generally] most unjust and ungrateful"* | ❌ accuses the reader |
+| **16:18** | `وَإِن تَعُدُّوا۟ نِعْمَةَ ٱللَّهِ لَا تُحْصُوهَا` | `إِنَّ ٱللَّهَ لَغَفُورٌ رَّحِيمٌ` — *"Allah is Forgiving and Merciful"* | ✅ |
+
+**A drafter reaching from memory for "the verse about not being able to count Allah's favours" has a coin-flip chance of shipping the one that fails bar 5, and the two are indistinguishable until the whole āyah is fetched.** The same shape recurs: **78:29's `أَحْصَيْنَـٰهُ` is grammatically the equal of 36:12's** — same verb, same first-person plural, same Allah-as-subject — **and 78:30 is `فَذُوقُوا۟ فَلَن نَّزِيدَكُمْ إِلَّا عَذَابًا`.** Identical bar-1 strength, opposite bar-5 verdict.
+
+**So: fetch every occurrence the corpus lists, not only the candidates you intend to use.** For an 11-occurrence root that is eight extra requests, and in the pass that produced this rule it caught **two wrong glosses in the drafter's own rejection table** — 73:20's `لَّن تُحْصُوهُ`, which Saheeh renders *"will not be able to **do** it"* (the referent is the night vigil, not an act of counting) and which the draft had glossed *"count it"*; and 18:12, glossed *"best in calculating"* where Saheeh reads *"most precise in calculating."* Neither reached a beat. **Both were plausible sentences that were wrong until a fetch made them wrong out loud** — which is the entire failure mode §9bt–§9bx catalogue, appearing in a passing draft rather than a quarantined one.
+
+**A rejection table is not scratch work.** It is the artifact the next drafter inherits, and an unfetched gloss in it propagates.
+
+### 9cd · The nearest neighbour is often invisible to surface (b)
+
+`al-muhsi@1`'s maximum shared word-run against `al-ghafur@1` is **3**, on the fixed Qurʾānic formula `غَفُورٌ رَّحِيمٌ`. By every measurement available at surface (b), those two decks are unrelated.
+
+**Their engines are within a hair of each other.** `al-ghafur@1` runs the najwā ḥadīth: a complete private record, shown to a person, then covered — *"I screened them for you in the world, and today I forgive them for you."* `al-muhsi@1`'s locked duʿā asks the holder of a complete record for mercy on it. **Same object, same posture, three shared words.**
+
+**No token frequency, n-gram, root or citation check finds this.** It was found by reading the neighbouring deck's beats. That is what §9an surface (c) is for, and this is the cleanest demonstration in the project of why a deck can pass (a) and (b) cleanly and still be a duplicate.
+
+**Two practical consequences:**
+
+1. **Surface (b) passing cleanly is evidence of nothing about surface (c)** — and a bar-3 section that reports a low n-gram and then asserts "distinct moves" has not done surface (c) at all. The argument has to name the neighbour's engine in the neighbour's own words and say what is different.
+2. **Read the decks nearest your Name in full** (§9v) means nearest *by move*, not nearest by Name-list adjacency or by shared root. `al-ghafur@1` is not adjacent to `al-muhsi@1` in the catalogue, shares no root, and shares no āyah.
+
+### 9ce · The shared-duʿā map is six groups, not one — and three of them are not what the group looks like
+
+Computed over all 99 catalogue entries by grouping on exact `dua_arabic`, not eyeballed. **Fourteen groups exist; six touch the 28 unstarted Names**, and the handoff had recorded only one of them.
+
+| group | ids | status |
+|---|---|---|
+| judgment four | **47 Al-Hakam · 48 Al-Adl · 55 Al-Haseeb · 90 Al-Muqsit** | all unstarted — the one already known (§9bs) |
+| — | **26 Al-Hakeem · 49 Al-Khabeer** | both unstarted |
+| — | **50 Al-Azeem · 58 Al-Majeed** | both unstarted |
+| — | **52 Al-Ali · 84 Al-Mutaali** | both unstarted; **also same root** `ع-ل-و` |
+| **partner already SHIPPED** | 29 Al-Haleem **[shipped]** · **32 As-Sabur** | As-Sabur will render a duʿā beat **byte-identical to a deck already in production** |
+| **partner already SHIPPED** | 46 Al-Baseer **[shipped]** · **60 Ash-Shaheed** | same, against `al-baseer@1` |
+
+**Three traps in that table, each of which will read as a drafting error to anyone who has not checked:**
+
+1. **A duʿā can invoke a Name that is not the deck's Name.** Ids 26 and 49 share `اللَّهُمَّ يَا لَطِيفُ ٱلْطُفْ بِى` — the vocative is **Al-Lateef's**, and `al-lateef@1` is shipped. Id 60's duʿā opens `يَا بَصِيرُ` — **Al-Baseer's** vocative. Id 58's shared duʿā (`سُبْحَانَ رَبِّىَ ٱلْعَظِيمِ`) names **Al-Azeem** and never Al-Majeed. **The deck's own Name may appear nowhere in its duʿā beat.** Do not "fix" this; it is locked.
+2. **A shipped partner means the collision is against production, not against a sibling draft.** The 81/82 case was two unshipped decks that ship together. **32 and 60 are different**: `al-haleem@1` and `al-baseer@1` already render those exact strings. A bar-3(b) sweep will report a maximum shared word-run equal to the whole duʿā, and **that is correct, unavoidable and must be disclosed rather than engineered around.**
+3. **Id 60's shipped partner already renders id 60's own root.** `al-baseer@1`'s duʿā ends `فَٱشْهَدْ لِى بِمَا لَا يَعْلَمُهُ سِوَاكَ` — `ٱشْهَدْ` is `ش-ه-د`, **Ash-Shaheed's root**. So the shipped deck spends the unstarted Name's root in its duʿā. Ash-Shaheed's bar 3(a) has to start from that fact.
+
+**Consequence for drafting order:** the four groups whose members are all unstarted **must be drafted together or in a known order with reserved ground**, exactly as §9bs required for the judgment four. A twin-diff between two members of a four-Name group is not sufficient.
+
+### 9cf · The judgment four's duʿā is Qurʾān-shaped and is **not** Qurʾānic — never source it to an āyah
+
+The string four decks will render:
+
+> `اللَّهُمَّ احْكُمْ بَيْنَنَا وَبَيْنَ قَوْمِنَا بِالْحَقِّ وَأَنتَ خَيْرُ الْحَاكِمِينَ`
+
+It reads as a verbatim quotation. **Fetched, it is a composite of two different āyāt with a root substituted and a person converted:**
+
+| fragment | nearest āyah | what was changed |
+|---|---|---|
+| `ٱفْتَحْ بَيْنَنَا وَبَيْنَ قَوْمِنَا بِٱلْحَقِّ` | **7:89** — `رَبَّنَا ٱفْتَحْ بَيْنَنَا وَبَيْنَ قَوْمِنَا بِٱلْحَقِّ وَأَنتَ خَيْرُ ٱلْفَـٰتِحِينَ` | verb **`ٱفْتَحْ` → `احْكُمْ`** and **`ٱلْفَـٰتِحِينَ` → `ٱلْحَـٰكِمِينَ`** — the root is swapped from `ف-ت-ح` to `ح-ك-م` |
+| `خَيْرُ ٱلْحَـٰكِمِينَ` | **7:87 · 10:109 · 12:80** — all read `وَ**هُوَ** خَيْرُ ٱلْحَـٰكِمِينَ` | **third person → second person** (`وَأَنتَ`) |
+| `اللَّهُمَّ` | none | prefixed |
+
+**No āyah in the Qurʾān contains this sentence.** 7:89 is also *reported human speech* — Shuʿayb's followers — so even the fragment it derives from would sit on the bottom rung of §9bk.
+
+**The failure this rule exists to prevent:** a drafter recognises the cadence, greps a translation, finds 7:89's *"decide between us and our people in truth"*, and writes `source: Qur'an 7:89` on the duʿā beat. That attributes to the Qurʾān a sentence it does not contain — **the exact failure class that put nineteen fabricated quotations into this app's production build.** Four decks share this string, so it is four chances to make the same error.
+
+**Correct handling: the duʿā beat carries `source: ""`.** It is an authored supplication, which is what most catalogue duʿās are — `al-qabid@1`, `al-basit@1`, `al-haleem@1` and `al-baseer@1` all ship theirs with an empty `source`. **Report the composite construction; do not action it and do not cite it.**
+
+### 9cg · Three refusals, three overturns, one mistake — **a refusal that says "no single text does everything" has not refused anything**
+
+As-Sabur (id 32) was refused and overturned **the same day, by the same author**. That makes **three of three** reasoned refusals in this project overturned, and the three share one error, stated §9bo:
+
+> collapsing two requirements into one text, then reading the absence of that text as the absence of a deck.
+
+The first two collapsed **the bar-1 carrier and the story**. The third collapsed **the bar-1 carrier and the bar-4 carrier**. **The brief permits splitting all of them** — §4 (*"You may split the carrier from the story"*), bar 4 (*"Tradeable, with a documented full-corpus sweep proving the trade is forced"*), and the standing precedents `al-wahid@1`, `al-muhyi@1` and now `al-adl@1`.
+
+**The As-Sabur refusal was the sharpest form of the error**, because its sweep was *correct and conclusive*: `ص-ب-ر` has **103 Qurʾānic occurrences in 8 forms and not one predicates the root of Allah**; the single ṣaḥīḥ predication (Bukhārī 7378, `أَصْبَرُ`) is rendered by **shipped** `al-haleem@1`; the Name-form's only attestation (Tirmidhī 3507) is **`Daʿīf`**. **That is precisely the evidence bar 4 asks for before it yields.** The refusal built the argument that unlocks the bar and then used it to close the Name.
+
+**Two procedural failures behind it, both cheap to avoid:**
+
+1. **It searched one axis and stopped.** It looked through the *forbearance* family — where `al-haleem@1` legitimately holds the ground — and never asked **what this Name means that its neighbour does not.** One question ("Al-Haleem is restraint; what else could this be?") produced **scale**, and **32:5** (`فِى يَوْمٍ كَانَ مِقْدَارُهُۥٓ أَلْفَ سَنَةٍ مِّمَّا تَعُدُّونَ`) — free, clean on both sides, closing on `ٱلرَّحِيمُ`. **A route never tried is not a route closed.**
+2. **It repeated a mistake it had just documented.** The refusal's own §1 warned that grepping Arabic for a bare substring fails silently because of interposed diacritics (§9bq) — and four paragraphs later it reported the Name-form unattested, having searched for the literal `الصَّبُور`. **`الصبور` is in Tirmidhī 3507**, last in the list. Writing the warning does not immunise you against it.
+
+**So, three checks before any refusal ships:**
+
+- **Name the two requirements you could not satisfy with one text, and say why they must be satisfied by one text.** If you cannot, split them.
+- **State the Name's move in one sentence, then state the blocking neighbour's move in one sentence.** If they are the same sentence, the refusal is real. If they differ, **you have not searched the Name's own axis yet.**
+- **Re-run every negative search with diacritics stripped** before writing "no attestation."
+
+**And the standing rule §9bo already had, now with a track record: a refusal must say what would overturn it.** All three did not, or said it only under pressure. The As-Sabur refusal did — and route (a) on its own list is what overturned it within the hour.
+
+---
+
+### 9ch · A re-cut applied to the citation and not to the text is a misquotation, and the deck's own tables will keep confirming the old cut
+
+`al-majeed@1`'s R1 surrendered **85:15** to `al-majid@1` and re-pointed its verse beat at **11:73**. The edit that carried it changed the source string and **not** the rendered line. Beat 6 was left reading:
+
+> Honorable Owner of the Throne — Qur'an 11:73
+
+**Those are 85:15's words. 11:73 does not contain them.** The deck shipped a scriptural quotation under a citation that does not carry it — the exact failure class the whole protocol exists to prevent — and it survived a day because everything *around* it still described the old cut and therefore still looked coherent:
+
+- the **Sources** table asserted `.../85:15` for beat 6
+- **bar 4** listed the root as met at `مَّجِيدٌ` (11:73) **and** `ٱلْمَجِيدُ` (85:15)
+- **bar 5** disclosed a Sūrat al-Burūj exposure the deck no longer had
+- the **bar 3(b)** sweep reported "11:73 free · 85:15 free" as if both were still this deck's ground
+
+**Four tables agreeing with each other and disagreeing with the beat.** §3's rule ("if a beat disagrees with your own verification table, STOP") assumes the disagreement is visible. Here the beat was the only thing that had moved, so the tables' consensus read as confirmation.
+
+**The mechanical cause is worth naming exactly**, because it is a one-character class of bug. The re-cut was two string replacements: one on the quoted line, one on the citation. The first was written to match `> Honorable Owner of the Throne\n` — but the line is `> Honorable Owner of the Throne — Qur'an 85:15\n`, so **it matched nothing and failed silently**, while the second replacement (`85:15` → `11:73`) matched the beat line first and succeeded. **A no-op `str.replace` returns the string unchanged; it does not raise.**
+
+**Three rules, all cheap:**
+
+1. **When you re-cut a beat, re-fetch the new citation and re-assert the rendered text against it** — the same §9cb assertion the duʿā beat gets. A beat's quotation and its `source` are one unit; never edit one of them.
+2. **Assert that every string replacement changed something.** `assert old in t` before `t.replace(...)`. Every silent no-op in this project has flipped a verified claim into an unverified one.
+3. **A re-cut invalidates every table that mentions the surrendered text.** Grep the file for the old reference and strike the rows rather than deleting them, so the surrender stays auditable.
+
+**And the finding that only appeared once the re-cut was audited:** ids 58 and 72 are **not the same Name-form**. Id 58 is `ٱلْمَجِيدُ`; id 72 is `ٱلْمَاجِدُ`, which **occurs nowhere in the Qurʾān**. So 85:15's `ٱلْمَجِيدُ` — the word `al-majid@1`'s verse beat now rests on — **is the neighbour's Name-form, on the wrong deck**, and that deck's beat-6 note claimed it as *"the Name's own form predicated of Allah."* Bar 4 for id 72 is a **form-level trade whichever āyah it gets**, because the corpus offers it nothing else. **Check that a shared root is a shared form before you partition on it.**

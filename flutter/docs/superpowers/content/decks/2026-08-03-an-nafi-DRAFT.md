@@ -84,7 +84,7 @@ built on the analogous pattern for harm.
 > 5. "And know: if the whole creation gathered together to benefit you with something, they could not benefit you except with something Allah had already written for you. And if they gathered to harm you with something, they could not harm you except with something Allah had already written against you. The pens are lifted, and the pages are dry."
 
 **Beat 6 · verse** *(visible partial quotation, ellipsis shown)*:
-> "…and the [great] ships which sail through the sea with that which benefits people, and what Allah has sent down from the heaven of rain, giving life thereby to the earth after its lifelessness…" — Qur'an 2:164
+> "…and the [great] ships which sail through the sea with that which benefits people, and what Allah has sent down from the heavens of rain, giving life thereby to the earth after its lifelessness…" — Qur'an 2:164
 
 **Beat 7 · duʿā** *(catalog id 96, verbatim in full)*:
 > اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
@@ -104,7 +104,7 @@ built on the analogous pattern for harm.
 | 1 | Ibn ʿAbbās riding behind the Prophet ﷺ; "be mindful of Allah and He will protect you… find Him in front of you" (beats 3–4) | `sunnah.com/tirmidhi:2516` — Wayback `20241014011600`, `id_` raw | **Hasan (Darussalam)**; Tirmidhī's own classification on the page: *ḥasan ṣaḥīḥ* | ✅ `يَا غُلاَمُ إِنِّي أُعَلِّمُكَ كَلِمَاتٍ احْفَظِ اللَّهَ يَحْفَظْكَ احْفَظِ اللَّهَ تَجِدْهُ تُجَاهَكَ`. Narrated ʿAbdullāh b. ʿAbbās, via Ḥanash aṣ-Ṣanʿānī |
 | 2 | "When you ask, ask Allah… seek help from Allah" (beat 4) | same page | Hasan (Darussalam) | ✅ `إِذَا سَأَلْتَ فَاسْأَلِ اللَّهَ وَإِذَا اسْتَعَنْتَ فَاسْتَعِنْ بِاللَّهِ` |
 | 3 | "…if the whole creation gathered to benefit you… except with something Allah had already written for you. And if they gathered to harm you… except with something Allah had already written against you. The pens are lifted, and the pages are dry." (beat 5 — **bar 1's carrier**) | same page | Hasan (Darussalam) | ✅ `وَاعْلَمْ أَنَّ الأُمَّةَ لَوِ اجْتَمَعَتْ عَلَى أَنْ يَنْفَعُوكَ بِشَيْءٍ لَمْ يَنْفَعُوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ لَكَ وَلَوِ اجْتَمَعُوا عَلَى أَنْ يَضُرُّوكَ بِشَيْءٍ لَمْ يَضُرُّوكَ إِلاَّ بِشَيْءٍ قَدْ كَتَبَهُ اللَّهُ عَلَيْكَ رُفِعَتِ الأَقْلاَمُ وَجَفَّتِ الصُّحُفُ` — **quoted whole, no elision.** Re-rendered from the Arabic (see translation table) |
-| 4 | "…the [great] ships which sail through the sea with that which benefits people, and what Allah has sent down from the heaven of rain, giving life thereby to the earth after its lifelessness…" (beat 6) | `api.quran.com/api/v4/verses/by_key/2:164?fields=text_uthmani,text_imlaei&translations=20` | Qur'ān, Saheeh International | ✅ `وَٱلْفُلْكِ ٱلَّتِى تَجْرِى فِى ٱلْبَحْرِ بِمَا يَنفَعُ ٱلنَّاسَ وَمَآ أَنزَلَ ٱللَّهُ مِنَ ٱلسَّمَآءِ مِن مَّآءٍ فَأَحْيَا بِهِ ٱلْأَرْضَ بَعْدَ مَوْتِهَا` — **partial quotation, visible `…` at both ends** (the full āyah also lists the heavens, earth, day/night, animals, wind and clouds, itemised as fetched, not quoted) |
+| 4 | "…the [great] ships which sail through the sea with that which benefits people, and what Allah has sent down from the heavens of rain, giving life thereby to the earth after its lifelessness…" (beat 6) | `api.quran.com/api/v4/verses/by_key/2:164?fields=text_uthmani,text_imlaei&translations=20` | Qur'ān, Saheeh International | ✅ `وَٱلْفُلْكِ ٱلَّتِى تَجْرِى فِى ٱلْبَحْرِ بِمَا يَنفَعُ ٱلنَّاسَ وَمَآ أَنزَلَ ٱللَّهُ مِنَ ٱلسَّمَآءِ مِن مَّآءٍ فَأَحْيَا بِهِ ٱلْأَرْضَ بَعْدَ مَوْتِهَا` — **partial quotation, visible `…` at both ends** (the full āyah also lists the heavens, earth, day/night, animals, wind and clouds, itemised as fetched, not quoted) |
 | 5 | Successor sweep n−1 | `verses/by_key/2:163` | Qur'ān | ✅ fetched, quoted nowhere: *"And your god is one God. There is no deity except Him, the Entirely Merciful, the Especially Merciful."* Positive; `r-ḥ-m` sibling root, off-screen |
 | 6 | Successor sweep n+1 | `verses/by_key/2:165` | Qur'ān | ✅ fetched, quoted nowhere: *"...and Allāh is severe in punishment."* Addressee shifts to *"those who have wronged"* (third person, idolaters), not the reader; disclosed below |
 | 7 | Full-text `n-f-ʿ` enumeration | full Uthmānī text + `corpus.quran.com/qurandictionary.jsp?q=nfE` | — | ✅ **50 occurrences, 3 forms. Allah finite-subject of `yanfaʿu`: 0 of 31**, verse-for-verse cross-checked, exact match on first pass |
@@ -235,9 +235,9 @@ one shared textual root does not appear on both decks' own selected narrations.
   "chip_keys": [],
   "position_in_pair": 0,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 

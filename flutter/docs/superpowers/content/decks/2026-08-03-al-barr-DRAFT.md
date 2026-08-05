@@ -72,9 +72,9 @@ choice below is built around that single, difficult āyah.
   "chip_keys": [],
   "position_in_pair": 0,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 
@@ -91,7 +91,7 @@ choice below is built around that single, difficult āyah.
 > 5. **"So Allah favoured us, and protected us from the punishment of the Scorching Fire."**
 
 **Beat 6 · verse:**
-> "We used to call on Him before this. He is truly the Good…" — Qur'an 52:28
+> "We used to pray to Him: He is the Good…" — Qur'an 52:28
 
 **Beat 7 · duʿā** *(catalog id 85, verbatim in full)*:
 > يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ الْقُلُوبُ
@@ -187,7 +187,7 @@ narration. Per ledger §2b, `renderedDuaSources` is asserted bidirectionally, so
 | 1 | Beat 3: setting — Paradise, mutual questioning | paraphrase of 52:25 | [Qur'an 52:25](https://quran.com/52/25) | Qur'an | ✅ verified by live fetch `api.quran.com/api/v4/verses/by_key/52:25`, 2026-08-03 |
 | 2 | Beat 4, quotation: "We used to live in fear, among our own people, of displeasing our Lord." | Saheeh International, lightly re-cast for the deck's register ("previously among our people fearful [of displeasing Allāh]" → "in fear, among our own people, of displeasing our Lord"); no interpolation, meaning preserved | [Qur'an 52:26](https://quran.com/52/26) | Qur'an | ✅ verified — same fetch batch. Arabic: `قَالُوٓا۟ إِنَّا كُنَّا قَبْلُ فِىٓ أَهْلِنَا مُشْفِقِينَ` |
 | 3 | Beat 5, quotation: "So Allah favoured us, and protected us from the punishment of the Scorching Fire." | Saheeh International, `Allāh`→`Allah` only | [Qur'an 52:27](https://quran.com/52/27) | Qur'an | ✅ verified — same fetch batch. Arabic: `فَمَنَّ ٱللَّهُ عَلَيْنَا وَوَقَىٰنَا عَذَابَ ٱلسَّمُومِ` |
-| 4 | Beat 6, verse anchor: "We used to call on Him before this. He is truly the Good…" | **re-rendered from the Arabic, corroborated against Abdel Haleem's "He is the Good"** (resource 85) rather than Saheeh's "the Beneficent." **Disclosed reason, per the task's own flag:** Saheeh's "the Beneficent" is disconnected from catalogue id 85's own `english` ("The Source of Goodness") and would make the Name invisible on screen — the same class of finding as `al-kareem@1`'s and `an-nur@1`'s translation-adjudication rulings, but running the **other** direction here: this is a fidelity/visibility choice (which accurate English keeps the Name legible), not a theological adjudication — both "Beneficent" and "Good" are accurate for `al-Barr`; nothing contested is resolved by choosing one. | [Qur'an 52:28](https://quran.com/52/28) | Qur'an | ✅ verified — live fetch, 2026-08-03. Arabic in full: `إِنَّا كُنَّا مِن قَبْلُ نَدْعُوهُ ۖ إِنَّهُۥ هُوَ ٱلْبَرُّ ٱلرَّحِيمُ`. **The beat renders only up to "the Good" — a visible ellipsis marks the cut before `ٱلرَّحِيمُ`.** |
+| 4 | Beat 6, verse anchor: "We used to call on Him before this. He is truly the Good…" | **re-rendered from the Arabic, corroborated against Abdel Haleem's "He is the Good"** (resource 85) rather than Saheeh's "the Beneficent." ⚠️ **R1 verifier correction — the disclosure was narrower than the beat.** It covered *"the Good"* and left the impression that the rest of the line was a published translation. It is not. Fetched and compared, all five: Saheeh — *"Indeed, we used to supplicate Him before. Indeed, it is He who is the Beneficent, the Merciful."* · Abdel Haleem — *"We used to pray to Him: He is the Good, the Merciful One."* · Pickthall — *"Lo! we used to pray unto Him of old."* · Yusuf Ali — *"Truly, we did call unto Him from of old."* · Hilali-Khan — *"Verily, We used to invoke Him (Alone and none else) before."* **No translation reads "We used to call on Him before this."** The whole beat is a re-rendering from the Arabic, not only its last two words — which §9bh permits **only** with a named published translation that agrees, and *"the Good"* has one while the opening clause does not. **A verifier must rule on the opening clause specifically**, not on the Name-word, which is the part that was argued. **Disclosed reason for the Name-word, per the task's own flag:** Saheeh's "the Beneficent" is disconnected from catalogue id 85's own `english` ("The Source of Goodness") and would make the Name invisible on screen — the same class of finding as `al-kareem@1`'s and `an-nur@1`'s translation-adjudication rulings, but running the **other** direction here: this is a fidelity/visibility choice (which accurate English keeps the Name legible), not a theological adjudication — both "Beneficent" and "Good" are accurate for `al-Barr`; nothing contested is resolved by choosing one. | [Qur'an 52:28](https://quran.com/52/28) | Qur'an | ✅ verified — live fetch, 2026-08-03. Arabic in full: `إِنَّا كُنَّا مِن قَبْلُ نَدْعُوهُ ۖ إِنَّهُۥ هُوَ ٱلْبَرُّ ٱلرَّحِيمُ`. **The beat renders only up to "the Good" — a visible ellipsis marks the cut before `ٱلرَّحِيمُ`.** |
 | 5 | Beat 7 duʿā | catalog id 85 — **no scripture citation claimed** | catalog only | n/a | ✅ verified byte-identical to catalog across `dua_arabic`/`dua_transliteration`/`dua_translation`, checked programmatically. Authored catalogue invocation, checked against the Qur'ān and found no match (see the header note); **unpinned by design.** |
 | 6 | Beat 2 `name_intro` | catalog id 85 | catalog only | n/a | ✅ verified byte-identical to catalog across `arabic`/`transliteration`/`english` (`الْبَرُّ`/`Al-Barr`/`The Source of Goodness`). No authored gloss appended. |
 | 7 | Card `hadith` field | — | catalog only | n/a | ✅ confirmed **empty** by direct read; the prior Muslim 1342 mis-citation is gone, not replaced. **No change recommended.** |

@@ -1,5 +1,9 @@
 # DRAFT — `al-wajid@1` · Al-Wajid (catalogue id 71, *The Finder*)
 
+> **R2 REVIEW STAMP — 2026-08-04 · verdict: VERIFIED — content; spine incomplete (no `reflection` beat).** Reviewed by Claude on the three axes the founder asked for: **completion**, **narration authenticity** (nothing weak or fabricated on any beat), and **story impact / fit to the Name**. Every rendered scriptural quotation was re-fetched live and compared word-for-word against a named published translation; every ḥadīth rendered on a beat was re-fetched and its printed grade re-read. **This is a mechanical source-fidelity pass and is NOT the independent blind adversarial review the pipeline still owes this deck** — the reviewer is the same author for much of this wave. Full record: [`2026-08-04-R2-VERIFICATION.md`](./2026-08-04-R2-VERIFICATION.md).
+>
+> ⚠️ **The one completion gap:** this deck has no `reflection` beat. The ship gate does not require one, but `DRAFTING-BRIEF.md` §5a does — without it the slot renders **empty offline, on model failure, and outside the personalised tier.** Not authored here, deliberately: authoring a beat and then verifying it is the conflict of interest this same review flags elsewhere.
+
 **Revised 2026-08-03.** Supersedes [`2026-08-03-al-wajid-REFUSAL.md`](./2026-08-03-al-wajid-REFUSAL.md),
 which is **kept, not deleted** — its 107-occurrence `w-j-d` enumeration is the artifact this draft
 is built on, and it remains the most valuable single record of what was checked. **The refusal's
@@ -42,7 +46,7 @@ dropped.**
 ## 1 · Duʿā-first (already run in the refusal, unchanged)
 
 Catalogue id 71's `dua_arabic`: `يَا وَاجِدُ أَوْجِدْ لِي مَخْرَجًا مِمَّا أَنَا فِيهِ وَلَا
-تَكِلْنِي إِلَىٰ نَفْسِي` — *"O Finder, find a way out for me from what I am in, and do not leave
+تَكِلْنِي إِلَى نَفْسِي` — *"O Finder, find a way out for me from what I am in, and do not leave
 me to myself."* Read first. Settles nothing about which text carries bar 1 (the duʿā is petition,
 not narrative), but confirms the Name's own register: **being located, not left.**
 
@@ -87,7 +91,7 @@ clause of a shared āyah and elides the sibling's, visibly, rather than avoiding
 | 3 | `story` | "And the Hereafter is better for you than the first [life]." | — | `Qur'an 93:4` |
 | 4 | `story` | "And your Lord is going to give you, and you will be satisfied." | — | `Qur'an 93:5` |
 | 5 | `verse` | "And He found you lost…" | — | `Qur'an 93:7` |
-| 6 | `dua` | O Finder, find a way out for me from what I am in, and do not leave me to myself. | `يَا وَاجِدُ أَوْجِدْ لِي مَخْرَجًا مِمَّا أَنَا فِيهِ وَلَا تَكِلْنِي إِلَىٰ نَفْسِي` · translit. `Ya Wajid, awjid li makhrajam mimma ana fih wa la takilni ila nafsi` | **empty — UNPINNED** |
+| 6 | `dua` | O Finder, find a way out for me from what I am in, and do not leave me to myself. | `يَا وَاجِدُ أَوْجِدْ لِي مَخْرَجًا مِمَّا أَنَا فِيهِ وَلَا تَكِلْنِي إِلَى نَفْسِي` · translit. `Ya Wajid, awjid li makhrajam mimma ana fih wa la takilni ila nafsi` | **empty — UNPINNED** |
 | 7 | `takeaway` | He did not wait to be searched for. Before anything was worked out, He had already found what was lost. | — | — |
 
 `chip_keys: []`, `position_in_pair: 0`. Beat 6 carries no `source`; `al-wajid@1` must **not** enter

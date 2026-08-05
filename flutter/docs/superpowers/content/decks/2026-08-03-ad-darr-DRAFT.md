@@ -150,8 +150,8 @@ mode. The Name is left to stand until beat 8 answers it.
 > "O Allah, make whatever harm has befallen me an expiation for my sins and a raising of my ranks."
 > **NO source. Deliberately unpinned** — see the duʿā-provenance check above.
 
-**Beat 8 · takeaway (pair-synergy):**
-> Saʿd asked which people are tested most, and the answer started with the Prophets — not with him, not to make him feel singled out. What is happening to you tonight has a category, and the category is not punishment. Ad-Darr is the Name for what a hard thing can become. An-Nafi — the second Name of your answer — is the Name for what it becomes.
+**Beat 8 · takeaway (pair-synergy)** *(**R3** — rewritten so the relief lands **inside this deck**. R0 ended on *"An-Nafi … is the Name for what it becomes"*, which put the resolution in a deck the reader may not have drawn. Decks are served one Name at a time by `deckForName`; the ship gate now guarantees the partner is in the **asset**, but nothing can guarantee the reader has met it. The partner is now a pointer, not the payoff)*:
+> Saʿd asked which people are tested most, and the answer started with the Prophets — not with him, not to make him feel singled out. What is happening to you tonight has a category, and the category is not punishment. It is the shape given to people who are being taken seriously. Ad-Darr is the Name for a hard thing that is going somewhere — and An-Nafi, its pair, is the Name for where.
 
 ---
 
@@ -339,9 +339,9 @@ none is enforced.** Recorded, not recommended; this is an engineering decision, 
   "chip_keys": [],
   "position_in_pair": 0,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 

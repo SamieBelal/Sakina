@@ -1,4 +1,7 @@
-# Deck Draft — Az-Zahir (catalogue id 81) — **R0, awaiting independent blind verification**
+# Deck Draft — Az-Zahir (catalogue id 81) — **R1, verified · SHIP-AFTER-FIX fixes applied**
+
+> **Verified.** A Sonnet blind verifier fetched every citation in this deck and confirmed **no invented scripture** — every Qurʾān quotation real, live-fetched, accurately transcribed — and independently confirmed the load-bearing bar-4 claim (that **only 57:3** predicates `ẓāhir` of Allah) which R0 had honestly disclosed it did *not* check.
+> **R1 applied two fixes, neither touching the scriptural core:** beat 7 now renders the catalogue duʿā byte-for-byte (R0 rendered the ḥadīth instead), and a `reflection` beat was added. Both are documented in place.
 
 **Read with [`2026-08-03-al-batin-DRAFT.md`](./2026-08-03-al-batin-DRAFT.md).** Ids 81 and 82 were assigned and drafted **as a deliberate must-ship pair** — they share one catalogue `dua_arabic`, rasm-identical from Sahih Muslim 2713a (COLLISION-LEDGER §6a group 14, DRAFTING-BRIEF hazards section).
 
@@ -29,9 +32,9 @@ All scripture verified at draft time by live fetch: Qur'an via `api.quran.com/ap
   "chip_keys": [],
   "position_in_pair": 1,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED"
 }
 ```
 
@@ -55,14 +58,20 @@ All scripture verified at draft time by live fetch: Qur'an via `api.quran.com/ap
 **Beat 6 · verse** *(partial quotation — visible ellipsis; does not carry bar 1, see below)*:
 > "…and the Manifest…" — Qur'an 57:3 (one word of a four-Name clause)
 
-**Beat 7 · duʿā** *(catalogue id 81, verbatim in full, shared with Al-Batin)*:
-> اللَّهُمَّ أَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَىْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَىْءٌ
-> *Allahumma anta al-Zahiru fa laysa fawqaka shay', wa anta al-Batinu fa laysa dunaka shay'*
-> "O Allah, You are the Manifest — nothing above You. You are the Hidden — nothing below You."
+**Beat 7 · duʿā** *(catalogue id 81, **byte-for-byte**, shared with Al-Batin)*:
+> أَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَيْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَيْءٌ
+> *Anta al-Dhahiru fa-laysa fawqaka shay', wa anta al-Batinu fa-laysa dunaka shay'*
+> "You are Al-Dhahir — there is nothing above You. You are Al-Batin — there is nothing closer to me than You."
 > **Source: Sahih Muslim 2713a (excerpt)** — see shared duʿā section.
 
 **Beat 8 · takeaway:**
 > Az-Zahir is not a Name for knowledge you achieve. It is a Name for what is *already* laid out in front of you — in every direction outside, and in the deepest part inside — and you have not seen it yet only because you have not looked. He is the One who keeps showing. You have only to receive.
+
+**Beat 9 · reflection** *(AI-personalisation slot; this is the offline/fallback text — carries no `source` and no `arabic`, per §5a)*:
+> Name one thing you saw today and walked past without stopping. What would change if you let yourself believe it was addressed to you?
+
+> **R1 — added.** R0 ended at the takeaway. The gate does not require a `reflection`, but §5a does: without one the slot is **empty offline, on model failure, and outside the personalised tier**, which is most of when it renders. It is written to stand alone, and it is a question rather than a second takeaway — the engine-differentiating work stays on beat 8, where it is fixed.
+> **Swept, 45 decks:** max shared word-run **2** ("to you", vs `allah@1` story). **Twin-diff vs Al-Batin's reflection: 2** ("thing you"). Both far under the ≥3 finding bar. The two reflections were deliberately given different grammatical moves — this one asks the reader to *look outward again*, Al-Batin's asks them to *stop hiding inward* — so the pair does not read as one question with the polarity flipped.
 
 ---
 
@@ -156,6 +165,25 @@ The Prophet's ﷺ bedtime protection duʿā (narrated via Suhayl from Abu Salih)
 The catalogue's `dua_arabic` for ids 81 and 82 is **Couplet 2 only** (confirmed by fetching both catalogue entries directly). Ids 79/80's duʿā was Couplet 1. **The catalogue split one ḥadīth into two duʿā pairs.**
 
 **Rasm-identical, not byte-identical** (§9ax vocabulary). Orthographic variants: sukun marks, ya vs. alif maqsura (standard digitisation difference), hamza-seat rendering. All three are orthographic conventions, not textual changes — the consonantal skeleton and every word match.
+
+### R1 — the beat rendered the ḥadīth, not the catalogue. Fixed.
+
+**This deck and Al-Batin both verified beat 7 against the ḥadīth capture and never against `collectible_names.json`.** The result was a duʿā beat that was faithful to Muslim 2713a and **wrong against the string that actually renders**. Two divergences, both now corrected:
+
+| | R0 rendered | Catalogue (locked, ids 81 & 82) |
+|---|---|---|
+| Arabic | `اللَّهُمَّ أَنْتَ الظَّاهِرُ …` | `أَنْتَ الظَّاهِرُ …` — **no `اللَّهُمَّ`** |
+| Translit. | *Allahumma anta al-Zahiru…* | *Anta al-Dhahiru fa-laysa fawqaka shay'…* |
+| English | "O Allah, You are the Manifest — nothing above You. You are the Hidden — **nothing below You**." | "You are Al-Dhahir — there is nothing above You. You are Al-Batin — **there is nothing closer to me than You**." |
+
+**The ship gate compares all three fields to the catalogue and would have rejected this**, so it could never have reached production — but a gate catching it at merge is not the same as a drafter getting it right, and this is the second time the correct string was one file away. Beat 7 in both decks now renders the catalogue **byte-for-byte**.
+
+**Two things this surfaces, reported and not actioned (§ "never rule on your own catalogue recommendation"):**
+
+1. **The catalogue is not symmetric across the two pairs.** Ids 79/80 genuinely *do* open `اللَّهُمَّ`; ids 81/82 do not. So the drafter's instinct — "the other pair has it, this excerpt must too" — was pattern-matching a real asymmetry in the asset. It is the catalogue's construction; leave it.
+2. **The catalogue's English for `دُونَكَ` is *"nothing closer to me than You"***, an interpretive rendering rather than the literal "nothing below You" the ḥadīth capture supports. It is defensible — `دون` carries both — and it is **locked**. Noted only so a future reader does not mistake it for a drafting error and "fix" it.
+
+**Still open, inherited from the handoff and not resolved here:** whether `Sahih Muslim 2713a (excerpt)` is the right `renderedDuaSources` line for a string whose Arabic is a verbatim excerpt but whose English is the catalogue's own rendering. **That is a verifier's yes/no, not this deck's.**
 
 **What renders identically on both screens.** Arabic, transliteration and translation are fully shared — a user who collects ids 81 and 82 in one session sees the same duʿā twice. This is the catalogue's own construction (one ḥadīth, two Name-pair splits) and is disclosed rather than concealed. No beat in either deck claims the duʿā is Name-specific.
 

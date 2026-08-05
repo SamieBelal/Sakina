@@ -1,5 +1,9 @@
 # DRAFT — `al-qahhar@1` · Al-Qahhar (catalogue id 22, *The Subduer*)
 
+> **R2 REVIEW STAMP — 2026-08-04 · verdict: VERIFIED — content; spine incomplete (no `reflection` beat).** Reviewed by Claude on the three axes the founder asked for: **completion**, **narration authenticity** (nothing weak or fabricated on any beat), and **story impact / fit to the Name**. Every rendered scriptural quotation was re-fetched live and compared word-for-word against a named published translation; every ḥadīth rendered on a beat was re-fetched and its printed grade re-read. **This is a mechanical source-fidelity pass and is NOT the independent blind adversarial review the pipeline still owes this deck** — the reviewer is the same author for much of this wave. Full record: [`2026-08-04-R2-VERIFICATION.md`](./2026-08-04-R2-VERIFICATION.md).
+>
+> ⚠️ **The one completion gap:** this deck has no `reflection` beat. The ship gate does not require one, but `DRAFTING-BRIEF.md` §5a does — without it the slot renders **empty offline, on model failure, and outside the personalised tier.** Not authored here, deliberately: authoring a beat and then verifying it is the conflict of interest this same review flags elsewhere.
+
 **Drafted 2026-08-03.** Claim file: [`.context/claims/22.md`](../../../../.context/claims/22.md).
 **Twin draft, drafted by the same agent in the same pass, and required reading alongside this one:**
 [`2026-08-03-al-mutakabbir-DRAFT.md`](./2026-08-03-al-mutakabbir-DRAFT.md). The two share

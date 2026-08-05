@@ -51,9 +51,9 @@ forces it onto a **traded** root for the verse.
   "chip_keys": [],
   "position_in_pair": 2,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 
@@ -72,7 +72,7 @@ forces it onto a **traded** root for the verse.
 > 5. The religion most beloved to him was never the largest effort. It was whatever a person could keep doing.
 
 **Beat 6 · verse:**
-> "And We created the heavens and the earth and everything between them in six days, and no weariness touched Us." — Qur'an 50:38
+> "We created the heavens and the earth and all that is between them in six days, and no weariness even touched Us." — Qur'an 50:38
 
 **Beat 7 · duʿā** *(catalog id 63, verbatim in full)*:
 > لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
@@ -80,8 +80,8 @@ forces it onto a **traded** root for the verse.
 > "There is no power and no strength except through Allah, the Most High, the Most Magnificent."
 > **NO source. UNPINNED** — see "The shared duʿā screen."
 
-**Beat 8 · takeaway (pair-synergy):**
-> He told her to do less — not because she was weak, but because He does not tire and she would. Al-Qawiyy, the second Name of your answer, is the one that is never depleted by being leaned on.
+**Beat 8 · takeaway** *(**R3**: the pair-synergy label was removed — this deck is `position_in_pair: 2`, and the ship gate requires the synergy beat on **Name₁ only**. Its forward reference to Al-Qawiyy is also gone; both decks previously named the other as *"the second Name of your answer"*, which cannot both be true)*:
+> He told her to do less — not because she was weak, but because He does not tire and she would. What holds is not what pushes hardest. It is what never has to brace.
 
 ---
 
@@ -266,7 +266,7 @@ not a drafting choice.
 |---|---|---|---|---|
 | 1 | Story beats 3–5: a woman's excessive prayer; "take on only what you can sustain…"; the closing note on consistency | Wayback capture of `sunnah.com/bukhari:43`, ts `20251216144437` | **Ṣaḥīḥ al-Bukhārī** — no printed grade line (collection-level inference) | ✅ Arabic verified: `تَذْكُرُ مِنْ صَلاَتِهَا` (mentioning her prayer); `مَهْ، عَلَيْكُمْ بِمَا تُطِيقُونَ، فَوَاللَّهِ لاَ يَمَلُّ اللَّهُ حَتَّى تَمَلُّوا` (**quoted in full, no elision**); `وَكَانَ أَحَبَّ الدِّينِ إِلَيْهِ مَا دَامَ عَلَيْهِ صَاحِبُهُ` — closing note, re-rendered from the Arabic (see translation table) |
 | 2 | Parallel corroboration, quoted on no beat | Wayback captures of `sunnah.com/muslim:782a` (ts `20260208053507`) and `muslim:782b` (ts `20260302163843`) | Ṣaḥīḥ Muslim | ✅ same clause (`فَإِنَّ ٱللَّهَ لاَ يَمَلُّ حَتَّى تَمَلُّوا`) confirmed in a second collection; not needed for bar 1, recorded for completeness |
-| 3 | Beat 6, quoted in full: "And We created the heavens and the earth and everything between them in six days, and no weariness touched Us." | `api.quran.com/api/v4/verses/by_key/50:38?translations=20` | Qur'an | ✅ `وَلَقَدْ خَلَقْنَا ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضَ وَمَا بَيْنَهُمَا فِى سِتَّةِ أَيَّامٍ وَمَا مَسَّنَا مِن لُّغُوبٍ` — quoted whole, no ellipsis |
+| 3 | Beat 6, quoted in full: "We created the heavens and the earth and all that is between them in six days, and no weariness even touched Us." — **Mufti Taqi Usmani (`translations=84`), verbatim, named.** ⚠️ **R1 fix:** R0 printed a wording that is **no published translation** — Saheeh (`20`) reads *"And We did certainly create the heavens and earth and what is between them in six days, and there touched Us no weariness"* — while the row below claimed it came from `translations=20`. That is an unattributed re-rendering presented as a fetch (§9bh). Corrected to a single published translation, quoted whole and attributed | `api.quran.com/api/v4/verses/by_key/50:38?translations=20,84` | Qur'an | ✅ `وَلَقَدْ خَلَقْنَا ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضَ وَمَا بَيْنَهُمَا فِى سِتَّةِ أَيَّامٍ وَمَا مَسَّنَا مِن لُّغُوبٍ` — quoted whole, no ellipsis |
 | 4 | Successor sweep: 50:36, 50:37, 50:39, 50:40 fetched and read; 46:33/34 and 50:12–15 fetched for the same-theme comparison | `api.quran.com/api/v4/verses/by_key/{k}` | Qur'an | ✅ all live 2026-08-03; findings in the sweep tables above |
 | 5 | The `m-t-n` enumeration: exactly 3 occurrences, all rejected | full 6,236-āyah Uthmānī corpus, `api.quran.com/api/v4/verses/by_chapter/{1..114}` | — | ✅ run against the full text, cross-checked against corpus.quran.com's root م-ت-ن listing (3, matching exactly) |
 | 6 | Bukhārī 6384 fetched and confirmed to carry the shakk | Wayback capture, ts `20240617221329` | Ṣaḥīḥ al-Bukhārī | ✅ `أَوْ قَالَ ‏"‏ أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ …` — confirmed; not used on any beat |

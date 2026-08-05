@@ -1,5 +1,9 @@
 # DRAFT — `al-muqaddim@1` · Al-Muqaddim (catalogue id 77, *The Expediter*)
 
+> **R2 REVIEW STAMP — 2026-08-04 · verdict: VERIFIED — content; spine incomplete (no `reflection` beat).** Reviewed by Claude on the three axes the founder asked for: **completion**, **narration authenticity** (nothing weak or fabricated on any beat), and **story impact / fit to the Name**. Every rendered scriptural quotation was re-fetched live and compared word-for-word against a named published translation; every ḥadīth rendered on a beat was re-fetched and its printed grade re-read. **This is a mechanical source-fidelity pass and is NOT the independent blind adversarial review the pipeline still owes this deck** — the reviewer is the same author for much of this wave. Full record: [`2026-08-04-R2-VERIFICATION.md`](./2026-08-04-R2-VERIFICATION.md).
+>
+> ⚠️ **The one completion gap:** this deck has no `reflection` beat. The ship gate does not require one, but `DRAFTING-BRIEF.md` §5a does — without it the slot renders **empty offline, on model failure, and outside the personalised tier.** Not authored here, deliberately: authoring a beat and then verifying it is the conflict of interest this same review flags elsewhere.
+
 **Drafted 2026-08-03. R2 — revised per coordinator ruling.** Claim file:
 [`.context/claims/77.md`](../../../../.context/claims/77.md).
 **Twin draft, drafted by the same agent in the same pass: [`2026-08-03-al-muakhkhir-DRAFT.md`](./2026-08-03-al-muakhkhir-DRAFT.md).**
@@ -244,6 +248,12 @@ no inversion, no accidental second meaning found.
 
 **Programmatic n-gram diff, every beat of one against every beat of the other, beat 6 excluded (it is
 byte-identical by construction):** zero hits at n ≥ 4. At n = 3: none beyond stop-word combinations.
+
+> ⚠️ **R3 correction — this measurement is wrong.** Re-run programmatically over both decks' rendered beat text (excluding the catalogue-locked shared duʿā, which is byte-identical by construction): **the maximum shared word-run is 5, not 0** — **`"you are the one who"`**, `al-muqaddim@1` beat 4 against `al-muakhkhir@1` beat 2. That is **above this project's own ≥3-word finding bar**, and both drafts reported zero.
+>
+> **Judged non-blocking, and the reason matters:** the run is the shared naming clause of **one ḥadīth** (Bukhārī 6398), which the two decks divide between them — the same licensed shape as `al-muizz@1`/`al-muzill@1` splitting 3:26, whose own re-measured max is **3** (`"whom you will"`). Scripture divided between siblings does not yield to a rendered-string collision (§9bl).
+>
+> **What is blocking is the claim, not the collision.** A self-measurement that reports 0 where the true value is 5 is the §9bm failure shape, and it is the second time in this wave a draft's own sweep under-reported in the direction that favoured it.
 
 **Honest statement of the residual.** The two decks now share **exactly one sentence's grammatical
 frame**, split with no overlap — precisely the `al-muizz@1`/`al-muzill@1` shape. They are not one

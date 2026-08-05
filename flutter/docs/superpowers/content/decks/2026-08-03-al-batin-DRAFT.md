@@ -1,4 +1,7 @@
-# Deck Draft — Al-Batin (catalogue id 82) — **R0, awaiting independent blind verification**
+# Deck Draft — Al-Batin (catalogue id 82) — **R1, verified · SHIP-AFTER-FIX fixes applied**
+
+> **Verified.** Same blind verifier, same result as Az-Zahir: **no invented scripture**, and the bar-4 `bāṭin` claim independently confirmed.
+> **R1 applied two fixes:** beat 7 now renders the catalogue duʿā byte-for-byte, and a `reflection` beat was added.
 
 **Read with [`2026-08-03-az-zahir-DRAFT.md`](./2026-08-03-az-zahir-DRAFT.md).** Ids 82 and 81 were assigned and drafted **as a deliberate must-ship pair** — they share one catalogue `dua_arabic`, rasm-identical from Sahih Muslim 2713a (COLLISION-LEDGER §6a group 14). Read Az-Zahir's draft first: the twin-diff, the shared-duʿā verification, and the 57:3 accounting are written once there and referenced here.
 
@@ -31,9 +34,9 @@ All scripture verified at draft time by live fetch: Qur'an via `api.quran.com/ap
   "chip_keys": [],
   "position_in_pair": 2,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED"
 }
 ```
 
@@ -55,14 +58,21 @@ All scripture verified at draft time by live fetch: Qur'an via `api.quran.com/ap
 **Beat 6 · verse** *(partial quotation — visible ellipsis both sides)*:
 > "…and the Hidden…" — Qur'an 57:3 (one word of a four-Name clause)
 
-**Beat 7 · duʿā** *(catalogue id 82, verbatim in full, shared with Az-Zahir)*:
-> اللَّهُمَّ أَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَىْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَىْءٌ
-> *Allahumma anta al-Zahiru fa laysa fawqaka shay', wa anta al-Batinu fa laysa dunaka shay'*
-> "O Allah, You are the Manifest — nothing above You. You are the Hidden — nothing below You."
+**Beat 7 · duʿā** *(catalogue id 82, **byte-for-byte**, shared with Az-Zahir)*:
+> أَنْتَ الظَّاهِرُ فَلَيْسَ فَوْقَكَ شَيْءٌ وَأَنْتَ الْبَاطِنُ فَلَيْسَ دُونَكَ شَيْءٌ
+> *Anta al-Dhahiru fa-laysa fawqaka shay', wa anta al-Batinu fa-laysa dunaka shay'*
+> "You are Al-Dhahir — there is nothing above You. You are Al-Batin — there is nothing closer to me than You."
 > **Source: Sahih Muslim 2713a (excerpt)** — full verification in Az-Zahir's draft.
 
 **Beat 8 · takeaway:**
 > Al-Batin is not an accusing witness. He is intimacy — the One so close to your hidden self that distance becomes impossible. You do not have to bring your secrets to Him; He is already closer to them than you are.
+
+**Beat 9 · reflection** *(AI-personalisation slot; this is the offline/fallback text — carries no `source` and no `arabic`, per §5a)*:
+> What is the thing you would say last, if you were saying everything? He already knows it. What is it costing you to keep holding it alone?
+
+> **R1 — added**, for the reason given in Az-Zahir's beat 9 note: the slot is otherwise empty exactly when the model is unavailable.
+> **Swept, 45 decks:** max shared word-run **3** — *"is the thing"*, against `al-quddus@1`'s bridge. Three function words with no shared move; recorded because the bar is ≥3 and the rule is to state the measurement, not the adjective (§9ak), **not** because it is a collision. **Twin-diff vs Az-Zahir's reflection: 2.**
+> **Register check, because this Name's failure mode is shame:** the beat asks what the concealment *costs the reader*, never what the concealment *is*. It does not invite disclosure, does not name a sin, and does not put Allah in the position of examiner — beat 8's whole argument is that Al-Batin is intimacy and not an accusing witness, and a reflection that interrogated would undo it.
 
 ---
 
@@ -127,6 +137,8 @@ All scripture verified at draft time by live fetch: Qur'an via `api.quran.com/ap
 
 Identical to Az-Zahir — see that deck's "The shared duʿā screen" section for full treatment. Both ids 81 and 82 render one bedtime invocation split across two duʿā pairs by the catalogue. A user who collects both Names in one session sees the same duʿā twice. Disclosed; no beat claims Name-specificity.
 
+**R1 — this deck made the same beat-7 error and carries the same fix.** It verified against the ḥadīth capture, not against `collectible_names.json` id 82, and so rendered `اللَّهُمَّ` plus *"the Manifest"/"the Hidden"/"nothing below You"* where the locked catalogue string reads *"You are Al-Dhahir… there is nothing closer to me than You."* Beat 7 now renders the catalogue **byte-for-byte**. Full divergence table and the two reported-not-actioned catalogue notes are in **Az-Zahir's R1 section**; they apply identically here, because the two ids share one string.
+
 ---
 
 ## The 57:3 note
@@ -139,7 +151,7 @@ Identical structure to Az-Zahir — see that deck's section. This deck renders o
 
 | candidate | what it is | why refused |
 |---|---|---|
-| **Qur'an 57:4** | `وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ وَمَا يَنزِلُ مِنَ ٱلسَّمَآءِ وَمَا يَعْرُجُ فِيهَا` ("He is with you wherever you are… knows what descends and ascends") | **Fetched, evaluated, deliberately not used — flagged in claim file.** A strong candidate for the "interior closeness" engine (omnipresence + knowing the seen and unseen). **Not used because using 57:4 on this deck would risk collapsing the pair's semantic separation with Az-Zahir** (both would then render "outside and inside" knowledge). The pairing model (Al-Muizz/Al-Muzill) shows how to handle that: independent narratives per Name. Held free for a future drafter if the pair constraint is ever lifted |
+| **Qur'an 57:4** | `… وَمَا يَنزِلُ مِنَ ٱلسَّمَآءِ وَمَا يَعْرُجُ فِيهَا ۖ وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ` ("…what descends from the heaven and what ascends therein; and He is with you wherever you are") — ⚠️ **R3 fix:** R0 **reordered the āyah**, putting `وَهُوَ مَعَكُمْ` first. In 57:4 the descent/ascent clause comes **before** it. Rendered on no beat, but a reordered quotation reads as a quotation | **Fetched, evaluated, deliberately not used — flagged in claim file.** A strong candidate for the "interior closeness" engine (omnipresence + knowing the seen and unseen). **Not used because using 57:4 on this deck would risk collapsing the pair's semantic separation with Az-Zahir** (both would then render "outside and inside" knowledge). The pairing model (Al-Muizz/Al-Muzill) shows how to handle that: independent narratives per Name. Held free for a future drafter if the pair constraint is ever lifted |
 | **Qur'an 31:20** | `نِعَمَهُۥ ظَـٰهِرَةً وَبَاطِنَةً` ("His favors, apparent and hidden") | **Refused on bar 1.** Same issue as Az-Zahir found: the referent is Allah's favors, not Allah Himself — a weaker demonstrative bar than 50:16 where Allah is grammatical subject of creating, knowing and being close. Also presents the same separation-collapse risk as 57:4 if used on both decks |
 | **Qur'an 57:13** | wall passage (`بَاطِنُهُۥ فِيهِ ٱلرَّحْمَةُ`) | **Flagged as bar-5 hazard.** Same assessment as Az-Zahir: the referent is a wall's appearance, not Allah's attributes, and the same āyah contains `ٱلْعَذَابُ` (torment) |
 

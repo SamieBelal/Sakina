@@ -135,7 +135,7 @@ from 47:38/57:24/60:6/64:6 (explicit rebukes to those who turn away or withhold)
 |---|---|---|
 | n−1 (35:14) | Idols cannot hear or answer prayer; will disown their worshippers on the Day of Resurrection. | Clean — sets up the contrast (false neediness on nothing vs. real neediness on Allah), does not rebuke the reader. |
 | n+1 (35:18) | *"And no bearer of burdens will bear the burden of another… You can only warn those who fear their Lord unseen and have established prayer… And to Allāh is the [final] destination."* | Clean, even instructive — no punishment clause. |
-| Sūrah-level | **Sūrat Fāṭir now carries a third deck** — `al-fattah@1` (35:2, shipped), `al-haleem@1` (35:45, shipped), this deck (35:15–17). Disclosed, not blocking — matches the precedent already accepted for Āl ʿImrān (three decks) and Sūrat al-Anbiyāʾ (`al-wahid@1`'s own third-deck disclosure, drafted this same wave). | disclosed |
+| Sūrah-level | **Sūrat Fāṭir now carries a third deck** — `al-fattah@1` (35:2, shipped), `al-haleem@1` (35:45, shipped), this deck (35:15–17). Disclosed, not blocking. ⚠️ **R3 correction to the precedent cited:** R0 leaned on *"`al-wahid@1`'s own third-deck disclosure"*. **That draft now says the opposite** — its corrected sūrah-level row reads *"Sūrat al-Anbiyāʾ carries **four** decks once this ships, not three… past this draft's own stated ceiling — **chosen, not forced**."* So the sibling cited as precedent is itself flagged as an over-run. **Three decks in Fāṭir may still be fine; it is no longer supported by the precedent named.** Matches the precedent already accepted for Āl ʿImrān (three decks) and Sūrat al-Anbiyāʾ (`al-wahid@1`'s own third-deck disclosure, drafted this same wave). | disclosed |
 
 ---
 
@@ -149,9 +149,9 @@ from 47:38/57:24/60:6/64:6 (explicit rebukes to those who turn away or withhold)
   "chip_keys": [],
   "position_in_pair": 0,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null,
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)",
   "beats": [
     {
       "kind": "bridge",
@@ -297,13 +297,17 @@ himself"*, 27:40's gratitude clause). **`al-quddus@1`'s own draft named exactly 
 declined to use this same clause for its own beat 8** (*"harm is a corpus hapax… benefit is a corpus
 hapax… omitted on that precedent"*). Per COLLISION-LEDGER §9ay's rule — *"a hapax is not blocking
 because it is rare; it is blocking when it does the same JOB in the same STAGING"* — the staging here
-differs from both prior hapaxes: `al-wakeel@1`'s "harm" is circumstantial/physical safety after a
+differs from both prior cases: `al-wakeel@1`'s "harm" is circumstantial/physical safety after a
 battle; `al-kareem@1`'s "benefit" is gratitude accruing to the person who gave thanks; this deck's
 "harm"/"benefit" pair is a first-person theological statement about the *reach* of any human act
 toward Allah, in both directions at once, inside a locked scriptural quotation (not authored prose,
 so §9at's "authored prose yields, quoted scripture does not" applies — the words cannot be swapped
 for string hygiene). **This drafter does not rule on its own collision (§9ab). Flagged for the
 verifier as the single most examinable finding in this deck.**
+
+> ⚠️ **R3 correction — the count was wrong, and it was wrong in the direction that favoured the deck.** *"Harm is a corpus hapax"* is **false**. Re-swept word-boundary across all 45 shipped decks: **`harm` occurs 3 times in 2 decks** — `al-wakeel@1` ×2 in one story beat (*"suffering no harm." The harm they had been told to fear never came*) and **`al-haleem@1` ×1** as *"the **harmful** and annoying words He hears"*, which R0's sweep missed entirely. **`benefit` IS a hapax** — `al-kareem@1`, once. So one half of the paired claim holds and the other does not.
+>
+> **The substantive non-collision argument survives** — §9ay turns on job-and-staging, not rarity, and `al-haleem@1`'s *"harmful words"* is forbearance-under-insult, a third distinct staging rather than a fourth instance of this one. **But the deck must stop calling it a hapax**, and the §9ay argument now has to carry three prior stagings rather than two. The claim was inherited from `al-quddus@1`'s draft and re-stated without re-measuring — which is how a stale count survives a fresh sweep.
 
 ### 7c · The move — against `al-quddus@1` specifically, the closest deck in the corpus
 

@@ -1,5 +1,9 @@
 # DRAFT — `al-mutakabbir@1` · Al-Mutakabbir (catalogue id 19, *The Supreme*)
 
+> **R2 REVIEW STAMP — 2026-08-04 · verdict: VERIFIED — content; spine incomplete (no `reflection` beat).** Reviewed by Claude on the three axes the founder asked for: **completion**, **narration authenticity** (nothing weak or fabricated on any beat), and **story impact / fit to the Name**. Every rendered scriptural quotation was re-fetched live and compared word-for-word against a named published translation; every ḥadīth rendered on a beat was re-fetched and its printed grade re-read. **This is a mechanical source-fidelity pass and is NOT the independent blind adversarial review the pipeline still owes this deck** — the reviewer is the same author for much of this wave. Full record: [`2026-08-04-R2-VERIFICATION.md`](./2026-08-04-R2-VERIFICATION.md).
+>
+> ⚠️ **The one completion gap:** this deck has no `reflection` beat. The ship gate does not require one, but `DRAFTING-BRIEF.md` §5a does — without it the slot renders **empty offline, on model failure, and outside the personalised tier.** Not authored here, deliberately: authoring a beat and then verifying it is the conflict of interest this same review flags elsewhere.
+
 **Drafted 2026-08-03.** Claim file: [`.context/claims/19.md`](../../../../.context/claims/19.md).
 **Twin draft, drafted by the same agent in the same pass, and required reading alongside this one:**
 [`2026-08-03-al-qahhar-DRAFT.md`](./2026-08-03-al-qahhar-DRAFT.md). The two share `dua_arabic`
@@ -41,7 +45,7 @@ catalogue-locked and disclosed at length in §5.
 | 2 | `story` | Allah made Adam, and told the angels to bow to him. All of them did — except Iblis. | — | `Qur'an 7:11` |
 | 3 | `story` | He answered: "I am better than him. You created me from fire and created him from clay." | — | `Qur'an 7:12` |
 | 4 | `story` | The answer came back the same moment: "…it is not for you to be arrogant therein…" He was told to leave — the claim itself was refused, not weighed. | — | `Qur'an 7:13 (excerpt)` |
-| 5 | `verse` | And to Him belongs all greatness in the heavens and the earth… | — | `Qur'an 45:37 (excerpt)` |
+| 5 | `verse` | And to Him belongs [all] grandeur within the heavens and the earth… | — | `Qur'an 45:37 (excerpt)` |
 | 6 | `dua` | O Subduer, subdue every stubborn tyrant. O Compeller-Healer, mend my brokenness. | `يَا قَهَّارُ اقْهَرْ كُلَّ جَبَّارٍ عَنِيدٍ وَيَا جَبَّارُ اجْبُرْ كَسْرِي` · translit. `Ya Qahhar, iqhar kulla jabbarin 'anid, wa Ya Jabbar, ujbur kasri` | **empty — UNPINNED** |
 | 7 | `takeaway` | The first, strongest claim to being bigger than someone else was refused before its owner left the room. Nothing posturing as bigger than you tonight has ever outranked that. | — | — |
 
@@ -50,6 +54,12 @@ not a single narration — see §5). Story beats carry `label`: *"The First Clai
 
 **Transcription note:** deck prose below uses `Qurʾān`; rendered `source` strings use ASCII
 `Qur'an`, per plan §7.
+
+> **R3 fix — beat 5 was an unattributed re-rendering (§9bh), found by the blind `power` verifier and confirmed by the coordinator.**
+> R2 rendered *"And to Him belongs all greatness **in** the heavens and the earth…"*, which matches **none** of six published translations — fetched and compared: Saheeh *"[all] grandeur **within**"* · Usmani *"majesty in"* · Abdel Haleem *"True greatness… is rightfully His"* · Pickthall *"Majesty in"* · Yusuf Ali *"glory throughout"* · Hilali-Khan *"the Majesty in"*.
+> **Now Saheeh International verbatim**, truncated with the existing ellipsis before `وَهُوَ ٱلْعَزِيزُ ٱلْحَكِيمُ` — which must stay unrendered, being shipped `al-azeez@1`'s word and **pending id 26 Al-Hakeem's**.
+> *"Grandeur" also separates better than "greatness"*, which is `al-kabeer@1`'s (id 53) field — that deck's `english` is **The Greatest**.
+> **Why it survived R2:** that pass only parsed beats written as `>` blockquotes. This deck states its beats in a **table**, so beat 5 was never checked. Twelve drafts use the table format; all 25 of their scripture-bearing beats have now been audited and this was the only defect among them.
 
 ---
 

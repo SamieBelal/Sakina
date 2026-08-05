@@ -51,9 +51,9 @@ the deck is built to demonstrate.
   "chip_keys": [],
   "position_in_pair": 1,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 
@@ -77,7 +77,7 @@ the deck is built to demonstrate.
 > 5. Then he heard one companion, 'Abdullah ibn Qais, saying it under his breath, and said: "Shall I not teach you a sentence which is from the treasures of Paradise? *There is no power and no strength except through Allah.*"
 
 **Beat 6 · verse:**
-> "Allah is the One who created you from weakness, then made after weakness strength, then made after strength weakness and old age…" — Qur'an 30:54 (excerpt)
+> "Allah is the One who created you in a state of weakness, then He created strength after weakness, then created weakness and old age after strength…" — Qur'an 30:54 (excerpt)
 
 **Beat 7 · duʿā** *(catalog id 62, verbatim in full)*:
 > لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
@@ -86,7 +86,7 @@ the deck is built to demonstrate.
 > **NO source. UNPINNED** — see "The shared duʿā screen."
 
 **Beat 8 · takeaway (pair-synergy):**
-> He wasn't taught to shout louder. He was taught nine quiet words that put all of it back where it already belonged. Al-Mateen — the second Name of your answer — is what that belonging is built on: not a supply you could run out of, a foundation that was never yours to hold up.
+> He wasn't taught to shout louder. He was taught nine quiet words that put all of it back where it already belonged. The strength was never yours on loan, which is why volume added nothing to it. Al-Mateen — the second Name of your answer — is what it is anchored in.
 
 ---
 
@@ -179,7 +179,7 @@ eight strings.**
 | 30:54 | n+3 | **30:57** — "their excuse will not benefit those who wronged" | **the row to attack first.** Not adjacent, not quoted; disclosed at full strength rather than left for a reviewer to find |
 | 30:54 | its own tail | `يَخْلُقُ مَا يَشَآءُ ۖ وَهُوَ ٱلْعَلِيمُ ٱلْقَدِيرُ` | **elided, visibly, on the beat** — avoids rendering Al-Aleem (shipped) and Al-Qadeer (undecked) in the trailing pair |
 | Bukhārī 6610 | what follows the matn | nothing but the isnād chain reference | clean — the strongest bar-5 form a ḥadīth can offer |
-| Bukhārī 6610 | book heading | `كتاب الأدب` / the chapter concerns manners toward the caller — the "ghazāt" is scene-setting, not the chapter's subject | disclosed above |
+| Bukhārī 6610 | book heading | ⚠️ **R3 correction — this was wrong.** R0 said `كتاب الأدب` (*Book of Manners*); the fetched page shows **`كتاب القدر`, Book 82 (*Divine Will / al-Qadar*)**. **No rendered beat depends on it** — it was supporting colour for the bar-5 argument — but it is a stated fact that was not fetched | disclosed above |
 
 **No 404 / sūrah-final result available** — Sūrat ar-Rūm is 60 āyāt; 30:54 sits well before its end.
 
@@ -318,7 +318,7 @@ the gate and is not a drafting choice.
 | 1 | Story beats 3–5, verbatim/paraphrase of: companions straining voices on a journey; "go easy on yourselves…"; "shall I teach you… a treasure… there is no power and no strength except through Allah" | Wayback capture of `sunnah.com/bukhari:6610`, ts `20260315043934` | **Ṣaḥīḥ al-Bukhārī** — no printed grade line (collection-level inference, §9ag) | ✅ Arabic verified: `فَجَعَلْنَا لاَ نَصْعَدُ شَرَفًا وَلاَ نَعْلُو شَرَفًا وَلاَ نَهْبِطُ فِي وَادٍ إِلاَّ رَفَعْنَا أَصْوَاتَنَا بِالتَّكْبِيرِ`; `يَا أَيُّهَا النَّاسُ ارْبَعُوا عَلَى أَنْفُسِكُمْ فَإِنَّكُمْ لاَ تَدْعُونَ أَصَمَّ وَلاَ غَائِبًا` (**visible ellipsis on the beat — the clause continues `إِنَّمَا تَدْعُونَ سَمِيعًا بَصِيرًا`, dropped to avoid rendering Al-Baseer's gloss, shipped**); `يَا عَبْدَ اللَّهِ بْنَ قَيْسٍ، أَلاَ أُعَلِّمُكَ كَلِمَةً هِيَ مِنْ كُنُوزِ الْجَنَّةِ، لاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ` — quoted in full |
 | 2 | Corroborating, undoubted route, quoted on no beat | Wayback capture of `sunnah.com/bukhari:4205`, ts `20260308160402` | Ṣaḥīḥ al-Bukhārī | ✅ `أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ مِنْ كَنْزٍ مِنْ كُنُوزِ الْجَنَّةِ… لاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ` — **no shakk on this clause.** Its own shakk (`أَوْ قَالَ لَمَّا تَوَجَّهَ`) concerns whether the occasion was the Khaybar campaign specifically — a different clause, disclosed, not used on any beat |
 | 3 | Bukhārī 6384 fetched and **excluded** | Wayback capture, ts `20240617221329` | Ṣaḥīḥ al-Bukhārī | ⚠️ **CONFIRMED CARRIES THE SHAKK** on the exact clause: `فَقَالَ … أَوْ قَالَ ‏"‏ أَلاَ أَدُلُّكَ عَلَى كَلِمَةٍ …`. Recorded so no future drafter reaches for it |
-| 4 | Beat 6, excerpt: "Allah is the One who created you from weakness, then made after weakness strength, then made after strength weakness and old age…" | `api.quran.com/api/v4/verses/by_key/30:54?translations=20` | Qur'an | ✅ `ٱللَّهُ ٱلَّذِى خَلَقَكُم مِّن ضَعْفٍ ثُمَّ جَعَلَ مِنۢ بَعْدِ ضَعْفٍ قُوَّةً ثُمَّ جَعَلَ مِنۢ بَعْدِ قُوَّةٍ ضَعْفًا وَشَيْبَةً…` — **visible ellipsis; trailing `يَخْلُقُ مَا يَشَآءُ ۖ وَهُوَ ٱلْعَلِيمُ ٱلْقَدِيرُ` dropped** to avoid rendering Al-Aleem (shipped)/Al-Qadeer |
+| 4 | Beat 6, excerpt: "Allah is the One who created you in a state of weakness, then He created strength after weakness, then created weakness and old age after strength…" — **Mufti Taqi Usmani (`translations=84`), verbatim, named.** ⚠️ **R1 fix:** R0 kept Saheeh's syntax but swapped in *"old age"* for Saheeh's *"white hair"* (`شَيْبَة`) — a **splice of two translations**, which §9bh bans outright, and it was presented as the `translations=20` fetch. *"Old age"* is attested (Usmani), so the phrasing survives; it now comes from one translation, whole | `api.quran.com/api/v4/verses/by_key/30:54?translations=20,84` | Qur'an | ✅ `ٱللَّهُ ٱلَّذِى خَلَقَكُم مِّن ضَعْفٍ ثُمَّ جَعَلَ مِنۢ بَعْدِ ضَعْفٍ قُوَّةً ثُمَّ جَعَلَ مِنۢ بَعْدِ قُوَّةٍ ضَعْفًا وَشَيْبَةً…` — **visible ellipsis; trailing `يَخْلُقُ مَا يَشَآءُ ۖ وَهُوَ ٱلْعَلِيمُ ٱلْقَدِيرُ` dropped** to avoid rendering Al-Aleem (shipped)/Al-Qadeer |
 | 5 | Successor sweep: 30:53, 30:55, 30:56, 30:57 fetched and read | `api.quran.com/api/v4/verses/by_key/{k}` | Qur'an | ✅ all live 2026-08-03; findings in the sweep table above |
 | 6 | The `q-w-y` enumeration: 42 occurrences, 9 divine `qawiyy`, all trailing `ʿazeez` | full 6,236-āyah Uthmānī corpus, `api.quran.com/api/v4/verses/by_chapter/{1..114}` | — | ✅ run against the full text, not a search API (§9ac); cross-checked against corpus.quran.com's own root ق-و-ي listing (42, matching); construct-state instance at 11:52 confirmed by direct fetch |
 | 7 | 18:39 rejected on bar 5 (18:40 destroys the garden) | `api.quran.com/api/v4/verses/by_key/18:39`, `18:40` | Qur'an | ✅ fetched live; `فَعَسَىٰ رَبِّىٓ أَن يُؤْتِيَنِ خَيْرًا مِّن جَنَّتِكَ وَيُرْسِلَ عَلَيْهَا حُسْبَانًا مِّنَ ٱلسَّمَآءِ فَتُصْبِحَ صَعِيدًا زَلَقًا` confirms the threat |

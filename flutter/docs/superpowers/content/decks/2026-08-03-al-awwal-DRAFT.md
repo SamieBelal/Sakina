@@ -46,9 +46,9 @@ then everything else, including whatever the reader is carrying today.
   "chip_keys": [],
   "position_in_pair": 1,
   "author": "Claude",
-  "reviewed_by": null,
-  "reviewed_at": null,
-  "review_verdict": null
+  "reviewed_by": "Claude — R2 source-fidelity + authenticity pass, 2026-08-04 (mechanical; NOT the independent blind adversarial review the pipeline still owes)",
+  "reviewed_at": "2026-08-04",
+  "review_verdict": "VERIFIED — content; spine incomplete (no reflection beat)"
 }
 ```
 
@@ -230,7 +230,7 @@ carrying bar 1, with the actual demonstration living entirely in the Pen hadith.
 |---|---|---|
 | **Qur'an 21:104** (`كَمَا بَدَأْنَآ أَوَّلَ خَلْقٍ نُّعِيدُهُۥ`) | "As We began the first creation, We will repeat it" — carries `ʾ-w-l` (`أَوَّلَ`) in Allah's own first-person promise | **Refused on bar 3.** The verb `نُّعِيدُهُۥ` (root `ʿ-w-d`, "We will repeat/restore it") is **shipped `al-muid@1`'s own Name-root** — that deck's own sweep (recorded in its draft) reads this exact āyah as one of seven `ʿ-w-d` candidates it examined and did not select. Using 21:104 here would put a sibling Name's root in English translation ("repeat") on this deck's own screen. Bar 1 is also weaker: the demonstrated act is re-creation, not "firstness" as such |
 | **Qur'an 29:19–20** (`كَيْفَ يُبْدِئُ ٱللَّهُ ٱلْخَلْقَ ثُمَّ يُعِيدُهُۥ`) | The same re-origination theme, `an-nashʾa al-ākhirah` at 29:20 | **Same reason as above** — `ʿ-w-d` root, already swept and left unclaimed by `al-muid@1`. Held free for a future drafter, not spent here |
-| **Qur'an 53:25** (`وَإِنَّ لِلَّهِ ٱلْـَٔاخِرَةَ وَٱلْأُولَىٰ`) | "And to Allah belongs the Last [life] and the First" | **Refused on bar 2 and on ambiguity.** `al-ākhirah` here means *the Hereafter*, not "the Last" as a divine epithet — using it would blur two different senses of the same root for a reader who cannot see the distinction. It is also a possession-statement (*"belongs to"*), not a demonstrated act |
+| **Qur'an 53:25** (`فَلِلَّهِ ٱلْـَٔاخِرَةُ وَٱلْأُولَىٰ` — ⚠️ **R3 fix:** R0 wrote `وَإِنَّ لِلَّهِ ٱلْـَٔاخِرَةَ`, which is not the āyah; the opening is `فَ`, and the case ending is `ـةُ`. Rendered on no beat, but a misquoted āyah inside a rejection table is still a misquoted āyah) | "And to Allah belongs the Last [life] and the First" | **Refused on bar 2 and on ambiguity.** `al-ākhirah` here means *the Hereafter*, not "the Last" as a divine epithet — using it would blur two different senses of the same root for a reader who cannot see the distinction. It is also a possession-statement (*"belongs to"*), not a demonstrated act |
 | **Qur'an 6:14, 7:143, 39:12** (Musa/the Prophet ﷺ declaring themselves "first") | Human speech using `awwal` | **Rejected class** — human speech about being first, not Allah's own act (ledger §2d's "human speech about Allah" class) |
 | **Bukhari 6570** (the luckiest-by-intercession hadith, n−1 of Al-Akhir's citation) | Adjacent chapter material | Not this deck's; examined as part of Al-Akhir's successor sweep, recorded there |
 
