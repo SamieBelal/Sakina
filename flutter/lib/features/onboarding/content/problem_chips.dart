@@ -153,6 +153,26 @@ const List<ProblemChip> problemChips = [
 /// removed on 2026-07-26: they fire on sentences about something else entirely
 /// ("I keep praying for a job", "disconnected from my wife").
 ///
+/// **The rule that lets them back in, learned twice (2026-07-26, 2026-08-05):**
+/// an ambient word is admissible only as a PHRASE that pins whose experience it
+/// is. `when i pray` / `pray but` / `stopped praying` are the reader's own
+/// worship; `pray` alone also swallows *"I pray for my mother in hospital"*,
+/// which is a sentence about grief. Same for `disconnected from allah` versus
+/// bare `disconnected`. The 2026-08-05 recall pass re-added both under that
+/// rule, and its first draft did NOT — the regressions are pinned in
+/// `test/features/onboarding/problem_chip_matcher_eval_test.dart` so the third
+/// rediscovery is a red test rather than a shipped mismatch.
+///
+/// **Adding keywords is a PRECISION-first exercise, not a recall-first one.**
+/// A miss serves neutral authored text that suits anyone; a wrong match serves
+/// a bridge about money to someone who wrote about a death. The eval file above
+/// scores both over a labelled corpus and holds precision at a hard floor —
+/// widen recall only while it stays there.
+///
+/// Beware map ORDER when adding: `guilt` is first, so a word placed there beats
+/// every other category. `heavy` is last and is therefore the safest home for
+/// anything an earlier category could legitimately claim.
+///
 /// Negation is deliberately unhandled — "I am not anxious" still matches
 /// `anxiety`. The cost is a wrong `problem_category` on a rare sentence, never a
 /// wrong-feeling reveal: every chip's Names are plausible comfort for someone
@@ -165,24 +185,45 @@ const Map<String, List<String>> problemChipKeywords = {
     'porn', 'zina',
     'repent', 'repentance', 'tawbah', 'taubah', 'istighfar', 'astaghfirullah',
     'forgive', 'forgiveness', 'keep going back', 'same mistake',
+    // 2026-08-05 recall pass. Shame states the earlier list had no word for.
+    'dont deserve', 'deserve it', 'let allah down', 'let him down',
+    'disgusted with myself', 'hate myself', 'keep failing',
   ],
   'far-from-allah': [
     'far from allah', 'distant from allah', 'iman', 'imaan',
     'spiritually', 'spiritual', 'salah', 'salat', 'namaz',
     'quran', 'worship', 'dhikr', 'hypocrite', 'munafiq',
     'cant be consistent', 'not consistent', 'empty inside', 'going through the motions',
+    // 2026-08-05 recall pass. The list carried `salah`, `namaz` and `worship`
+    // but NOT the plain English word most people actually type — the single
+    // largest gap the eval found, and the reason "i don't feel anything when i
+    // pray anymore" (textbook distance) was reaching no category at all.
+    'when i pray', 'pray but', 'cant pray', 'not praying', 'dont pray',
+    'stopped praying', 'barely pray', 'missing prayers', 'missed prayers',
+    'my prayers', 'my prayer', 'praying feels', 'prayer feels',
+    'drifted', 'drifting', 'disconnected from allah', 'connection with allah',
+    'come back to allah', 'lost my way', 'no khushu', 'khushu',
   ],
   'rizq': [
     'money', 'rizq', 'rizk', 'income', 'salary', 'wage', 'wages', 'rent',
     'debt', 'debts', 'loan', 'loans', 'bills', 'broke', 'poverty', 'afford',
     'provide', 'providing', 'provider', 'job', 'jobs', 'unemployed',
     'unemployment', 'fired', 'redundant', 'laid off', 'lost my job', 'work visa',
+    // 2026-08-05 recall pass. `work visa` was the ONLY entry containing "work",
+    // so "work is crushing me" placed nowhere. In this app "work" means
+    // livelihood essentially always.
+    'work', 'working', 'overtime', 'pay', 'paying', 'pay for', 'paid',
+    'expenses', 'cost of living', 'savings', 'skint', 'cant afford',
+    'bank account', 'overdrawn', 'payday',
   ],
   'unseen': [
     'alone', 'lonely', 'loneliness', 'isolated', 'isolation', 'invisible',
     'unheard', 'unseen', 'misunderstood', 'no one', 'nobody', 'marriage',
     'married', 'marry', 'spouse', 'husband', 'wife', 'divorce', 'divorced',
     'nikah', 'rishta', 'proposal', 'single', 'no friends', 'nobody knows',
+    // 2026-08-05 recall pass.
+    'by myself', 'on my own', 'no support', 'no one to talk to',
+    'keep it to myself', 'bottling', 'bottle it up',
   ],
   'anxiety': [
     'anxiety', 'anxious', 'panic', 'panicking', 'worry', 'worried', 'worrying',
@@ -192,6 +233,11 @@ const Map<String, List<String>> problemChipKeywords = {
     'insomnia', 'cant sleep', 'up all night', 'exam', 'exams', 'finals',
     'results', 'deadline', 'interview', 'uni', 'university', 'college',
     'school', 'studies', 'studying',
+    // 2026-08-05 recall pass. Phrases, not bare words, wherever the bare word
+    // would fire somewhere else ("races" alone is not anxiety).
+    'switch off', 'shut off', 'on edge', 'replaying', 'replay', 'spiralling',
+    'spiraling', 'heart races', 'heart racing', 'heart pounding', 'what if',
+    'worst case', 'cant relax', 'wont stop', 'mind is racing',
   ],
   'heavy': [
     'heavy', 'sad', 'sadness', 'depressed', 'depression', 'hopeless',
@@ -201,6 +247,12 @@ const Map<String, List<String>> problemChipKeywords = {
     'heartbreak', 'heartbroken', 'broken', 'family', 'parents', 'mother',
     'father', 'mum', 'mom', 'dad', 'siblings', 'brother', 'sister',
     'in laws', 'at home', 'arguing', 'fighting', 'illness', 'sick',
+    // 2026-08-05 recall pass. `heavy` is LAST in this map and therefore the
+    // catch-all, so its additions are the safest to make and the most useful:
+    // anything an earlier category can legitimately claim already has.
+    'too much', 'weight of', 'wont lift', 'doesnt lift', 'nothing left',
+    'nothing matters', 'joy', 'empty', 'flat', 'no energy', 'cant cope',
+    'hospital', 'cancer', 'diagnosis', 'unwell',
   ],
 };
 
