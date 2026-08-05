@@ -3275,7 +3275,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "You think the shameful part is having to come back again. Coming back has its own Name."
+          },
+          {
+            "id": "guilt",
+            "text": "You think the shameful part is having to come back again. Coming back has its own Name."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The distance you are feeling is not a verdict. It is the part of the road you are standing on."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3519,7 +3533,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Carrying it alone is the heaviest version. This Name means no one has to."
+          },
+          {
+            "id": "unseen",
+            "text": "Carrying it alone is the heaviest version. This Name means no one has to."
+          },
+          {
+            "id": "heavy",
+            "text": "There is a kind of tired that comes from having nowhere to set it down. This Name is the place."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not explain it to anyone tonight. You do not have to explain it to lean on it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3647,7 +3679,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "A racing mind spends the night rehearsing tomorrow. This is the Name of the One you can hand tomorrow to."
+          },
+          {
+            "id": "anxiety",
+            "text": "A racing mind spends the night rehearsing tomorrow. This is the Name of the One you can hand tomorrow to."
+          },
+          {
+            "id": "heavy",
+            "text": "When everything is heavy, some of the weight is things you were never asked to carry. This Name is about who takes them."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been doing the arithmetic on a future you cannot see. This is the Name of the One who already holds it."
+          }
+        ]
       },
       {
         "kind": "name_intro",

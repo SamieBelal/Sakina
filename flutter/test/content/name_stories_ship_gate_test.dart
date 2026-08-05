@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/onboarding/content/problem_chips.dart';
 
 /// One Ship W2-A2 — the deck SHIP GATE, enforced in CI rather than at runtime.
 ///
@@ -265,6 +266,99 @@ void main() {
         expect((b['arabic'] ?? '') as String, isEmpty,
             reason: '${d['deck_id']} $kind beat carries an arabic field — '
                 'see above; move it to a fixed beat');
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Variants — the selection pool the personalisation layer draws from.
+  //
+  // A `bridge` or `reflection` beat may carry `variants`: alternative
+  // renderings of the SAME beat, all founder-authored, one of which the
+  // selector shows. The model never writes prose — it picks an id. That is
+  // what makes the safety property structural rather than a filter over
+  // generated text, which cannot catch paraphrased scripture.
+  //
+  // Two assertions, and the first is the one that matters. The scripture
+  // check above `continue`s past every kind that is not personalisable, so
+  // adding `variants` to the schema opens a second place text can hide —
+  // one no existing assertion reaches. Arabic sitting in `verse.variants`
+  // would be dead data today AND unguarded, one renderer change from
+  // surfacing. Asserting the field EMPTY on those kinds makes the illegal
+  // state unrepresentable instead of merely sanitised.
+  //
+  // Variants are `{id, text}` objects, never bare strings. A selection is
+  // persisted so a re-opened night shows the same words, and an array index
+  // stops meaning the same thing the moment a later release reorders or
+  // deletes a variant — the cache would then point at different copy with
+  // nothing to detect it. Ids are stable; positions are not.
+  test('SHIP GATE: variants exist only where scripture cannot follow', () {
+    // Same class the beat-field check uses (presentation forms included) — a
+    // variant pasted from a source that uses them must not slip through.
+    final arabicBody = RegExp(r'[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]');
+    // Read off the live chip taxonomy, never transcribed — a copied list would
+    // drift the moment a chip is renamed, and drift here is undetectable.
+    final validProblemCategories =
+        problemChips.map((c) => c.problemCategory).toSet();
+    for (final d in decks) {
+      for (final b in (d['beats'] as List)) {
+        final kind = b['kind'] as String;
+        final raw = b['variants'];
+        if (!personalisableKinds.contains(kind)) {
+          expect(raw == null || (raw as List).isEmpty, isTrue,
+              reason: '${d['deck_id']} $kind beat carries `variants`. Only '
+                  '${personalisableKinds.join('/')} beats may — every other '
+                  'kind holds scripture, and a variants array there is text '
+                  'no other assertion in this file reaches');
+          continue;
+        }
+        if (raw == null) continue;
+        final seen = <String>{};
+        for (final v in (raw as List)) {
+          final m = v as Map<String, dynamic>;
+          final id = (m['id'] ?? '') as String;
+          final text = (m['text'] ?? '') as String;
+          expect(id.isNotEmpty, isTrue,
+              reason: '${d['deck_id']} $kind variant has no id — selections '
+                  'are persisted by id, and a positional fallback silently '
+                  'points at different copy once variants are reordered');
+          // An id is either `default` (the authored text already in `primary`,
+          // and the fallback when nothing matches) or one of the seven
+          // `problemCategory` values the on-device matcher actually produces.
+          //
+          // This is pinned against the live taxonomy rather than a copy,
+          // because the first seeded batch used `far-from-allah` — the
+          // CHIP KEY — where the category is `far_from_allah`. Nothing would
+          // have failed: the selector simply would never have matched that
+          // variant, and the deck would have quietly served its default
+          // forever. A variant nobody can select is worse than no variant,
+          // because it looks like coverage.
+          expect(
+            id == 'default' || validProblemCategories.contains(id),
+            isTrue,
+            reason: '${d['deck_id']} $kind variant id "$id" is neither '
+                '`default` nor a real problem_category '
+                '(${validProblemCategories.join(', ')}). The selector keys on '
+                'problem_category, so this variant could never be chosen',
+          );
+          expect(seen.add(id), isTrue,
+              reason: '${d['deck_id']} $kind has two variants with id "$id" — '
+                  'a persisted selection would be ambiguous');
+          expect(text.trim().isNotEmpty, isTrue,
+              reason: '${d['deck_id']} $kind variant "$id" has no text');
+          expect(m.containsKey('source'), isFalse,
+              reason: '${d['deck_id']} $kind variant "$id" carries a source '
+                  'citation — a variant is the same slot as the beat it '
+                  'replaces, and that slot may never hold scripture');
+          expect(m.containsKey('arabic'), isFalse,
+              reason: '${d['deck_id']} $kind variant "$id" carries an arabic '
+                  'field — see above');
+          expect(arabicBody.hasMatch(text), isFalse,
+              reason: '${d['deck_id']} $kind variant "$id" contains Arabic '
+                  'script in its text. The gate cannot verify scripture that '
+                  'reaches a screen this way, which is the whole reason this '
+                  'slot is restricted');
+        }
       }
     }
   });
