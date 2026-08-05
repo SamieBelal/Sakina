@@ -1226,6 +1226,57 @@ void main() {
       }
     });
   });
+
+  // The end-to-end invariant. Every other test here checks the selector against
+  // ids; this one walks a reader through a whole rotation of all 99 decks and
+  // checks what actually reaches the SCREEN. It is the only assertion that
+  // spans the ship gate, the authored content, the ladder and the builder at
+  // once — a duplicate could be introduced by any one of the four (a variant
+  // whose text matches `primary`, a ladder that offers the same id twice, a
+  // builder that ignores the selection) and no single-layer test would see it.
+  //
+  // Reads the bridge by BeatKind.keyLine rather than `screens.first`: the two
+  // comfort decks prepend a `recognition` beat, so position 0 is not the bridge
+  // there. Taking `first` reports every deck with a prepended beat as 6
+  // duplicates — a false positive that cost a review pass to run down.
+  group('rotation, end to end', () {
+    test('one full cycle never shows the same sentence twice — 99 decks', () {
+      final offenders = <String>[];
+      for (final deck in allDecks) {
+        // A reader the taxonomy placed, and one it could not.
+        for (final category in ['guilt', problemCategoryUnmatched]) {
+          final seen = <String>{};
+          final rendered = <String>[];
+          final ids = <String>[];
+          for (var i = 0; i < 40; i++) {
+            final s = DeckVariantSelector.resolve(
+              deck: deck,
+              surface: DeckVariantSurface.daily,
+              problemCategory: category,
+              seen: seen,
+              encounterIndex: i,
+            );
+            // The cycle wrapping round is the end of this pass, not a failure.
+            if (s.cycled) break;
+            rendered.add(buildBeatScreensFromDeck(deck, selection: s.selection)
+                .firstWhere((x) => x.kind == BeatKind.keyLine)
+                .primary);
+            ids.add(s.variantId);
+            // A no-pool deck can never exhaust, so it would spin here forever.
+            if (s.seenKeys.isEmpty) break;
+            seen.addAll(s.seenKeys);
+          }
+          if (rendered.length != rendered.toSet().length) {
+            offenders.add('${deck.deckId}/$category ids=$ids');
+          }
+        }
+      }
+      expect(offenders, isEmpty,
+          reason: 'a reader met the same bridge sentence twice inside one '
+              'rotation, which is the thing rotation exists to prevent:\n'
+              '${offenders.join('\n')}');
+    });
+  });
 }
 
 class _ThrowingStore implements DeckVariantStore {

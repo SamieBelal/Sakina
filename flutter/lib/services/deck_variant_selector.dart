@@ -275,9 +275,20 @@ class DeckVariantSelection {
   /// The composite keys [markCompleted] records — exactly the beats the reader
   /// actually met, and nothing derivable-but-unread.
   ///
-  /// This is where D8 earns its keep: showing the bridge's `heavy` line marks
-  /// `deck|bridge|heavy` and NOT `deck|reflection|heavy`, which is a different
-  /// sentence the reader has not seen. A two-part key would burn both.
+  /// D8's third part (the beat kind) is **defensive here, not load-bearing** —
+  /// stated plainly because an earlier draft of this comment claimed otherwise
+  /// and a reader would over-trust it. Rotation only ever reads BRIDGE keys
+  /// (see `_firstUnseen`), and under D9's paired selection the reflection is
+  /// shown with the bridge or not at all, so a two-part key would behave
+  /// identically today.
+  ///
+  /// It earns its keep the moment either of those stops being true: `heavy` on
+  /// the bridge and `heavy` on the reflection are DIFFERENT sentences
+  /// (`al-qahhar@1` carries both), so a two-part key would silently mark one as
+  /// read when the reader had only seen the other. Keeping the kind in the key
+  /// means revisiting D9, or reading reflection state, cannot quietly become a
+  /// bug — it costs one string segment to make a whole class of error
+  /// unrepresentable.
   ///
   /// Gated on [hasPool], NOT on [source] — a `fallback` line the reader
   /// actually read still has to advance the rotation.
