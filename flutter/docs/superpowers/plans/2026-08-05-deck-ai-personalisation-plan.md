@@ -236,9 +236,25 @@ Three things the content changed about the design:
 D4's two assertions. Ordering matters: land the gate first so the first authored
 variant is already covered.
 
-### Wave 4 — Swap seam
-`selection` param on `buildBeatScreensFromDeck`, null-defaulted.
-**CRITICAL regression test:** `selection: null` must be byte-identical to today.
+### Wave 4 — Swap seam ✅ DONE 2026-08-05
+`selection` param on `buildBeatScreensFromDeck`, null-defaulted, shaped
+`Map<String, String>?` (deck beat kind → already-resolved variant id) and read
+only inside the `bridge` and `reflection` cases. `NameStoryBeat` now parses
+`variants` and exposes `textForVariant(String?)` — a total lookup where null,
+unknown and no-variants all answer `primary`. The builder stays pure: it
+receives resolved ids and does no mapping, rotation or fallback ladder.
+
+**CRITICAL regression test: PASSED over all 99 decks.** Expected screens are
+re-derived independently from the raw JSON rather than compared to a golden — a
+golden agrees with any bug the builder learns, and a checked-in fixture would
+mirror 99 decks of prose, which is the duplicated-content drift this repo has
+already paid for. Corroborated out-of-band by a pre/post dump of every screen of
+every deck hashing identically (`d889520…`).
+
+⚠️ **§4.3's "`variants.isEmpty → primary` is the main path for weeks" is already
+false.** All 99 bridges and all 91 reflections carry variants, so that branch is
+unreachable in shipped content and is exercised only by a synthetic deck. Wave 5
+must not assume it will ever be hit.
 
 ### Wave 5 — Deterministic selector service
 Chip/category → id, seen-set rotation, `SharedPreferences` persistence.
@@ -349,7 +365,7 @@ otherwise the first variants ship unguarded. Wave 6 waits on §2 regardless.
   - Surfaced by: Section 2 — `name_stories_ship_gate_test.dart:260` `continue`s past every non-personalisable kind
   - Files: `test/content/name_stories_ship_gate_test.dart`
   - Verify: `flutter test test/content/name_stories_ship_gate_test.dart`
-- [ ] **T2 (P1, human: ~1h / CC: ~10min)** — beat_reveal — CRITICAL regression test: `selection: null` ≡ today's output
+- [x] **T2 (P1, human: ~1h / CC: ~10min)** — beat_reveal — CRITICAL regression test: `selection: null` ≡ today's output
   - Surfaced by: Section 3 REGRESSION RULE — 3 live call sites incl. shipped onboarding
   - Files: `test/widgets/beat_reveal_deck_test.dart`
   - Verify: `flutter test test/widgets/beat_reveal_deck_test.dart`
@@ -361,7 +377,7 @@ otherwise the first variants ship unguarded. Wave 6 waits on §2 regardless.
   - Surfaced by: Section 2 — policy must not live in the pure builder
   - Files: `lib/services/deck_variant_selector.dart` (new)
   - Verify: new unit test covering all 6 branches in the §3 diagram
-- [ ] **T5 (P2, human: ~2h / CC: ~15min)** — beat_reveal — `selection` param, latched at flow entry
+- [x] **T5 (P2, human: ~2h / CC: ~15min)** — beat_reveal — `selection` param, latched at flow entry
   - Surfaced by: Section 1 — `muhasabah_screen.dart:507` runs inside `build()`
   - Files: `lib/widgets/beat_reveal/beat_reveal_models.dart`, `lib/features/daily/screens/muhasabah_screen.dart`
   - Verify: widget test asserting no mid-flow text swap
@@ -369,7 +385,7 @@ otherwise the first variants ship unguarded. Wave 6 waits on §2 regardless.
   - Surfaced by: §2 — this is the input to D7 and costs nothing to collect
   - Files: `lib/services/analytics_event_names.dart`, `lib/features/daily/providers/daily_loop_provider.dart`
   - Verify: event appears in Mixpanel on a `1.3.0` build
-- [ ] **T7 (P2, human: ~1h / CC: ~10min)** — model — `variants` field + doc-table update
+- [x] **T7 (P2, human: ~1h / CC: ~10min)** — model — `variants` field + doc-table update
   - Surfaced by: Section 2 P3 — the per-kind field table at `name_story_deck.dart:100-107` goes stale
   - Files: `lib/models/name_story_deck.dart`
   - Verify: `flutter analyze`
@@ -410,10 +426,50 @@ gap. Architecture is agreed (selection over generation, variants on the beat,
 gate hardened); the open items are implementation-shape questions, not blockers to
 starting Waves 1–5. Wave 6 is blocked on production data, not on this review.
 
-**UNRESOLVED DECISIONS:**
-- Variant identity — stable `variant_id` vs array index in the persisted cache
-- Paired vs independent selection across the bridge and reflection arrays
-- `compute()` (D6) was decided on a 30–60 ms estimate; benchmark before committing
-- Kill-switch strength — 6h `app_config` TTL plus default-on-first-install
-- Rotation policy undefined for one-slot decks, re-rolls, and restored sessions
-- Onboarding is contextual copy, not personalisation — decide how it gets measured
+**UNRESOLVED DECISIONS — all six CLOSED by the founder 2026-08-05:**
+
+- **D8 · Variant identity → composite key `deck_id + beat_kind + variant_id`.**
+  Never an array index. The two-part `{deck_id, variant_id}` the review proposed
+  became **wrong during Wave 2**: bridge and reflection now share the same seven
+  category ids, so `al-qahhar@1` has a `guilt` variant on each — two different
+  sentences behind one key. A two-part key would mark both seen at once.
+- **D9 · Selection is PAIRED.** One category id resolves both beats. Both come
+  from a single answer; selecting them independently would be two readings of
+  one input, not variety. Variety comes from rotation *across* encounters.
+  Uneven coverage is fine — a deck with a `guilt` bridge and no `guilt`
+  reflection falls the reflection through to `primary`.
+  ⚠️ The Wave 4 seam is deliberately **more general than this** (`Map<String,
+  String>?`, beat kind → id) so that revisiting D9 is never a signature change.
+  The pairing is enforced in the Wave 5 selector, which is where policy belongs.
+- **D10 · `compute()` DROPPED.** Benchmarked rather than estimated a second time
+  (827 KB asset, 99 decks, 778 variants): **cold parse median 11.2 ms** (min 6.1,
+  max 51 on the JIT-warm-up iteration), **warm lookup 27 µs** — 1000 lookups in
+  27 ms. Selection is a map lookup over decks `NameStoriesService` already parses
+  once and caches for process life. The original 30–60 ms estimate was for
+  *generation*, which this architecture no longer does; spawning an isolate and
+  serialising the deck list across it would plausibly cost more than the 11 ms it
+  saves. Caveat recorded: measured on the dev VM (JIT), not an AOT device build.
+- **D11 · NO kill-switch flag.** `primary` fallback is already the safety net,
+  and "off" is byte-identical to what ships today (Wave 4 proves this over all 99
+  decks). Blast radius is genuinely small: no network, no LLM, every variant is
+  founder-reviewed content that cleared the ship gate, and the gate forbids
+  scripture in these two slots — so the worst failure is wrong-but-authored
+  English, never a fabricated verse.
+  ⚠️ **Consequence, accepted knowingly:** unlike `collectible_names`, the decks
+  are **bundle-only** — no `refreshPublicCatalogsFromSupabase` path — so with no
+  flag there is *no server-side lever at all*. Changing course means an app
+  release. This was put to the founder explicitly and chosen over the recommended
+  default-on flag.
+- **D12 · Rotation: seen on flow COMPLETION, id latched in flow state, cycle when
+  exhausted.** Marking on *entry* would burn a variant the user never read and
+  swap the text under anyone who backed out and re-entered. Marking on completion
+  makes re-rolls and restored sessions stable for free — they re-resolve to the
+  same id because the seen-set has not moved. When every variant for a deck has
+  been seen, **clear the set and cycle** rather than freezing on `primary`:
+  repetition is unavoidable by then, and cycling is the better repetition.
+- **D13 · One `deck_variant_selected` event on both surfaces**, with
+  `source: chip | category | rotation | fallback`. Onboarding picks the deck BY
+  chip, so its variant is contextual copy rather than a selection decision;
+  pooling it into one "personalisation worked" metric lets onboarding volume
+  swamp the only signal that means anything. One event segmented by property is
+  also the house pattern (see `docs/analytics/`), not parallel event names.
