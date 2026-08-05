@@ -184,11 +184,11 @@ reflection unless the deck closes on a pair-synergy beat*.
 generated. **No verification wave needed** — these slots are gate-forbidden from
 carrying scripture, so none of the five bars apply.
 
-**Bridges ✅ DONE 2026-08-05 — 99/99 decks, 505 variants.** Coverage per category:
-`far_from_allah` 91, `heavy` 88, `guilt` 82, `anxiety` 73, `unseen` 67, `rizq` 64,
-`unspoken` 33, `default` 7. Uneven by design: a category with nothing distinctive
-to say carries **no** variant and falls through to `primary`, which the gate now
-enforces (see below). **Reflections: not started** — 0/91.
+**✅ DONE 2026-08-05 — 778 variants: 505 bridge (99/99 decks) + 273 reflection
+(91/91).** Coverage per category: `guilt` 154, `heavy` 133, `far_from_allah` 126,
+`rizq` 112, `anxiety` 105, `unseen` 98, `unspoken` 43, `default` 7. Uneven by
+design: a category with nothing distinctive to say carries **no** variant and
+falls through to `primary`, which the gate now enforces (see below).
 
 Three things the content changed about the design:
 
@@ -199,9 +199,19 @@ Three things the content changed about the design:
    believes it rotated; the reader gets the same sentence again), and creates 99
    new copies of a string that drifts the first time one side is edited — the
    failure this repo has already paid for across the Name catalogue's mirrors. The
-   gate now **rejects any variant whose text repeats `primary` or a sibling**, and
-   `default` was re-defined to the one job it can do that `primary` cannot: the
-   *no-category* text, for `unmatched`.
+   gate now **rejects any variant whose text repeats anything else in the same
+   deck**, and `default` was re-defined to the one job it can do that `primary`
+   cannot: the *no-category* text, for `unmatched`.
+
+   The rule had to be widened once, by content: the first version was
+   beat-scoped, and `al-qahhar@1` promptly shipped one sentence as **both** its
+   `guilt` bridge and its `guilt` reflection — the line that opens the flow and
+   the line that closes it. A variant competes with everything the reader meets
+   in the same sitting, so the set is now deck-wide and seeded with every beat's
+   `primary` (so a variant cannot restate the takeaway either). It is
+   deliberately **not** applied to primaries against each other: decks
+   legitimately repeat there — `al-hameed@1`'s third story beat states the āyah
+   clause its verse beat then pins.
 
 2. **Seven decks needed that `default` urgently, and it was a live bug.** The
    chip-pair decks echo the chip label back — *"For the weight you named — a mind

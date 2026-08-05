@@ -309,6 +309,22 @@ void main() {
     final validProblemCategories =
         problemChips.map((c) => c.problemCategory).toSet();
     for (final d in decks) {
+      // Deck-scoped, not beat-scoped. A variant competes with everything else
+      // the same reader can meet in the same sitting — the bridge opens the
+      // flow and the reflection closes it, so a line reused across those two
+      // reads as the deck repeating itself, and the per-beat version of this
+      // check could not see it. (`al-qahhar@1` shipped exactly that: one
+      // sentence as both its guilt bridge and its guilt reflection.)
+      //
+      // Seeded with every beat's `primary` so a variant cannot restate the
+      // takeaway either. NOT applied to primaries against each other: decks
+      // legitimately repeat there — `al-hameed@1`'s third story beat states the
+      // āyah clause the verse beat then pins.
+      final deckText = <String>{
+        for (final b in (d['beats'] as List))
+          if (((b['primary'] ?? '') as String).trim().isNotEmpty)
+            ((b['primary'] ?? '') as String).trim(),
+      };
       for (final b in (d['beats'] as List)) {
         final kind = b['kind'] as String;
         final raw = b['variants'];
@@ -328,9 +344,6 @@ void main() {
         // the same sentence twice. It is also a drift surface of exactly the
         // kind this repo keeps paying for — edit `primary`, forget the copy,
         // and one category silently keeps serving the old words.
-        final seenText = <String>{
-          ((b['primary'] ?? '') as String).trim(),
-        };
         for (final v in (raw as List)) {
           final m = v as Map<String, dynamic>;
           final id = (m['id'] ?? '') as String;
@@ -388,14 +401,15 @@ void main() {
                   'script in its text. The gate cannot verify scripture that '
                   'reaches a screen this way, which is the whole reason this '
                   'slot is restricted');
-          expect(seenText.add(text.trim()), isTrue,
-              reason: '${d['deck_id']} $kind variant "$id" repeats text already '
-                  'in this beat (either `primary` or an earlier variant). That '
-                  'is not coverage — it spends a rotation slot to show the '
-                  'reader the same sentence again, and it duplicates a string '
-                  'that will drift the first time one copy is edited. A '
-                  'category with nothing distinctive to say should carry no '
-                  'variant and fall through to `primary`');
+          expect(deckText.add(text.trim()), isTrue,
+              reason: '${d['deck_id']} $kind variant "$id" repeats text that '
+                  'already appears somewhere in this deck — a beat `primary`, '
+                  'or another variant on this beat or the other personalisable '
+                  'one. That is not coverage: it spends a rotation slot to show '
+                  'the reader a sentence they have already had, and it '
+                  'duplicates a string that will drift the first time one copy '
+                  'is edited. A category with nothing distinctive to say should '
+                  'carry no variant and fall through to `primary`');
         }
       }
     }

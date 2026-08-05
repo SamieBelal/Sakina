@@ -103,7 +103,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "If you did not have to explain the racing first, what is the first thing you would say to Him tonight?"
+          },
+          {
+            "id": "heavy",
+            "text": "If you could set it down before speaking rather than after, what would you say first?"
+          },
+          {
+            "id": "guilt",
+            "text": "What would you say to Him tonight if you did not have to account for yourself before saying it?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -422,7 +436,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What did you ask forgiveness for once, and then stop believing had landed?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What did you ask for back when you were closer? It did not stop being answered when you stopped watching."
+          },
+          {
+            "id": "unseen",
+            "text": "What did you ask for that nobody else knew about? Nobody watching was never the same as nobody answering."
+          }
+        ]
       }
     ],
     "sources": [
@@ -614,7 +642,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Name whoever is deciding your money this month. Whose hand is theirs inside?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Name the decision you have been running all night. Who is actually making it?"
+          },
+          {
+            "id": "unseen",
+            "text": "Name whoever has a say over your life and has never looked at you properly. Who has a say over them?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -778,7 +820,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Separate the two tonight: what you actually did, and what you think it did to Him. Which one have you been carrying?"
+          },
+          {
+            "id": "heavy",
+            "text": "Sort tonight's weight into two piles — the thing, and the damage you imagine it did to Him. Which pile is bigger?"
+          },
+          {
+            "id": "anxiety",
+            "text": "What has your mind been treating as damage on His side? Check whether that half is real."
+          }
+        ]
       }
     ],
     "sources": [
@@ -1083,7 +1139,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "What have you been bracing for tonight? What changes if being made safe was never something you rise to?"
+          },
+          {
+            "id": "rizq",
+            "text": "What margin have you been building so nothing can catch you out? What was it standing in for?"
+          },
+          {
+            "id": "unseen",
+            "text": "You are the one who makes everyone else feel safe. Who does that for you?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -1269,7 +1339,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Who have you told the truth to that did not take it? What would you keep doing if reinforcement were coming rather than agreement?"
+          },
+          {
+            "id": "unspoken",
+            "text": "What could you not make anyone understand? What changes if agreement was never the thing being sent?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What are you still doing that nobody around you is doing with you? Name what would keep you doing it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -1580,7 +1664,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What have you concluded you are made of, based on what you keep doing? Who did the making?"
+          },
+          {
+            "id": "unseen",
+            "text": "Where have you decided that nobody meant you? Name who did."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Where have you been living as though you were unwanted rather than unmade? Only one of those has an answer tonight."
+          }
+        ]
       }
     ],
     "sources": [
@@ -1891,7 +1989,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have priced exactly what you need. What arrived that was never on the list?"
+          },
+          {
+            "id": "unseen",
+            "text": "Who turned up in your life that you never asked for? Say their name."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been counting what is missing. Count one thing that arrived unasked for."
+          }
+        ]
       }
     ],
     "sources": [
@@ -2202,7 +2314,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What have you been rehearsing how to confess? It was known before the rehearsing started."
+          },
+          {
+            "id": "unspoken",
+            "text": "What is the thing you cannot get into words? What changes if it was never going to need them?"
+          },
+          {
+            "id": "unseen",
+            "text": "What explanation have you been assembling that nobody ever asked you for?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -2370,7 +2496,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Name the loss you were never given room to put down. What part of it does not end?"
+          },
+          {
+            "id": "unseen",
+            "text": "Name what you are grieving that nobody around you registered. What in it outlasts every one of them?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Name the loss your mind spends the night trying to prevent. Which part of it cannot be lost?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -2520,7 +2660,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Name the stretch when you stopped. What did you decide the stopping proved?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Name the stretch when you went quiet. What do you imagine was let go of while you were not looking?"
+          },
+          {
+            "id": "heavy",
+            "text": "Name what you have not been able to keep up. What do you think was holding you the whole time?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -2652,7 +2806,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You have been asking to be given light. What would it take to ask for the other thing instead?"
+          },
+          {
+            "id": "heavy",
+            "text": "You have been asking for just enough light to get through. What was asked for at the end of that prayer was something else."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been asking to be forgiven. What changes if you asked to be lit instead?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -2828,7 +2996,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Name the door you keep checking. Now name who you have been treating as the one who decides."
+          },
+          {
+            "id": "guilt",
+            "text": "Name the door you believe is shut because of you. Who did you decide was holding it?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Name the way back you think is closed. Who did you appoint as its gatekeeper?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -2976,7 +3158,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "What was taken, and how much of tonight's weight is the space it left? Where do you think it went?"
+          },
+          {
+            "id": "rizq",
+            "text": "What got tighter and then stayed tighter? Where do you actually think it went?"
+          },
+          {
+            "id": "guilt",
+            "text": "What was taken that you read as a sentence passed on you? Where does the line about withholding actually end?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -3192,7 +3388,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "How many times have you run the numbers to be sure nothing is coming? The certainty is the part the oath is spent on."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "How certain are you that nothing is coming for you in particular? How old is that certainty?"
+          },
+          {
+            "id": "heavy",
+            "text": "When did you stop expecting anything to lift? Notice how much of tonight is the certainty rather than the fact."
+          }
+        ]
       }
     ],
     "sources": [
@@ -3539,7 +3749,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have been waiting for it to be held against you. Every hour so far was inside that wait. What did you do with them?"
+          },
+          {
+            "id": "anxiety",
+            "text": "What consequence are you waiting to land? Every hour you have had was inside that waiting."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are waiting to be dealt with. What would you do with tonight if it were a gift rather than a delay?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -3719,7 +3943,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you stopped asking for because you had asked too often? That supply does not run down."
+          },
+          {
+            "id": "guilt",
+            "text": "What request did you retire because you decided you had used up your allowance?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What did you stop asking for when you went quiet? Nothing about the asking had run out."
+          }
+        ]
       }
     ],
     "sources": [
@@ -3867,7 +4105,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "How far along did you decide you had to get before you could be met? The acceptance meets people mid-road."
+          },
+          {
+            "id": "unseen",
+            "text": "How many times have you started again with nobody counting? What if the count was never the requirement?"
+          },
+          {
+            "id": "heavy",
+            "text": "What makes the going back heavier than the thing itself? Name what you decided it proved."
+          }
+        ]
       }
     ],
     "sources": [
@@ -4003,7 +4255,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "You have mapped every option and not one settles. What if being shown were the point rather than the failure?"
+          },
+          {
+            "id": "guilt",
+            "text": "You know you should turn back and you do not know how. Which of those two have you been treating as the sin?"
+          },
+          {
+            "id": "heavy",
+            "text": "You do not know which thing to pick up first. What if you were only ever shown the next step?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -4163,7 +4429,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Who have you decided has more right to lean than you? Now reconsider."
+          },
+          {
+            "id": "anxiety",
+            "text": "What are you holding up tonight that you believe depends on you alone? Check that belief."
+          },
+          {
+            "id": "rizq",
+            "text": "Everyone depends on you. Name who you depend on."
+          }
+        ]
       }
     ],
     "sources": [
@@ -4317,7 +4597,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Which part of tonight's weight was never assigned to you? Name one thing you could hand over."
+          },
+          {
+            "id": "rizq",
+            "text": "Which future have you been doing the arithmetic on? Who already holds it?"
+          },
+          {
+            "id": "guilt",
+            "text": "What are you still holding because putting it down would look like not caring?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -4471,7 +4765,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "What has nobody asked you about? What happens if the words were never the requirement?"
+          },
+          {
+            "id": "heavy",
+            "text": "What could you not explain to anyone who asked? Name what it costs you to keep translating it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have not been able to word a prayer in weeks. What would you say if wording were not required?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -4631,7 +4939,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You stopped asking because nothing came back. What came back that you never counted?"
+          },
+          {
+            "id": "guilt",
+            "text": "You assume you are being passed over, and you think you know why. What has come back anyway?"
+          },
+          {
+            "id": "rizq",
+            "text": "You have asked for the same relief every month. What arrived in that time that you did not count?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -4785,7 +5107,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What have you been treating as a crime that is partly an injury? What would healing that look like?"
+          },
+          {
+            "id": "anxiety",
+            "text": "What is your mind circling that has not healed? What if repair were the smaller request?"
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot say where it hurts. What would you ask for if you did not have to locate it first?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -4927,7 +5263,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Name something you did in an empty room this week that you would not want seen. It was attended either way."
+          },
+          {
+            "id": "heavy",
+            "text": "Name the hour this week that had no witnesses. Somebody went up with it."
+          },
+          {
+            "id": "anxiety",
+            "text": "Name what you do at 3am that nobody has ever seen. You were not unattended in it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -5286,7 +5636,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "The label you give yourself is true. What is the truer sentence you have not been using?"
+          },
+          {
+            "id": "unseen",
+            "text": "The description people use for you is accurate and small. What is the larger one already in use?"
+          },
+          {
+            "id": "heavy",
+            "text": "You have been living inside the smaller true sentence about yourself. Say the larger one out loud."
+          }
+        ]
       }
     ],
     "sources": [
@@ -5440,7 +5804,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You have been praying into what feels like an empty room. What if the silence were a pause between two speakers?"
+          },
+          {
+            "id": "guilt",
+            "text": "You read the silence as not being worth answering. Every line of that answer begins the same way."
+          },
+          {
+            "id": "unspoken",
+            "text": "You have run out of ways to say it. What if the wording was never the part being listened to?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -5731,7 +6109,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "What does your mind circle at night — the consequence, or the exposure? Which one is actually the fear?"
+          },
+          {
+            "id": "heavy",
+            "text": "How much of tonight's weight is the effort of not being found out? Set that part down first."
+          },
+          {
+            "id": "unspoken",
+            "text": "What could you not say to anyone? It was named once, in private, and no one else was ever told."
+          }
+        ]
       }
     ],
     "sources": [
@@ -5921,7 +6313,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you cut because there was not enough to go round? Check whether it was the room that ran out."
+          },
+          {
+            "id": "anxiety",
+            "text": "What is there no room for in your head tonight? That is news about where you are."
+          },
+          {
+            "id": "guilt",
+            "text": "Where have you decided there is no longer room for you? It was never the room that was missing."
+          }
+        ]
       }
     ],
     "sources": [
@@ -6117,7 +6523,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "List what has power over you tonight. Now mark which of them are ropes."
+          },
+          {
+            "id": "guilt",
+            "text": "The case you have built against yourself feels solid. Who made it, and did they know what they were making?"
+          },
+          {
+            "id": "rizq",
+            "text": "Name the number that frightens you. Who made it, and did they know what they had made?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -6295,7 +6715,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Name who you are carrying this away from. Who do you think is with them?"
+          },
+          {
+            "id": "unspoken",
+            "text": "Name the person who would have understood, and is not here. Who is with them tonight?"
+          },
+          {
+            "id": "rizq",
+            "text": "Name who you are far from because of the work. Who is with them while you cannot be?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -6455,7 +6889,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You cannot mean the words yet. What would you say tonight anyway?"
+          },
+          {
+            "id": "heavy",
+            "text": "You have been saying the right things and meaning none of them. The narration keeps both — which one is tonight?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped saying anything because it all felt hollow. What would you say tonight, hollow and all?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -6615,7 +7063,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "What do you still believe and no longer feel? He asked to be shown, and was not rebuked for it."
+          },
+          {
+            "id": "rizq",
+            "text": "You know provision is guaranteed. What does your account say, and what would it take to be shown?"
+          },
+          {
+            "id": "guilt",
+            "text": "You think needing proof is a fault. What would you ask to be shown, if it were not?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -6745,7 +7207,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "What are you still carrying that you were already forgiven for? Ask for it gone rather than excused."
+          },
+          {
+            "id": "anxiety",
+            "text": "What does your mind return to nightly that is already settled? What would you ask for instead?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows it is still sitting there. What would you ask for, if you could ask for it to be gone?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -6923,7 +7399,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What amount did you set yourself that you keep failing? Who set the number you are actually held to?"
+          },
+          {
+            "id": "heavy",
+            "text": "What have you run out of capacity for? The number came down; nobody rose to meet it."
+          },
+          {
+            "id": "rizq",
+            "text": "You are working every hour there is. Name the gap that no amount of resolve has ever closed."
+          }
+        ]
       }
     ],
     "sources": [
@@ -7083,7 +7573,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Everyone got something and nobody noticed that you did not. What did you leave out of the sum?"
+          },
+          {
+            "id": "guilt",
+            "text": "You assume you got less because you deserved less. What were you already taking home?"
+          },
+          {
+            "id": "heavy",
+            "text": "You run the sum and it comes out short every time. Name what is not in it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -7261,7 +7765,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You are guarding what is left. Name what you gave away — that is the part you still have."
+          },
+          {
+            "id": "guilt",
+            "text": "Name one thing you gave away this year. That part never depended on the rest of you."
+          },
+          {
+            "id": "unseen",
+            "text": "Name what you gave away that nobody saw. That is exactly the part you still have."
+          }
+        ]
       }
     ],
     "sources": [
@@ -7415,7 +7933,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You concluded this is a punishment aimed at you. Hold that against the category it actually belongs to."
+          },
+          {
+            "id": "heavy",
+            "text": "It is still happening and you have stopped expecting it to stop. What have you concluded about yourself from that?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has registered how long this has gone on. What did you decide that meant about you?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -7605,7 +8137,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your ledger has one column. Name one entry in it that was never entered anywhere else."
+          },
+          {
+            "id": "heavy",
+            "text": "How much of tonight's weight is an account you keep against yourself? Nothing in it was ever filed."
+          },
+          {
+            "id": "rizq",
+            "text": "You have read the shortage as a debit against your name. What has actually been entered?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -7748,7 +8294,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you been measuring your provision against today? What happens if you let that comparison go?"
+          },
+          {
+            "id": "guilt",
+            "text": "What version of yourself have you been measuring against? It does not exist. What happens if you let it go?"
+          },
+          {
+            "id": "unseen",
+            "text": "Who have you been comparing yourself to that never entered you in the comparison at all?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -7920,7 +8480,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What do you think you are too late to come back from? Someone was genuinely last."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What window do you think closed on you? Nothing had been given away by the time he arrived."
+          },
+          {
+            "id": "rizq",
+            "text": "What opportunity do you think passed you by? Somebody was genuinely last, and his place was kept."
+          }
+        ]
       }
     ],
     "sources": [
@@ -8082,7 +8656,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unspoken",
+            "text": "You could not word it. What if the quiet you got back were a shape rather than a silence?"
+          },
+          {
+            "id": "anxiety",
+            "text": "You have been listening for a reply in the register you use with people. What arrived instead?"
+          },
+          {
+            "id": "guilt",
+            "text": "You read the silence as being cut off. What changes if it were the only form the height permits?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -8225,7 +8813,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "What is your mind turning over tonight? It was written before you had a word for it."
+          },
+          {
+            "id": "guilt",
+            "text": "What did you do that you assume caught Him out? The answer for it was written first."
+          },
+          {
+            "id": "rizq",
+            "text": "What shortfall are you staring at? It was accounted for before you were."
+          }
+        ]
       }
     ],
     "sources": [
@@ -8397,7 +8999,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Say it once, slowly. Then look again at the thing you called the biggest part of today."
+          },
+          {
+            "id": "rizq",
+            "text": "Say it once, slowly. Then look again at the number you have been carrying all day."
+          },
+          {
+            "id": "guilt",
+            "text": "Say it once, slowly. Then look again at the thing you decided was the size of you."
+          }
+        ]
       }
     ],
     "sources": [
@@ -8550,7 +9166,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you ruled out because you cannot see how the money would arrive?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What have you ruled out because you cannot picture a way back? There was no precedent for the first thing He made either."
+          },
+          {
+            "id": "guilt",
+            "text": "What version of yourself have you ruled out because you could not picture it?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -8698,7 +9328,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What did you bury because of what you keep doing? Nothing has to be salvageable first."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What part of your practice did you decide was gone for good? The verse never says they deserved it."
+          },
+          {
+            "id": "unseen",
+            "text": "What died in you that nobody noticed? It does not have to be noticed to be raised."
+          }
+        ]
       }
     ],
     "sources": [
@@ -8851,7 +9495,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have read it as the verdict on your life. What would you stop having to explain tonight?"
+          },
+          {
+            "id": "heavy",
+            "text": "You have carried it as evidence against your whole life. What would you set down if it were a line rather than a verdict?"
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep trying to locate the mistake that caused this. What if there were nothing to locate?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -9017,7 +9675,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Fear is the only thing tonight with a name. Look back at a year like this one — what was carrying you?"
+          },
+          {
+            "id": "rizq",
+            "text": "You can name the shortfall precisely and nothing else. What carried you through the last one?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot feel any goodness in this. Look back — what was carrying you the last time you could not either?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -9191,7 +9863,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "What would you say last, if you were saying everything? He is already closer to it than you are."
+          },
+          {
+            "id": "unseen",
+            "text": "What has nobody ever been let near? What is it costing you to keep holding it alone?"
+          },
+          {
+            "id": "heavy",
+            "text": "How much of the weight is holding it alone? He is already nearer to it than you are."
+          }
+        ]
       }
     ],
     "sources": [
@@ -9335,7 +10021,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you not asked for because of the kind of day you had? There was never a debt either way."
+          },
+          {
+            "id": "heavy",
+            "text": "You are too far behind on your own scorecard to ask. What would you ask for if there were no card?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "What have you stopped asking for since you started keeping score? He loses nothing whichever way today went."
+          }
+        ]
       }
     ],
     "sources": [
@@ -9525,7 +10225,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Name who you cannot keep safe. Now name what your grip was ever actually holding."
+          },
+          {
+            "id": "guilt",
+            "text": "Name what you failed to hold. What happened to it after your hands came off?"
+          },
+          {
+            "id": "rizq",
+            "text": "Name what you cannot guarantee for them. Whose keeping was it resting on?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -9672,7 +10386,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Something was done to you and nobody acknowledged it. What would you put down if the hearing were scheduled?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind reopens the case nightly. What would actually close it?"
+          },
+          {
+            "id": "unspoken",
+            "text": "You could never prove it, so you never said it. What would you put down if proving were not the requirement?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -9829,7 +10557,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you been trying to work out about your share? You were never in a position to compute it."
+          },
+          {
+            "id": "guilt",
+            "text": "You have supplied your own answer to why. What information were you actually working from?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been asking why He is quiet. What have you been trying to work out that you cannot?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -9977,7 +10719,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Saying anything good tonight would feel dishonest. Say one thing anyway that is not about you."
+          },
+          {
+            "id": "guilt",
+            "text": "You feel like a fraud saying any of it. Name one thing that is true regardless of you."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot produce the feeling. Name one thing you would praise if feeling were not required."
+          }
+        ]
       }
     ],
     "sources": [
@@ -10120,7 +10876,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You half-decided it did not count because nobody saw. What would you stop rehearsing tonight?"
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep rehearsing the account in case you are asked. Who were you preparing it for?"
+          },
+          {
+            "id": "heavy",
+            "text": "You have been keeping the record yourself. What would you put down if someone else were keeping it?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -10273,7 +11043,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you been in awe of that is itself going to end?"
+          },
+          {
+            "id": "guilt",
+            "text": "What have you been standing in awe of in yourself — and only the failures?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You approach Him braced. What have you assumed nearness would cost you?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -10416,7 +11200,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Say the names of the people you cannot get back to. That is the whole requirement."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody is going to gather you back to anyone. Say the two or three names anyway."
+          },
+          {
+            "id": "guilt",
+            "text": "You think you are not the kind of person who ends up with them. Say their names."
+          }
+        ]
       }
     ],
     "sources": [
@@ -10582,7 +11380,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind made it the largest object in the room. Say out loud what it is smaller than."
+          },
+          {
+            "id": "rizq",
+            "text": "Name the number that is looming. Now say out loud what it is smaller than."
+          },
+          {
+            "id": "guilt",
+            "text": "Name the thing that looms over everything else about you. Now name what it is not bigger than."
+          }
+        ]
       }
     ],
     "sources": [
@@ -10725,7 +11537,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have managed the gap between the two versions for years. What would you stop explaining?"
+          },
+          {
+            "id": "heavy",
+            "text": "Keeping the two versions apart is most of the tiredness. What would you stop performing tonight?"
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not describe the version only you have seen. What if it never needed describing?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -10873,7 +11699,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Good news arrives and you look for the catch. What have you stopped asking for because of what you are?"
+          },
+          {
+            "id": "rizq",
+            "text": "Something finally came in and you are waiting for it to be taken back. What have you stopped asking for?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind is already working out how it goes wrong. What did you stop asking for to avoid that?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -11026,7 +11866,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You cannot receive anything without owing for it. What have you been trying to deserve?"
+          },
+          {
+            "id": "rizq",
+            "text": "Every kindness is an entry on a ledger you are behind on. Name one thing that was never a transaction."
+          },
+          {
+            "id": "heavy",
+            "text": "How much of the weight is what you feel you owe people? Name one thing that was never a debt."
+          }
+        ]
       }
     ],
     "sources": [
@@ -11174,7 +12028,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Name what did not come. Now notice which door you have been blaming yourself for not knocking on."
+          },
+          {
+            "id": "guilt",
+            "text": "You decided it did not come because of you. Whose was it to give?"
+          },
+          {
+            "id": "heavy",
+            "text": "You stopped asking for that one. Name it once, and notice who else could have given it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -11297,7 +12165,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You are holding it up alone and nobody offered. Which part of it was ever resting on you?"
+          },
+          {
+            "id": "guilt",
+            "text": "You think that if you stop bracing it falls, and that it would be your fault. Which part was resting on you?"
+          },
+          {
+            "id": "rizq",
+            "text": "You are carrying a whole household on your own strength. Which part was ever actually yours to hold?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -11469,7 +12351,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have counted the months. What would you do with tonight if the term were fixed rather than open?"
+          },
+          {
+            "id": "guilt",
+            "text": "You have counted how long you have been like this. What would you do with tonight if it had an edge?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have counted how long since any of it felt like anything. What would you do with tonight?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -11659,7 +12555,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You tried once and filed the failure as the verdict. What would you start tonight?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You came back once and it did not hold. What would you begin, if beginning were what He is known for?"
+          },
+          {
+            "id": "heavy",
+            "text": "You do not have another start in you. What would you start if the starting were not yours to supply?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -11802,7 +12712,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You are the only one watching it, so you have not stopped. What was never yours to authorise?"
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot watch the thing your whole family depends on. Who is over it?"
+          },
+          {
+            "id": "guilt",
+            "text": "You have appointed yourself auditor of your own soul. Who already has that job?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -11945,7 +12869,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You totalled the day and the total is bad. What did you leave off the itemised list?"
+          },
+          {
+            "id": "heavy",
+            "text": "Today felt as though it produced nothing. Name one thing that was entered anyway."
+          },
+          {
+            "id": "rizq",
+            "text": "Nobody paid you for most of what you did today. Name one of those things."
+          }
+        ]
       }
     ],
     "sources": [
@@ -12105,7 +13043,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You stopped expecting to feel anything in prayer. What have you written off as finished?"
+          },
+          {
+            "id": "guilt",
+            "text": "You wrote off the version of you that used to care. What did you decide had died?"
+          },
+          {
+            "id": "rizq",
+            "text": "The work dried up and you stopped expecting it back. What have you written off?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -12301,7 +13253,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You did everything right and nobody raised you for it. What would you have to put down first?"
+          },
+          {
+            "id": "guilt",
+            "text": "You have been trying to earn your way back up. Name what you would have to let go of."
+          },
+          {
+            "id": "rizq",
+            "text": "You have worked and worked and nothing moved. What are you holding onto to stay where you are?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -12503,7 +13469,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You are afraid of what you would be caught in the middle of. What ground would you want instead?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are afraid of where you would be standing if it came tonight. What ground would you want?"
+          },
+          {
+            "id": "heavy",
+            "text": "You are tired in a way that sleep does not fix. What ground would you want to be standing on?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -12687,7 +13667,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You could list everyone your age who is further along. What if the order was set before any of you arrived?"
+          },
+          {
+            "id": "guilt",
+            "text": "You think you were passed over because of what you are. Who set the order?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has noticed that you have not moved. What if the order was never about being noticed?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -12871,7 +13865,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind runs the sum nightly and it comes out short. What was measured in before you got here?"
+          },
+          {
+            "id": "guilt",
+            "text": "You think there is less because you deserve less. What was apportioned before you arrived?"
+          },
+          {
+            "id": "unseen",
+            "text": "You ration so that everyone else has enough. What was measured in for you?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -13023,7 +14031,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You stopped expecting fairness for yourself, and think that is correct. What was never in doubt?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nothing has ever been adjudicated in your favour. What were you preparing to argue for?"
+          },
+          {
+            "id": "rizq",
+            "text": "You have watched who gets what too many times to expect fair. What were you going to argue?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -13170,7 +14192,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "The people who decide your income really do decide it. What changes if they are not the last word?"
+          },
+          {
+            "id": "guilt",
+            "text": "The habit really does have power over you. What changes tonight if it is not final?"
+          },
+          {
+            "id": "heavy",
+            "text": "What is pressing on you is genuinely strong. What changes if strong is not the same as final?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -13318,7 +14354,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You decided that what you are is a mistake. What would you look like if it were chosen?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody looks at you properly. What would you look like if you stopped adjusting for them?"
+          },
+          {
+            "id": "anxiety",
+            "text": "You spent the whole day monitoring how you come across. What would you look like if you stopped?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -13441,7 +14491,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "What have you decided He is, based on what happened to you? Hold it loosely tonight."
+          },
+          {
+            "id": "guilt",
+            "text": "The God you are hiding from is a picture you built. What is in that picture?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has a precise model of how He will respond. Where did it come from?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -13584,7 +14648,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Money is behaving as though it had the final say. Name what it was already refused in front of."
+          },
+          {
+            "id": "guilt",
+            "text": "The thing you keep going back to acts as though it owns you. Name what it was refused in front of."
+          },
+          {
+            "id": "unseen",
+            "text": "The people with power over you behave as though it were theirs by nature. Name what outranks it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -13786,7 +14864,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "What have you been treating as your standing? Ask it something and notice what it says back."
+          },
+          {
+            "id": "heavy",
+            "text": "You lost standing and it has not stopped hurting. Was it ever a real source of it?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You built your standing on something that could not speak and could not guide. Name it."
+          }
+        ]
       }
     ],
     "sources": [
@@ -13988,7 +15080,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have decided the habit cannot be broken. Name what it is certain of, and who was certain before it."
+          },
+          {
+            "id": "heavy",
+            "text": "Something has come at you so long you stopped expecting it to stop. Name it, and name what stopped."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The drift feels as though it has its own momentum now. What have you decided cannot be stopped?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -14194,7 +15300,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You have been shouting to keep something upright. Say the seven quiet words instead."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been pushing harder because harder is all you have. What stops needing you if you stop?"
+          },
+          {
+            "id": "guilt",
+            "text": "You have been making up the shortfall with effort. Notice what the effort was never holding."
+          }
+        ]
       }
     ],
     "sources": [
@@ -14382,7 +15502,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind is negotiating with four things at once. Which of them actually has a vote?"
+          },
+          {
+            "id": "rizq",
+            "text": "You answer to the market, the bills, and what people expect. Which of them has a real vote?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been serving several things and calling one of them Him. Which was ever real?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -14554,7 +15688,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have been circling the same failure and calling it stuck. What if it were where you were found?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been in the same place for months and named it drift. What if that were where you were found?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has come looking for you where you are. What changes if being found needed no search?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -14732,7 +15880,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "The attention is the exhausting part. What are you supervising that is already administered?"
+          },
+          {
+            "id": "unseen",
+            "text": "You are the only one watching, so you cannot stop. What is already being administered?"
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot stop monitoring the money for one day. What is already being run without you?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -14875,7 +16037,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You are waiting on somebody's yes. How small a part of the story is it?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has helped you and you stopped expecting them to. How much of the story was ever theirs?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs every way it could go wrong. Whose yes have you been waiting on?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -15057,7 +16233,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "You cannot find the thread, so you concluded there is not one. What was arranged while you slept?"
+          },
+          {
+            "id": "heavy",
+            "text": "You cannot see where this is going and you stopped trying. What was arranged that you never saw?"
+          },
+          {
+            "id": "guilt",
+            "text": "You concluded this is going nowhere because of what you are. What has been arranged anyway?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -15209,7 +16399,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "The waiting has gone on long enough to look like refusal. How long has it actually been?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The silence lasted long enough that you took it for a verdict. What if it were still ascending?"
+          },
+          {
+            "id": "guilt",
+            "text": "You think the delay is what you are owed. Put your number next to the one in the verse."
+          }
+        ]
       }
     ],
     "sources": [
@@ -15367,7 +16571,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have started to doubt your own account of it. Who else knows it happened?"
+          },
+          {
+            "id": "heavy",
+            "text": "The part nobody attended is the heaviest to carry. Who can still be called to it?"
+          },
+          {
+            "id": "unspoken",
+            "text": "You have never told anyone and you have started to doubt it happened. You are not the only one who knows."
+          }
+        ]
       }
     ],
     "sources": [
@@ -15510,7 +16728,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "What cost you something invisible? The smallness is not being politely overlooked."
+          },
+          {
+            "id": "guilt",
+            "text": "You assume the little you managed does not count. What did it cost you?"
+          },
+          {
+            "id": "rizq",
+            "text": "You gave when you did not have it to give. Name what that cost."
+          }
+        ]
       }
     ],
     "sources": [
@@ -15653,7 +16885,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "The day was ordinary and heavy and you got through it. Name one thing you walked past."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been looking for a sign and finding nothing. Name one thing you walked past today."
+          },
+          {
+            "id": "guilt",
+            "text": "You decided you would not be shown anything, given what you are. Name one thing you saw today."
+          }
+        ]
       }
     ],
     "sources": [
@@ -15807,7 +17053,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You want to come close and you expect to be crushed for it. Where have you been choosing between them?"
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You keep back because closeness has always cost you. What has it cost, and was that ever this?"
+          },
+          {
+            "id": "heavy",
+            "text": "You are too tired for anything that demands more. Where have you been choosing safe over close?"
+          }
+        ]
       }
     ],
     "sources": [
@@ -15955,7 +17215,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Name what you are most afraid of losing. Now name who it was ever registered to."
+          },
+          {
+            "id": "guilt",
+            "text": "You are afraid it will be taken because of what you did. On whose account is it held?"
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs the inventory of what could be taken. Whose account is any of it on?"
+          }
+        ]
       }
     ],
     "sources": [
