@@ -252,7 +252,7 @@ class _HowToSteps extends StatelessWidget {
     const steps = [
       'Touch and hold an empty spot on your Home Screen.',
       'Tap the + in the top corner.',
-      'Search “Sakina” and pick a widget (you’ll see two) and a size.',
+      'Search “Sakina” and pick a widget (you’ll see three) and a size.',
       'Tap Add Widget — you’re done.',
     ];
     return Container(

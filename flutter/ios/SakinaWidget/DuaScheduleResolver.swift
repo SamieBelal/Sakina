@@ -197,11 +197,22 @@ struct DuaRender {
     let isActive: Bool
     /// The instant urgency should be evaluated from (the timeline entry's date).
     let at: Date
-    /// True when we're NOT showing precise times — location was never granted
-    /// (`computed_at.lat == nil`) or we're on the stale/bundled fallback. The
-    /// home widget then shows an "Open Sakina to turn on precise times" hint,
-    /// since a widget extension can't request location itself (spec §9).
+    /// True when precise times are off because the app has no location
+    /// (`computed_at.lat == nil`). A widget extension cannot request location
+    /// itself, so the only thing it can do is point the user back into the app
+    /// (spec §9).
+    ///
+    /// Deliberately NOT set for the travel guard or a stale payload — see
+    /// [needsRefresh]. Conflating those was a real bug: a user who granted
+    /// location and then flew somewhere was told to "turn on precise times",
+    /// which they had already done.
     var promptEnable: Bool = false
+
+    /// True when we DO have the user's location but this payload cannot be
+    /// trusted for precise times — the time zone changed under the travel
+    /// guard, or we fell back to the bundled calendar. The fix is to open the
+    /// app so it recomputes, not to grant anything.
+    var needsRefresh: Bool = false
 }
 
 // MARK: - Pure helpers
@@ -247,9 +258,16 @@ func resolveDecoded(_ schedule: Schedule?,
         }
 
         if !stale {
-            // No location stamp ⇒ user never granted → prompt them to open the
-            // app (or after a tripped guard, opening re-computes at the new tz).
-            let prompt = schedule.computedAt.lat == nil || tripped
+            // Two different problems, two different messages.
+            //
+            // No location stamp ⇒ the app has no location, so precise times
+            // cannot be computed at all. The widget can only point inward.
+            //
+            // A tripped travel guard ⇒ we HAVE their location, it is simply the
+            // wrong city for this payload. Telling that user to "turn on precise
+            // times" is telling them to do something they already did.
+            let prompt = schedule.computedAt.lat == nil
+            let refresh = tripped && !prompt
             // Active window — but only if it's STILL within its bounds at this
             // instant. The payload names the window that was live when it was
             // BUILT; a pre-baked boundary entry (or a payload the app hasn't
@@ -271,7 +289,8 @@ func resolveDecoded(_ schedule: Schedule?,
                                  urgency: urgencyFor(active: a, at: date),
                                  isActive: true,
                                  at: date,
-                                 promptEnable: prompt)
+                                 promptEnable: prompt,
+                                 needsRefresh: refresh)
             }
             // Between: point at the next window. When the guard tripped, skip
             // precise upcoming windows and surface the next calendar one.
@@ -282,7 +301,8 @@ func resolveDecoded(_ schedule: Schedule?,
             if let n = candidate {
                 return DuaRender(window: n, urgency: .upcoming,
                                  isActive: false, at: date,
-                                 promptEnable: prompt)
+                                 promptEnable: prompt,
+                                 needsRefresh: refresh)
             }
         }
     }

@@ -88,6 +88,16 @@ abstract final class AnalyticsEvents {
   static const onboardingWidgetPreviewed = 'onboarding_widget_previewed';
   static const onboardingWidgetCtaTapped = 'onboarding_widget_cta_tapped';
   static const onboardingWidgetSkipped = 'onboarding_widget_skipped';
+
+  /// How the onboarding location ask resolved, fired only on the Duʿā Times
+  /// card's CTA path. Carries [propOutcome]:
+  /// `granted|denied|openedSettings|servicesOff`.
+  ///
+  /// This is the leading indicator for the whole precise-times funnel: the
+  /// system dialog is a one-shot resource, so the granted rate HERE bounds
+  /// everything downstream. Pair it with `dua_times_precise_state` to see how
+  /// many of the grants later lapse.
+  static const onboardingLocationResult = 'onboarding_location_result';
   static const String propWidgetKind = 'widget_kind';
   // First-visit hints (Wave F3 — what replaced the deleted tour). Without
   // these we cannot tell whether the Reflect hint moves the 13.0%-vs-36.8%
@@ -617,9 +627,42 @@ abstract final class AnalyticsEvents {
   /// Fired when the user grants location permission from the card affordance.
   static const String duaTimesLocationGranted = 'dua_times_location_granted';
 
-  /// Fired when the user denies (or has permanently denied) location from the
-  /// card affordance — the card degrades to calendar + soft-night windows.
+  /// Fired when the user denies location from the card affordance — the card
+  /// degrades to calendar + soft-night windows.
+  ///
+  /// **Narrowed 2026-08.** This used to also fire for the `deniedForever`
+  /// Settings round-trip, which was a lie: the user denied nothing there and
+  /// many granted seconds later in Settings. That case is now
+  /// [duaTimesLocationSettingsOpened]. Comparisons of the granted:denied ratio
+  /// across that date are not valid.
   static const String duaTimesLocationDenied = 'dua_times_location_denied';
+
+  /// Fired when the tap routed the user to an OS Settings page instead of
+  /// resolving in-flow — permission was `deniedForever`, or the app grant is
+  /// held but device Location Services are off. Props: `precise_state`.
+  static const String duaTimesLocationSettingsOpened =
+      'dua_times_location_settings_opened';
+
+  /// The deduped state-of-the-world event for precise times: fired when the
+  /// state CHANGES, not per rebuild (same rationale as [duaScheduleBuilt] —
+  /// `rebuild()` runs on every Control-Center bounce).
+  ///
+  /// THE event that verifies the 2026-08 re-nag fix: `never_asked` following a
+  /// prompt must go to zero, and `permission_lapsed` sizes the iOS "Allow Once"
+  /// cohort this fix exists to rescue. Props: `precise_state`, `permission`.
+  static const String duaTimesPreciseState = 'dua_times_precise_state';
+
+  /// The paused notice actually rendered. Without this we cannot tell "shown
+  /// and ignored" from "silently spent on a frame nobody saw" — the ambiguity
+  /// that made the 2026-08-03 device QA inconclusive. Props: `precise_state`.
+  static const String duaTimesPreciseNoticeShown =
+      'dua_times_precise_notice_shown';
+
+  /// The user dealt with that notice. `action` is `opened` (tapped through to
+  /// the steps) or `dismissed` (the ✕) — the ratio is the whole readout on
+  /// whether the notice is a help or a nuisance.
+  static const String duaTimesPreciseNoticeAction =
+      'dua_times_precise_notice_action';
 
   // ── Duʿā Times Live Activity (Lock Screen + Dynamic Island) ──
   // Phase 2 of Duʿā Times: the same active-window countdown promoted to the
@@ -691,6 +734,18 @@ abstract final class AnalyticsEvents {
   static const String propHasActive = 'has_active';
   static const String propHasNext = 'has_next';
   static const String propLocationPresent = 'location_present';
+
+  /// `working|never_asked|permission_lapsed|services_off|unresolved` — keep in
+  /// sync with `PreciseTimesState.wireName`.
+  static const String propPreciseState = 'precise_state';
+
+  /// What the user did with a surface that offers more than one exit — today
+  /// only [duaTimesPreciseNoticeAction] (`opened` vs `dismissed`).
+  static const String propAction = 'action';
+
+  /// `granted|services_off|denied|denied_forever|undetermined` — what the OS
+  /// said at the moment the state was resolved.
+  static const String propPermission = 'permission';
   static const String propCount = 'count';
   static const String propOutcome = 'outcome';
 
@@ -901,7 +956,11 @@ abstract final class AnalyticsEvents {
   static const String propHasAzm = 'has_azm';
   static const String propFirstTime = 'first_time';
   static const String propCleared = 'cleared';
-  static const String propAction = 'action';
+  // `propAction` is declared once, above, next to the duʿā-times notice that
+  // introduced it. Both branches added their own copy of the same `'action'`
+  // key, so the 2026-08-05 merge produced two declarations of one wire key —
+  // which Dart rejects, and which is how a later rename silently splits a
+  // funnel in half. Collapsed to the documented one.
   static const String propEntryPoint = 'entry_point';
   static const String propFormat = 'format';
   static const String propOnThisNight = 'on_this_night';
@@ -923,6 +982,44 @@ abstract final class AnalyticsEvents {
   static const String originJournalFeed = 'journal_feed';
   static const String originJournalCalendar = 'journal_calendar';
   static const String originOnThisNight = 'on_this_night';
+  // Gift-a-Dua funnel (2026-08-02). The gift affordance shipped with NO
+  // instrumentation at all, so its discoverability — the thing we actually
+  // doubt — was unmeasurable. Three steps, so a drop can be located:
+  //
+  //   gift_cta_shown     the Ameen screen rendered a gift affordance (once per
+  //                      result, NOT per rebuild — a scroll must not inflate it)
+  //   gift_preview_opened the user tapped through to the gift preview
+  //   gift_sent          the share sheet was invoked with the rendered pages
+  //
+  // shown → opened is the DISCOVERABILITY rate (does anyone find it?);
+  // opened → sent is the INTENT rate (having seen it, do they send it?).
+  // Conflating them would hide which half is broken.
+  //
+  // gift_cta_shown fires ONCE per result and carries NO placement: both the
+  // corner icon and the labeled CTA render together, so emitting one per
+  // affordance would double the impression count and halve every rate below it.
+  // gift_preview_opened and gift_sent DO carry [propPlacement], which is what
+  // actually answers "did the labeled CTA beat the corner icon" — the question
+  // the labeled CTA was added to settle.
+  //
+  // gift_sent carries [propPageCount] since a multi-page gift can be truncated
+  // by a share target that only accepts one image, and [propShareStatus]
+  // because `shareXFiles` completes when the sheet CLOSES however it closed:
+  // a dismissed sheet is not a sent gift and is never reported, while
+  // `unavailable` (platform can't tell) IS reported but stays separable from a
+  // confirmed `success` so the send rate can be read with the right caveat.
+  static const String giftCtaShown = 'gift_cta_shown';
+  static const String giftPreviewOpened = 'gift_preview_opened';
+  static const String giftSent = 'gift_sent';
+
+  // Values for [propPlacement] on the gift funnel.
+  static const String giftPlacementCornerIcon = 'ameen_corner_icon';
+  static const String giftPlacementPrimaryCta = 'ameen_labeled_cta';
+
+  static const String propPageCount = 'page_count';
+
+  /// `success` | `unavailable` — the platform's own verdict on the share.
+  static const String propShareStatus = 'share_status';
 
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/

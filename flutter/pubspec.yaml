@@ -96,9 +96,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  integration_test:
-    sdk: flutter
-
   flutter_lints: ^5.0.0
 
   # Direct dep for test/features/onboarding/second_name_teased_test.dart's
@@ -146,7 +143,6 @@ flutter:
     # separately below.
     - assets/images/widget_previews/
     - assets/icons/
-    - assets/patterns/
     - assets/illustrations/
     - assets/illustrations/main_screens/
     - assets/dua_calendar/

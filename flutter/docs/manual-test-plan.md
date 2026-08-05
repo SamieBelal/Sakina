@@ -631,7 +631,7 @@ mcp__onesignal__send_push_notification
 
 ## 16. Backend (Supabase RPCs, webhooks)
 
-Automated regression: `flutter/supabase/tests/backend_rls_test.sql` (47 assertions, runnable via `mcp__supabase__execute_sql`) and the Deno suite in `flutter/supabase/functions/revenuecat-webhook/index.test.ts` (14 tests, run with `deno test --no-check`). The on-device runbook below is the manual confirmation pass; expect both to pass before exercising it.
+Automated regression: `flutter/supabase/checks/backend_rls_audit.sql` (47 assertions, runnable via `mcp__supabase__execute_sql`) and the Deno suite in `flutter/supabase/functions/revenuecat-webhook/index.test.ts` (14 tests, run with `deno test --no-check`). The on-device runbook below is the manual confirmation pass; expect both to pass before exercising it.
 
 Run via Supabase MCP with service role; impersonate users via `set local role authenticated; set_config('request.jwt.claims', '{"sub":"<uid>","role":"authenticated"}', true);` inside a transaction (verified pattern).
 
@@ -656,7 +656,7 @@ Payload has **exactly 11 keys**: `xp`, `tokens`, `streak`, `daily_rewards`, `pro
   - INITIAL_PURCHASE → 200 `{status:"ok"}`, `user_subscriptions` row inserted, `has_active_premium_entitlement('<uid>')` → `true`.
   - CANCELLATION subscription (premium entitlement, future `expiration_at_ms`) → 200, `canceled_at` set, `expires_at` unchanged, entitlement still active until period end.
   - **CANCELLATION consumable** (no premium entitlement, product_id is a token / scroll SKU) → 200, `clawback_consumable_grant` RPC fires, `user_tokens.balance` (or `tier_up_scrolls`) decrements by SKU amount, audit row in `consumable_clawback_events` with `transaction_id` PK, idempotent on retries.
-  - EXPIRATION (with past `expiration_at_ms`) → 200, `has_active_premium_entitlement` → `false`. After CANCELLATION → EXPIRATION the `canceled_at` timestamp is **preserved** (per migration `20260426000000_preserve_canceled_at_on_absent_key.sql` — the upsert is key-presence-aware: absent JSON keys preserve stored values, explicit nulls still clear). Regression test in `supabase/tests/backend_rls_test.sql`.
+  - EXPIRATION (with past `expiration_at_ms`) → 200, `has_active_premium_entitlement` → `false`. After CANCELLATION → EXPIRATION the `canceled_at` timestamp is **preserved** (per migration `20260426000000_preserve_canceled_at_on_absent_key.sql` — the upsert is key-presence-aware: absent JSON keys preserve stored values, explicit nulls still clear). Regression test in `supabase/checks/backend_rls_audit.sql`.
 - Unauthorized POST → 401. GET → 405. RPC failure (clawback or upsert) → 500 so RC retries.
 
 **`clawback_consumable_grant()` RPC (added 2026-04-26):**
@@ -666,7 +666,7 @@ Service-role only (called from the edge function). Signature: `clawback_consumab
 
 ## 17. Public catalog & cross-user isolation
 
-Automated regression: same `flutter/supabase/tests/backend_rls_test.sql` covers anon catalog read (5 catalog tables) and cross-user RLS for 18 scoped tables, plus the RLS-on + has-policy audit. Run via `mcp__supabase__execute_sql`.
+Automated regression: same `flutter/supabase/checks/backend_rls_audit.sql` covers anon catalog read (5 catalog tables) and cross-user RLS for 18 scoped tables, plus the RLS-on + has-policy audit. Run via `mcp__supabase__execute_sql`.
 
 **Preconditions:** two signed-in accounts on two devices OR two simulators (or two impersonated UIDs via SQL).
 

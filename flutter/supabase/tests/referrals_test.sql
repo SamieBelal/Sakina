@@ -18,7 +18,7 @@
 --     OR referral_code (extended guard trigger).
 --   * service_role bypass: still works for the SECURITY DEFINER RPC writes.
 --
--- Pattern matches backend_rls_test.sql / freemium_gating_lockdown_test.sql:
+-- Pattern matches backend_rls_audit.sql / freemium_gating_lockdown_test.sql:
 -- one transaction, assertions inside a DO block, rollback at end. Run via:
 --   mcp__supabase__execute_sql query=$(cat referrals_test.sql)
 --

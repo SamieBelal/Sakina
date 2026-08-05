@@ -1560,7 +1560,7 @@ supabase/tests/ai_bypass_rpc_test.sql                       (existing - must sti
 supabase/tests/dismiss_iap_upsell_banner_test.sql           (existing)
 supabase/tests/freemium_gating_lockdown_test.sql            (existing)
 supabase/tests/sync_all_user_data_returns_verses_test.sql   (existing)
-supabase/tests/backend_rls_test.sql                         (existing)
+supabase/checks/backend_rls_audit.sql                         (existing)
 ```
 
 Expected: every file ends with `X / X passed` and no exceptions raised.

@@ -65,6 +65,35 @@ func payloadJSON(activeStart: Date, activeEnd: Date,
     """
 }
 
+/// Payload variant for the prompt/refresh split: `tz` and `lat` are the two
+/// fields that decide which message the widget shows.
+func payloadJSON(tz: String, lat: Double?,
+                 activeStart: Date, activeEnd: Date,
+                 nextStart: Date, nextEnd: Date,
+                 built: Date, through: Date) -> String {
+    let latField = lat.map { "\"lat\": \($0)," } ?? ""
+    return """
+    {
+      "active": {
+        "type": "friday_day",
+        "start_utc": \(millis(activeStart)),
+        "end_utc": \(millis(activeEnd)),
+        "is_all_day": true,
+        "location_dependent": false
+      },
+      "next": null,
+      "upcoming": [],
+      "urgency": "all_day",
+      "computed_at": {
+        "tz": "\(tz)",
+        \(latField)
+        "computed_through_utc": \(millis(through)),
+        "built_at_utc": \(millis(built))
+      }
+    }
+    """
+}
+
 func decode(_ json: String) -> Schedule {
     try! JSONDecoder().decode(Schedule.self, from: json.data(using: .utf8)!)
 }
@@ -133,6 +162,53 @@ do {
           "a window still within its bounds stays active")
     check(r.urgency == .allDay,
           "an ongoing all-day window keeps 'all_day' urgency")
+}
+
+// ---------------------------------------------------------------------------
+// The prompt/refresh split. `promptEnable` used to be
+// `lat == nil || tripped`, so a user who granted location and then travelled
+// was told to "turn on precise times" — something they had already done.
+// ---------------------------------------------------------------------------
+do {
+    let render = Date(timeIntervalSince1970: 1_785_000_000)
+    let activeStart = render.addingTimeInterval(-6 * hour)
+    let activeEnd = render.addingTimeInterval(12 * hour)
+    let built = render.addingTimeInterval(-6 * hour)
+    let through = render.addingTimeInterval(30 * day)
+    let here = TimeZone.current.identifier
+
+    // No location at all → a permission pointer, and NOT a refresh hint.
+    let noLoc = decode(payloadJSON(
+        tz: here, lat: nil,
+        activeStart: activeStart, activeEnd: activeEnd,
+        nextStart: activeStart, nextEnd: activeEnd,
+        built: built, through: through))
+    let a = resolveDecoded(noLoc, at: render) { fallbackSentinel(at: render) }
+    check(a.promptEnable, "no location stamp → prompt to open the app")
+    check(!a.needsRefresh, "no location is not a refresh problem")
+
+    // Located, but the device has moved to another time zone → refresh, and
+    // emphatically NOT a permission pitch.
+    let travelled = decode(payloadJSON(
+        tz: here == "Asia/Riyadh" ? "America/Los_Angeles" : "Asia/Riyadh",
+        lat: 21.4225,
+        activeStart: activeStart, activeEnd: activeEnd,
+        nextStart: activeStart, nextEnd: activeEnd,
+        built: built, through: through))
+    let b = resolveDecoded(travelled, at: render) { fallbackSentinel(at: render) }
+    check(!b.promptEnable,
+          "a travelled user already granted — never pitch permission at them")
+    check(b.needsRefresh, "a tripped travel guard asks for a refresh")
+
+    // Located and in the right place → say nothing.
+    let fine = decode(payloadJSON(
+        tz: here, lat: 21.4225,
+        activeStart: activeStart, activeEnd: activeEnd,
+        nextStart: activeStart, nextEnd: activeEnd,
+        built: built, through: through))
+    let c = resolveDecoded(fine, at: render) { fallbackSentinel(at: render) }
+    check(!c.promptEnable && !c.needsRefresh,
+          "a located, current payload shows no nudge at all")
 }
 
 print(failures == 0 ? "\nALL PASSED" : "\n\(failures) CHECK(S) FAILED")

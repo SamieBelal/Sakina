@@ -18,11 +18,10 @@ import 'package:sakina/core/constants/app_durations.dart';
 // Image export helper — shared by both reflection and dua share flows
 // ---------------------------------------------------------------------------
 
-Future<void> _exportAndShare({
+/// Rasterizes one already-mounted [RepaintBoundary] to a PNG in the temp dir.
+Future<XFile> _exportPng({
   required GlobalKey repaintKey,
-  required String shareText,
   required String fileName,
-  Rect? sharePositionOrigin,
 }) async {
   final boundary =
       repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
@@ -33,12 +32,7 @@ Future<void> _exportAndShare({
   final dir = Directory.systemTemp;
   final file = File('${dir.path}/$fileName');
   await file.writeAsBytes(bytes);
-
-  await Share.shareXFiles(
-    [XFile(file.path)],
-    text: shareText,
-    sharePositionOrigin: sharePositionOrigin,
-  );
+  return XFile(file.path);
 }
 
 /// The Sakina brand mark for share cards: the calligraphic **س** glyph
@@ -476,6 +470,12 @@ typedef ShareBuiltDuaFn = Future<void> Function({
   required List<DuaShareSection> sections,
   required String translation,
   Rect? sharePositionOrigin,
+
+  /// Fired when the gift was actually sent: the number of images, and the
+  /// platform's own verdict (`success`, or `unavailable` where the platform
+  /// cannot report). Deliberately NOT fired when the export throws OR when the
+  /// user dismisses the share sheet — neither is a sent gift.
+  void Function(int pageCount, String shareStatus)? onShared,
 });
 
 ShareBuiltDuaFn shareBuiltDuaCard = _defaultShareBuiltDuaCard;
@@ -486,6 +486,7 @@ Future<void> _defaultShareBuiltDuaCard({
   required List<DuaShareSection> sections,
   required String translation,
   Rect? sharePositionOrigin,
+  void Function(int pageCount, String shareStatus)? onShared,
 }) async {
   if (kIsWeb) {
     showDialog(
@@ -509,21 +510,60 @@ Future<void> _defaultShareBuiltDuaCard({
     return;
   }
 
+  // A four-stanza gift at readable type runs past a 1:2 aspect ratio. The PNG
+  // exports intact, but chat clients centre-crop anything that tall, so the
+  // recipient sees a sliver. Splitting the stanzas across pages keeps every
+  // image close to square — and the split follows the duʿā's own order
+  // (praise → salawat → ask → closing), never resequenced to front-load the
+  // ask, so the pages can still be recited straight through.
+  final pages = splitDuaSectionsForShare(sections);
+
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
       fullscreenDialog: true,
       builder: (_) => _SharePreviewScreen(
-        shareText: 'A dua for $need — from Sakina',
+        title: 'Gift a Dua',
+        shareLabel: 'Send this Gift',
+        shareIcon: Icons.card_giftcard_rounded,
+        shareText: 'I made this dua for you 🤲 — from Sakina',
         fileName: 'sakina_dua.png',
+        onShared: onShared,
         cardBuilder: (preview) => _BuiltDuaShareCard(
           need: need,
-          sections: sections,
+          sections: pages.first,
           translation: translation,
           preview: preview,
+          pageNumber: pages.length > 1 ? 1 : null,
+          pageCount: pages.length > 1 ? pages.length : null,
         ),
+        extraCardBuilders: [
+          for (var i = 1; i < pages.length; i++)
+            (preview) => _BuiltDuaShareCard(
+                  need: need,
+                  sections: pages[i],
+                  translation: translation,
+                  preview: preview,
+                  pageNumber: i + 1,
+                  pageCount: pages.length,
+                ),
+        ],
       ),
     ),
   );
+}
+
+/// Splits the stanzas into shareable pages, preserving their order.
+///
+/// Three or fewer stanzas stay on one card; beyond that the list is halved so
+/// neither page carries the full height. Balancing by stanza COUNT rather than
+/// text length is deliberate — it keeps the split stable and predictable
+/// instead of shifting as the model returns longer or shorter duʿās.
+@visibleForTesting
+List<List<DuaShareSection>> splitDuaSectionsForShare(
+    List<DuaShareSection> sections) {
+  if (sections.length <= 3) return [sections];
+  final mid = (sections.length / 2).ceil();
+  return [sections.sublist(0, mid), sections.sublist(mid)];
 }
 
 // ---------------------------------------------------------------------------
@@ -535,10 +575,34 @@ class _SharePreviewScreen extends StatefulWidget {
     required this.shareText,
     required this.fileName,
     required this.cardBuilder,
+    this.extraCardBuilders = const [],
+    this.title = 'Preview',
+    this.shareLabel = 'Share',
+    this.shareIcon = Icons.share_rounded,
+    this.onShared,
   });
+
+  /// Called only when the gift was actually sent — not on export failure and
+  /// not when the user dismisses the share sheet.
+  final void Function(int pageCount, String shareStatus)? onShared;
 
   final String shareText;
   final String fileName;
+
+  /// Additional pages beyond [cardBuilder], exported as their own images and
+  /// shared together. A single very tall card survives export intact but gets
+  /// centre-cropped by chat clients, so a long gift is split across pages that
+  /// each carry a shareable aspect ratio.
+  final List<Widget Function(bool preview)> extraCardBuilders;
+
+  /// Header label. Gift flows override the neutral 'Preview' (e.g. 'Gift a Dua').
+  final String title;
+
+  /// Primary-button label. Gift flows override 'Share' (e.g. 'Send this Gift').
+  final String shareLabel;
+
+  /// Primary-button icon. Gift flows swap in a gift glyph.
+  final IconData shareIcon;
 
   /// Builds the card widget. `true` = screen-sized preview, `false` = hi-res export.
   final Widget Function(bool preview) cardBuilder;
@@ -548,45 +612,73 @@ class _SharePreviewScreen extends StatefulWidget {
 }
 
 class _SharePreviewScreenState extends State<_SharePreviewScreen> {
-  final _exportKey = GlobalKey();
   bool _exporting = false;
+
+  List<Widget Function(bool preview)> get _pages =>
+      [widget.cardBuilder, ...widget.extraCardBuilders];
+
+  /// `sakina_dua.png` → `sakina_dua_1.png` for page 1 of a multi-page gift.
+  String _fileNameFor(int index) {
+    if (_pages.length == 1) return widget.fileName;
+    final dot = widget.fileName.lastIndexOf('.');
+    if (dot == -1) return '${widget.fileName}_${index + 1}';
+    return '${widget.fileName.substring(0, dot)}_${index + 1}'
+        '${widget.fileName.substring(dot)}';
+  }
 
   Future<void> _share() async {
     if (_exporting) return;
     setState(() => _exporting = true);
     HapticFeedback.mediumImpact();
 
-    // Insert offscreen hi-res card for export
-    final overlay = OverlayEntry(
-      builder: (_) => Positioned(
-        left: -2000,
-        child: RepaintBoundary(
-          key: _exportKey,
-          child: widget.cardBuilder(false),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(overlay);
-    await Future.delayed(const Duration(milliseconds: 300));
-
+    // Each page is mounted offscreen, rasterized, then removed — one at a time,
+    // so several hi-res cards never occupy the overlay (or memory) at once.
+    final files = <XFile>[];
     try {
+      for (var i = 0; i < _pages.length; i++) {
+        if (!mounted) return;
+        final key = GlobalKey();
+        final overlay = OverlayEntry(
+          builder: (_) => Positioned(
+            left: -2000,
+            child: RepaintBoundary(key: key, child: _pages[i](false)),
+          ),
+        );
+        Overlay.of(context).insert(overlay);
+        await Future.delayed(const Duration(milliseconds: 300));
+        try {
+          files.add(await _exportPng(
+            repaintKey: key,
+            fileName: _fileNameFor(i),
+          ));
+        } finally {
+          overlay.remove();
+        }
+      }
+
       if (!mounted) return;
       final box = context.findRenderObject() as RenderBox;
       final origin = box.localToGlobal(Offset.zero) & box.size;
-      await _exportAndShare(
-        repaintKey: _exportKey,
-        shareText: widget.shareText,
-        fileName: widget.fileName,
+      final result = await Share.shareXFiles(
+        files,
+        text: widget.shareText,
         sharePositionOrigin: origin,
       );
+      // `shareXFiles` completes when the sheet CLOSES, however it closed —
+      // so reporting unconditionally here would count every cancel as a sent
+      // gift and inflate the send rate. Only a non-dismissed result counts.
+      // `unavailable` (platform can't determine) is reported rather than
+      // dropped, but is passed through so it stays separable from a confirmed
+      // `success` when reading the funnel.
+      if (result.status != ShareResultStatus.dismissed) {
+        widget.onShared?.call(files.length, result.status.name);
+      }
     } catch (e) {
       debugPrint('[SHARE ERROR] $e');
       if (mounted) {
         showShareErrorSnackBar(ScaffoldMessenger.of(context));
       }
     } finally {
-      overlay.remove();
       if (mounted) setState(() => _exporting = false);
     }
   }
@@ -613,7 +705,7 @@ class _SharePreviewScreenState extends State<_SharePreviewScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    'Preview',
+                    widget.title,
                     style: AppTypography.labelMedium.copyWith(
                       color: AppColors.textSecondaryLight,
                     ),
@@ -632,9 +724,17 @@ class _SharePreviewScreenState extends State<_SharePreviewScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: widget.cardBuilder(true),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < _pages.length; i++) ...[
+                        if (i > 0) const SizedBox(height: AppSpacing.lg),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: _pages[i](true),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -662,8 +762,8 @@ class _SharePreviewScreenState extends State<_SharePreviewScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.share_rounded, size: 20),
-                  label: Text(_exporting ? 'Preparing...' : 'Share'),
+                      : Icon(widget.shareIcon, size: 20),
+                  label: Text(_exporting ? 'Preparing...' : widget.shareLabel),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -893,150 +993,296 @@ class ReflectionShareCard extends StatelessWidget {
 class DuaShareSection {
   final String label;
   final String arabic;
-  const DuaShareSection({required this.label, required this.arabic});
+
+  /// This stanza's OWN meaning. Carried so the gift card can sit each English
+  /// line directly under its Arabic instead of fusing all four into one
+  /// paragraph at the foot of the card. Optional — falls back to the whole-dua
+  /// translation when absent.
+  final String translation;
+
+  const DuaShareSection({
+    required this.label,
+    required this.arabic,
+    this.translation = '',
+  });
 }
 
 /// Convenience to create sections from BuiltDuaSection list.
 List<DuaShareSection> duaSectionsForShare(List sections) {
   return sections
-      .map((s) =>
-          DuaShareSection(label: s.label as String, arabic: s.arabic as String))
+      .map((s) => DuaShareSection(
+            label: s.label as String,
+            arabic: s.arabic as String,
+            translation: (s.translation as String?) ?? '',
+          ))
       .toList();
 }
 
+/// The gifted-dua share card — a framed cream keepsake, not a screenshot.
+///
+/// Reads as something you *give*: a gold "A DUA FOR YOU" eyebrow over the
+/// recipient's need, the composed duʿā laid out as calligraphic stanzas (emerald
+/// ink on cream — no heavy solid blocks), and a "made for you with Sakina"
+/// footer. A gold hairline frame wraps the whole card so it feels like an object.
 class _BuiltDuaShareCard extends StatelessWidget {
   const _BuiltDuaShareCard({
     required this.need,
     required this.sections,
     required this.translation,
     this.preview = false,
+    this.pageNumber,
+    this.pageCount,
   });
 
   final String need;
+
+  /// The stanzas on THIS page (a subset when the gift spans pages).
   final List<DuaShareSection> sections;
   final String translation;
   final bool preview;
 
+  /// 1-based page position, set only for a multi-page gift. Every page repeats
+  /// the crest / eyebrow / need header and the brand footer so each image
+  /// stands on its own — a recipient may well see only one of them.
+  final int? pageNumber;
+  final int? pageCount;
+
+  bool get _isLastPage => pageCount == null || pageNumber == pageCount;
+
   static const _emerald = Color(0xFF1B6B4A);
   static const _gold = Color(0xFFC8985E);
   static const _cream = Color(0xFFFBF7F2);
+  static const _ink = Color(0xFF1A1A2E);
 
   @override
   Widget build(BuildContext context) {
     final double w = preview ? 380 : 1080;
-    final double pad = preview ? 24 : 72;
-    final double padV = preview ? 20 : 56;
-    final double titleSize = preview ? 16 : 26;
-    final double labelSize = preview ? 10 : 14;
-    final double arabicSize = preview ? 20 : 34;
-    final double translationSize = preview ? 13 : 20;
+    final double frameGap = preview ? 14 : 40; // cream margin outside the frame
+    final double pad = preview ? 24 : 68; // inside the gold frame
+    final double padV = preview ? 32 : 88;
+    final double crest = preview ? 22 : 48;
+    final double eyebrowSize = preview ? 11 : 20;
+    final double needSize = preview ? 22 : 46;
+    final double labelSize = preview ? 10 : 16;
+    // Every stanza is set at ONE size, and set large: scripture has to be
+    // legible before it is decorative, and a recipient reading unfamiliar
+    // Arabic shouldn't get the frame stanzas in small type. Emphasis on the ask
+    // is carried by its label alone, never by shrinking the other stanzas.
+    final double arabicSize = preview ? 26 : 47;
+    final double translationSize = preview ? 13.5 : 24;
+    final double footerSize = preview ? 10 : 17;
 
     return Material(
       color: Colors.transparent,
       child: Container(
         width: w,
-        padding: EdgeInsets.symmetric(horizontal: pad, vertical: padV),
-        decoration: const BoxDecoration(color: _cream),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Branding
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ShareBrandLockup(
-                preview: preview,
-                markColor: _emerald,
-              ),
+        color: _cream,
+        padding: EdgeInsets.all(frameGap),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: _gold.withValues(alpha: 0.45),
+              width: preview ? 1 : 2,
             ),
-            SizedBox(height: preview ? 16 : 36),
+            borderRadius: BorderRadius.circular(preview ? 12 : 28),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: padV),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MihrabCrestOrnament(size: crest),
+              SizedBox(height: preview ? 14 : 32),
 
-            // Title — user's need
-            Text(
-              need,
-              style: AppTypography.headlineMedium.copyWith(
-                fontSize: titleSize,
-                color: _gold,
+              // Gift framing — this is the dua being *given*.
+              Text(
+                'A DUA FOR YOU',
+                style: AppTypography.labelSmall.copyWith(
+                  fontSize: eyebrowSize,
+                  color: _gold,
+                  letterSpacing: preview ? 3 : 6,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: preview ? 4 : 8),
-            Container(
-                width: preview ? 40 : 80,
-                height: 1.5,
-                color: _gold.withValues(alpha: 0.3)),
-            SizedBox(height: preview ? 16 : 36),
+              SizedBox(height: preview ? 8 : 18),
 
-            // 4 sections
-            ...sections.map((section) => Padding(
-                  padding: EdgeInsets.only(bottom: preview ? 16 : 32),
-                  child: Column(
-                    children: [
-                      // Section label
-                      Text(
-                        section.label.toUpperCase(),
-                        style: AppTypography.labelSmall.copyWith(
-                          fontSize: labelSize,
-                          color: _gold,
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.w600,
-                        ),
+              // The need it was made for.
+              Text(
+                need,
+                style: AppTypography.headlineLarge.copyWith(
+                  fontSize: needSize,
+                  color: _emerald,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: preview ? 22 : 52),
+              _giftDivider(preview),
+
+              // The composed duʿā, in its own liturgical order (praise →
+              // salawat → ask → closing — never reordered). Each stanza carries
+              // its OWN meaning directly beneath it, so a recipient who doesn't
+              // read Arabic understands each line in place rather than hunting
+              // through one fused paragraph at the foot of the card.
+              //
+              // The ask is the personal message and praise / salawat / closing
+              // are the frame around it, but that is marked ONLY by the label's
+              // weight — every stanza is set at the same size, because a
+              // recipient who reads Arabic slowly must not be handed the frame
+              // in smaller type than the request.
+              ...List.generate(sections.length, (i) {
+                final section = sections[i];
+                final hero = _isAskLabel(section.label);
+                final meaning = section.translation.trim();
+                return Column(
+                  children: [
+                    SizedBox(height: preview ? 22 : 52),
+                    Text(
+                      _softLabel(section.label),
+                      style: AppTypography.labelSmall.copyWith(
+                        fontSize: labelSize,
+                        color: _gold.withValues(alpha: hero ? 1 : 0.75),
+                        letterSpacing: preview ? 1.4 : 2.6,
+                        fontWeight: FontWeight.w500,
                       ),
-                      SizedBox(height: preview ? 8 : 16),
-                      // Arabic
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: preview ? 16 : 40,
-                          vertical: preview ? 14 : 28,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: preview ? 10 : 22),
+                    Text(
+                      section.arabic,
+                      style: AppTypography.quranArabic.copyWith(
+                        fontSize: arabicSize,
+                        color: _emerald,
+                        height: 1.95,
+                        leadingDistribution: TextLeadingDistribution.even,
+                      ),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                    ),
+                    if (meaning.isNotEmpty) ...[
+                      SizedBox(height: preview ? 9 : 20),
+                      Text(
+                        meaning,
+                        style: AppTypography.bodyLarge.copyWith(
+                          fontSize: translationSize,
+                          color: _ink.withValues(alpha: 0.78),
+                          height: 1.55,
+                          fontStyle: FontStyle.italic,
                         ),
-                        decoration: BoxDecoration(
-                          color: _emerald,
-                          borderRadius:
-                              BorderRadius.circular(preview ? 12 : 20),
-                        ),
-                        child: Text(
-                          section.arabic,
-                          style: AppTypography.quranArabic.copyWith(
-                            fontSize: arabicSize,
-                            color: Colors.white,
-                            height: 1.8,
-                          ),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                        ),
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.center,
                       ),
                     ],
+                  ],
+                );
+              }),
+
+              SizedBox(height: preview ? 26 : 60),
+              _giftDivider(preview),
+
+              // Fallback only: when the sections carry no meanings of their own
+              // there would otherwise be no English on the card at all, so the
+              // whole-dua translation stands in. It covers the WHOLE duʿā, so
+              // it belongs on the final page only.
+              if (_isLastPage &&
+                  !sections.any((s) => s.translation.trim().isNotEmpty) &&
+                  translation.trim().isNotEmpty) ...[
+                SizedBox(height: preview ? 20 : 48),
+                Text(
+                  '"$translation"',
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontSize: translationSize,
+                    color: _ink.withValues(alpha: 0.78),
+                    height: 1.6,
+                    fontStyle: FontStyle.italic,
                   ),
-                )),
+                  textAlign: TextAlign.center,
+                ),
+              ],
 
-            // Divider
-            Container(
-                width: preview ? 40 : 80,
-                height: 1.5,
-                color: _gold.withValues(alpha: 0.3)),
-            SizedBox(height: preview ? 12 : 24),
-
-            // Translation
-            Text(
-              '"$translation"',
-              style: AppTypography.bodyLarge.copyWith(
-                fontSize: translationSize,
-                color: const Color(0xFF1A1A2E).withValues(alpha: 0.8),
-                height: 1.6,
-                fontStyle: FontStyle.italic,
+              SizedBox(height: preview ? 24 : 56),
+              ShareBrandLockup(preview: preview, markColor: _emerald),
+              SizedBox(height: preview ? 8 : 16),
+              Text(
+                'made for you with Sakina',
+                style: AppTypography.bodySmall.copyWith(
+                  fontSize: footerSize,
+                  color: _emerald.withValues(alpha: 0.6),
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: preview ? 20 : 48),
-
-            // Bottom line
-            Container(
-                width: preview ? 24 : 40,
-                height: 1.5,
-                color: _gold.withValues(alpha: 0.3)),
-          ],
+              // Tells a recipient another image completes the duʿā — without it
+              // a page read alone looks like the whole gift.
+              if (pageCount != null && pageCount! > 1) ...[
+                SizedBox(height: preview ? 6 : 14),
+                Text(
+                  '$pageNumber of $pageCount',
+                  style: AppTypography.labelSmall.copyWith(
+                    fontSize: footerSize,
+                    color: _gold.withValues(alpha: 0.8),
+                    letterSpacing: preview ? 1.2 : 2.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  /// True when this stanza is the personal ask (the heart of the gift) rather
+  /// than the liturgical frame around it. Label text comes from the model, so
+  /// this matches loosely; when nothing matches, no stanza is promoted and the
+  /// card simply renders every stanza at the frame size.
+  static bool _isAskLabel(String label) =>
+      label.toLowerCase().contains('ask') ||
+      label.toLowerCase().contains('request');
+
+  /// Gift-appropriate section labels.
+  ///
+  /// The raw labels are builder vocabulary explaining how the duʿā was
+  /// assembled ("OPENING PRAISE"). Set in caps with wide tracking they read as
+  /// scaffolding on something meant to be given, so they are title-cased, the
+  /// "Opening" qualifier is dropped, and the caller sets them small and light.
+  static String _softLabel(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return s;
+    if (s.toLowerCase().startsWith('opening ')) s = s.substring(8);
+    return s
+        .split(RegExp(r'\s+'))
+        .map((w) => w.isEmpty
+            ? w
+            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+
+  /// A gold line — diamond — line rule, echoing the takeaway card's divider so
+  /// both share surfaces speak one visual language.
+  static Widget _giftDivider(bool preview) {
+    Widget line() => Container(
+          width: preview ? 34 : 74,
+          height: preview ? 1 : 2,
+          color: _gold.withValues(alpha: 0.5),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line(),
+        SizedBox(width: preview ? 8 : 16),
+        Transform.rotate(
+          angle: 0.785398,
+          child: Container(
+            width: preview ? 5 : 10,
+            height: preview ? 5 : 10,
+            color: _gold,
+          ),
+        ),
+        SizedBox(width: preview ? 8 : 16),
+        line(),
+      ],
     );
   }
 }

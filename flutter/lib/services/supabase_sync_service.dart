@@ -180,21 +180,72 @@ class SupabaseSyncService {
   /// than [value]. Used by the precise-notification sync to retire the previous
   /// `sync_version`'s rows AFTER the new version's rows are safely inserted, so
   /// the user's schedule is never emptied mid-run (never a blind delete-all).
+  /// [protectFromIso]/[protectToIso] optionally carve out an inclusive window of
+  /// [protectColumn] that must NEVER be deleted, whatever its version. The
+  /// precise-notification sync uses it to protect instants that are either
+  /// about to fire or have just fired: deleting those loses a pending push, or
+  /// loses the `sent_at` stamp that stops the same push firing twice.
   Future<bool> deleteRowsBelow(
     String table,
     String userId, {
     required String column,
     required int value,
+    String? protectColumn,
+    String? protectFromIso,
+    String? protectToIso,
+  }) async {
+    try {
+      final protect = protectColumn != null &&
+          protectFromIso != null &&
+          protectToIso != null;
+      if (!protect) {
+        await Supabase.instance.client
+            .from(table)
+            .delete()
+            .eq('user_id', userId)
+            .lt(column, value);
+        return true;
+      }
+      // Two disjoint deletes rather than a hand-built `.or()` string: same set,
+      // obviously correct, and this path runs at most once per sync.
+      final client = Supabase.instance.client;
+      await client
+          .from(table)
+          .delete()
+          .eq('user_id', userId)
+          .lt(column, value)
+          .lt(protectColumn, protectFromIso);
+      await client
+          .from(table)
+          .delete()
+          .eq('user_id', userId)
+          .lt(column, value)
+          .gt(protectColumn, protectToIso);
+      return true;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] deleteRowsBelow($table) failed: $e');
+      return false;
+    }
+  }
+
+  /// Delete all of [userId]'s rows in [table] whose [column] is strictly greater
+  /// than [isoValue]. Retires only *future* rows, leaving already-fired history
+  /// (and its `sent_at` stamps) intact.
+  Future<bool> deleteRowsAfter(
+    String table,
+    String userId, {
+    required String column,
+    required String isoValue,
   }) async {
     try {
       await Supabase.instance.client
           .from(table)
           .delete()
           .eq('user_id', userId)
-          .lt(column, value);
+          .gt(column, isoValue);
       return true;
     } catch (e) {
-      debugPrint('[SupabaseSyncService] deleteRowsBelow($table) failed: $e');
+      debugPrint('[SupabaseSyncService] deleteRowsAfter($table) failed: $e');
       return false;
     }
   }

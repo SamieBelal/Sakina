@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -10,6 +11,8 @@ import 'package:sakina/features/duas/widgets/built_dua_related_card.dart';
 import 'package:sakina/features/duas/widgets/related_dua_heart.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/share_card.dart';
 
@@ -80,6 +83,10 @@ class BuiltDuaAmeenScreen extends StatelessWidget {
                 const AmeenMedallion(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildAnotherCta(),
+                const SizedBox(height: AppSpacing.md),
+                _GiftCta(state: state, result: result)
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: 550.ms),
                 const SizedBox(height: AppSpacing.xl),
                 _namesCalledUpon(result)
                     .animate()
@@ -230,47 +237,164 @@ class BuiltDuaAmeenScreen extends StatelessWidget {
   }
 }
 
-/// Share affordance — top-right, cream (functional chrome ≥80% ink on canvas).
-class _ShareButton extends StatelessWidget {
+/// The labeled gift CTA, sitting directly under "Build Another Dua".
+///
+/// The corner icon alone was effectively invisible: an unlabeled glyph in the
+/// slot users read as "share/settings", losing every scan to the large centred
+/// pill. A gift box does not self-evidently mean "send this duʿā to someone",
+/// so the action is spelled out in words and placed in the primary scan path,
+/// at the emotional peak right after "May Allah accept your duʿā".
+///
+/// Styled as a secondary (outlined gold) so it reads as a companion to
+/// "Build Another Dua" rather than competing with it — gold stays a NON-TEXT
+/// accent, with the label itself in cream to hold the on-canvas contrast rule.
+///
+/// Stateful only to own the once-per-result impression beacon: [initState]
+/// fires on mount, and since this sits in a `SingleChildScrollView` (not a
+/// recycling list) scrolling can't re-trigger it. Building another duʿā
+/// replaces the subtree, which correctly counts as a new impression.
+class _GiftCta extends ConsumerStatefulWidget {
+  const _GiftCta({required this.state, required this.result});
+
+  final DuasState state;
+  final BuiltDuaResponse result;
+
+  @override
+  ConsumerState<_GiftCta> createState() => _GiftCtaState();
+}
+
+class _GiftCtaState extends ConsumerState<_GiftCta> {
+  @override
+  void initState() {
+    super.initState();
+    // Post-frame so the very first build isn't doing analytics work, matching
+    // how the screen defers its other once-per-result side effects.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.giftCtaShown);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (btnContext) => GestureDetector(
+        onTap: () async {
+          final box = btnContext.findRenderObject() as RenderBox;
+          await _openGiftPreview(
+            context: context,
+            ref: ref,
+            state: widget.state,
+            result: widget.result,
+            placement: AnalyticsEvents.giftPlacementPrimaryCta,
+            origin: box.localToGlobal(Offset.zero) & box.size,
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: AppColors.secondary.withValues(alpha: 0.75),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.card_giftcard_rounded,
+                  color: AppColors.secondary, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Gift this Dua',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.sacredInk,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens the gift preview and instruments the two funnel steps below the
+/// impression: which affordance was tapped, and whether a gift was actually
+/// sent. Shared by the corner icon and the labeled CTA so the two can only
+/// differ by [placement].
+Future<void> _openGiftPreview({
+  required BuildContext context,
+  required WidgetRef ref,
+  required DuasState state,
+  required BuiltDuaResponse result,
+  required String placement,
+  Rect? origin,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final analytics = ref.read(analyticsProvider);
+  HapticFeedback.mediumImpact();
+  analytics.track(AnalyticsEvents.giftPreviewOpened, properties: {
+    AnalyticsEvents.propPlacement: placement,
+  });
+  try {
+    await shareBuiltDuaCard(
+      context: context,
+      need: state.buildNeed,
+      sections: duaSectionsForShare(result.breakdown),
+      translation: result.translation,
+      sharePositionOrigin: origin,
+      onShared: (pageCount, shareStatus) =>
+          analytics.track(AnalyticsEvents.giftSent, properties: {
+        AnalyticsEvents.propPlacement: placement,
+        AnalyticsEvents.propPageCount: pageCount,
+        AnalyticsEvents.propShareStatus: shareStatus,
+      }),
+    );
+  } catch (e) {
+    debugPrint('[SHARE ERROR] $e');
+    showShareErrorSnackBar(messenger);
+  }
+}
+
+/// Gift affordance — top-right, cream (functional chrome ≥80% ink on canvas).
+/// Opens the gift-framed dua preview (`shareBuiltDuaCard`).
+class _ShareButton extends ConsumerWidget {
   const _ShareButton({required this.state, required this.result});
 
   final DuasState state;
   final BuiltDuaResponse result;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Align(
       alignment: Alignment.centerRight,
       child: Builder(
         builder: (btnContext) => GestureDetector(
           onTap: () async {
-            final messenger = ScaffoldMessenger.of(context);
-            HapticFeedback.mediumImpact();
             final box = btnContext.findRenderObject() as RenderBox;
-            final origin = box.localToGlobal(Offset.zero) & box.size;
-            try {
-              await shareBuiltDuaCard(
-                context: context,
-                need: state.buildNeed,
-                sections: duaSectionsForShare(result.breakdown),
-                translation: result.translation,
-                sharePositionOrigin: origin,
-              );
-            } catch (e) {
-              debugPrint('[SHARE ERROR] $e');
-              showShareErrorSnackBar(messenger);
-            }
+            await _openGiftPreview(
+              context: context,
+              ref: ref,
+              state: state,
+              result: result,
+              placement: AnalyticsEvents.giftPlacementCornerIcon,
+              origin: box.localToGlobal(Offset.zero) & box.size,
+            );
           },
           child: Container(
-            width: 40,
-            height: 40,
+            width: 52,
+            height: 52,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.sacredTrack,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.share_outlined,
-                color: AppColors.sacredInk, size: 20),
+            child: const Icon(Icons.card_giftcard_outlined,
+                color: AppColors.sacredInk, size: 26),
           ),
         ),
       ),

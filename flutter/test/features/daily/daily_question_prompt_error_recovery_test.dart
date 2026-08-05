@@ -27,8 +27,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
-import 'package:sakina/features/daily/content/daily_question_copy.dart';
-import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 
 void main() {

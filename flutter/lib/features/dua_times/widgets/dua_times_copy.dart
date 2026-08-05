@@ -107,6 +107,39 @@ abstract final class DuaTimesCopy {
 
   /// The banner's action label.
   static const String enablePreciseCta = 'Turn on';
+
+  // --- Precise-times PAUSED (opted in once; the OS grant lapsed) ------------
+  // This user already said yes. Re-running the "Turn on precise times" pitch at
+  // them IS the nag being fixed, so the lapse gets its own quieter voice that
+  // names the ACTUAL fix. iOS "Allow Once" reverts to notDetermined on the next
+  // cold start, so "While Using the App" is the instruction that ends the loop.
+  //
+  // Written to the first-visit-hint voice rules (first_visit_hint_service.dart):
+  // warm, never instructional, never prescriptive, no exclamation, no "tip" —
+  // a quiet aside, not a notification. Hence "have paused" (an observation)
+  // rather than "open Settings and…" (a command).
+
+  /// Shown once when the OS grant has lapsed after the user opted in.
+  static const String precisePausedPermission =
+      'Precise times have paused — iOS reset location access. Choosing '
+      '“While Using the App” brings them back.';
+
+  /// Shown once when the app grant is held but device Location Services are off.
+  ///
+  /// Deliberately vague about *where* in Settings: on iOS
+  /// `Geolocator.openLocationSettings()` lands on the app's own page, not the
+  /// global Location Services toggle, so promising a direct jump would be a lie.
+  static const String precisePausedServices =
+      'Precise times have paused — Location Services are off for this device. '
+      'They return when it is back on.';
+
+  /// The notice's action label.
+  ///
+  /// Was "Open Settings" while the notice prompted directly. It now navigates
+  /// to [PreciseTimesScreen] — which is what lets it carry a ✕ without tripping
+  /// Apple's pre-alert rules — so promising Settings would be a lie, and the
+  /// screen is genuinely the more useful destination: it holds the steps.
+  static const String precisePausedCta = 'Show me how';
 }
 
 /// Formats a remaining [Duration] as a live `H:MM:SS` / `MM:SS` countdown for

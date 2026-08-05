@@ -4,6 +4,38 @@ import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/widgets/share_card.dart';
 
 void main() {
+  group('splitDuaSectionsForShare', () {
+    DuaShareSection s(String label) =>
+        DuaShareSection(label: label, arabic: 'ع', translation: label);
+
+    test('splits the standard four stanzas into two pages, in order', () {
+      final pages = splitDuaSectionsForShare(
+          [s('Opening Praise'), s('Salawat'), s('The Ask'), s('Closing')]);
+
+      expect(pages, hasLength(2));
+      // Order is the duʿā's own — the ask is never pulled forward.
+      expect(pages[0].map((e) => e.label), ['Opening Praise', 'Salawat']);
+      expect(pages[1].map((e) => e.label), ['The Ask', 'Closing']);
+    });
+
+    test('keeps three or fewer stanzas on a single page', () {
+      for (var n = 0; n <= 3; n++) {
+        final pages = splitDuaSectionsForShare(
+            List.generate(n, (i) => s('section $i')));
+        expect(pages, hasLength(1), reason: '$n stanzas should stay on 1 page');
+      }
+    });
+
+    test('never drops or reorders a stanza', () {
+      final input = List.generate(7, (i) => s('section $i'));
+      final flattened =
+          splitDuaSectionsForShare(input).expand((p) => p).toList();
+
+      expect(flattened.map((e) => e.label),
+          input.map((e) => e.label));
+    });
+  });
+
   testWidgets(
       'reflection share card renders first verse and omits extra verses',
       (tester) async {

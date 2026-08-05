@@ -52,11 +52,20 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 
 ### 1 — In the build (before you cut it)
 
-- [ ] **Land the branch — nothing else in this checklist can happen until it does.**
-  Verified 2026-08-01: `feat/reel-first-w2-onboarding` is **92 commits ahead of its
-  own remote** and **no PR exists** (`gh pr list --head … --state all` → empty). W2 and W5
-  are both sitting local. The remote branch ref exists but is 92 commits stale, so "it's
-  pushed" is not the same as "it's shipped".
+- [x] **~~Land the branch~~ — DONE, and the old wording here was actively misleading.**
+  `feat/reel-first-w2-onboarding` merged as **PR #64 (`a4e493c`)**; master carries W1
+  through W6. Re-verified 2026-08-02 at `814975c`.
+
+  The superseded line said this was **92 commits ahead of its own remote with no PR**
+  and declared that *"nothing else in this checklist can happen until it does."* That was
+  true when written on 2026-08-01 and false a day later — and because it was framed as
+  the blocker on everything below it, anyone opening this checklist on release day would
+  conclude they were blocked on work that had already landed.
+
+  **What is actually outstanding is the deployment, not the code:** no 1.3.0 version
+  record exists in App Store Connect (bucket 2), the build has not been submitted, and
+  `t0_flip_all_to_reel_v1.sql` has not run — so `new_signup_cohort` is still `'legacy'`
+  and the tightened free tier reaches **nobody** (bucket 4).
 
 - [x] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** —
   closed by One Ship W6. `reel_hook`/`reel_hook_source` are registered as super properties
@@ -138,7 +147,7 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 
 ### 4 — After READY_FOR_SALE (**not** at submission)
 
-The two items here are independent of each other — order between them doesn't matter. Both
+The items here are independent of each other — order between them doesn't matter. All
 are wrong before the build is live.
 
 - [ ] **[Run `t0_flip_all_to_reel_v1.sql`](#server-sql--the-130--t0-runbook)** — this is
@@ -149,6 +158,16 @@ are wrong before the build is live.
   — must wait until 1.3.0 is actually live. Doing it at submission means the store still
   serves 1.2.0, whose paywall hardcodes "3 days", for the whole review window: every new
   subscriber would get four extra free days that nothing advertises.
+- [ ] **Retire the `win_back_tour_replay` OneSignal automation** (see
+  [`docs/runbooks/onesignal-segments.md`](./docs/runbooks/onesignal-segments.md)). Exactly
+  the same timing logic as the trial item: it deep-links to
+  `sakina://settings?action=replay_tour`, which **works on 1.2.0** and becomes a **no-op on
+  1.3.0**, because Wave F deleted the tour it replays (`b05c174`). Kill it before the
+  rollout and you break a working re-engagement push for the entire install base; leave it
+  after and every tap lands on nothing.
+  **First check whether it exists at all** — the runbook records it as manual PM setup with
+  no confirmation, so it may never have been created. If it was not, tick this and drop the
+  i18n item that references it.
 
 ### 5 — After release
 
@@ -166,7 +185,8 @@ are wrong before the build is live.
   number this release is judged on.
 - [ ] **Delete the retired `reverse_trial_experiment_enabled` key** — step 2b of
   `reverse_trial_close.sql`, currently commented out. Pure hygiene, no urgency; a retired
-  key costs nothing.
+  key costs nothing. Tracked with every other flag in the
+  [retirement ledger](#feature-flag-retirement-ledger).
 - [ ] **Sanity-check the satisfaction thresholds against the real baseline —
   before the T0+6wk read, not during it.** W6 Wave E shipped four "what bad looks like"
   numbers (rating-gate accept rate, churn reasons, D1, and D7 as *the guardrail that
@@ -178,6 +198,65 @@ are wrong before the build is live.
 
 - [ ] T0+6wk: the **keep decision**, which in turn triggers the
   [softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+---
+
+## Feature-flag retirement ledger
+
+**Trigger:** each row carries its own. Nothing here is due today.
+
+Every `app_config` key the app reads, and **what has to happen before deleting it
+is safe**. This exists because that answer was previously recoverable only by
+grepping `getBool`/`getString`/`getInt` call sites and trusting the code comments
+around them — and during the 2026-08-02 cleanup audit that method produced a
+confidently wrong answer (see the `guided_tour_enabled` row).
+
+A flag is safe to delete when **no shipped binary still reads it**. That is a
+higher bar than "master no longer reads it", and it is the bar this table uses.
+
+**"Read by" means READ, not written.** Every site below was re-verified 2026-08-02.
+A key read in two places lists both — missing the second is exactly how you
+conclude a live flag is dead.
+
+| Key | Read by | Status | Safe to delete when |
+|---|---|---|---|
+| `guided_tour_enabled` | `main.dart:399` → `flag_guided_tour` super property | **LIVE for users.** See the note below. | The 1.3.0 tour deletion is live AND 1.2.0 adoption has tailed off |
+| `reel_first_onboarding_enabled` | `onboarding_screen.dart:181` | **LIVE kill switch** — the revert path for 1.3.0's entire thesis | T0+6wk keep decision |
+| `onboarding_trim_enabled` | `onboarding_screen.dart:184` **and** `main.dart:385` | **LIVE** — picks which flow the kill switch reverts *to*; also a super property | With the row above; deleting it alone leaves the switch with no target |
+| `post_tour_paywall_mode` | `app_session.dart:356` | **LIVE**, prod = `soft` | Never — a dial, not a flag |
+| `hard_paywall_after_tour_enabled` | `app_session.dart:792` **and** `main.dart:398` | Legacy bool; the fallback when the mode key is unset, plus a super property | Once `post_tour_paywall_mode` has held in prod across a release |
+| `warmup_reflect_size`, `warmup_built_dua_size`, `warmup_discover_name_size` | `gating_service.dart:222` (keys declared `:201`) | **LIVE dials**, prod = 3/3/3 | Never — meant to be tuned |
+| `weekly_pool_size` | `gating_service.dart:310` (key declared `:298`) | **LIVE dial**, prod = 3 | Never |
+| `bypass_token_cost`, `max_bypasses_per_day` | Server-side RPC only | Live until the bypass subsystem dies | [Softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor) |
+| `new_signup_cohort` | **`20260731100000_handle_new_user_stamps_discover_warmup.sql:67`** — the signup trigger | **Not yet flipped** — still `'legacy'` | After T0, once every account is backfilled. **Deleting the row breaks `handle_new_user`**, which reads it on every signup |
+| `reverse_trial_experiment_enabled` | Retired 2026-08-01 18:11 UTC | Row still present, read by nothing | Now — bucket 5 above |
+
+`t0_flip_all_to_reel_v1.sql` **writes** `new_signup_cohort`; it does not read it.
+An earlier draft of this table cited it as the reader, which would have sent
+someone deleting the key to the wrong file and past the trigger that depends on it.
+
+### The `guided_tour_enabled` trap, written down so it is not re-derived
+
+The tour was deleted from the codebase on 2026-07-28, and `main.dart` carries a
+comment saying exactly that. Reading only master, the obvious conclusion is that
+the flag is inert and can go.
+
+**It cannot.** The deletion lives on master, and master is 1.3.0, which has not
+shipped. **Every user on the App Store today is running 1.2.0 — which still has
+the tour and still reads this key to decide whether to show it.** Deleting the
+`app_config` row would change the live experience for the entire install base.
+
+There is a second, subtler trap in deleting the row *before* the code: with the
+row absent, `getBool(…, fallback: true)` finds nothing to refresh, so a
+cold-cache client falls back to `true` while a warm-cache client keeps whatever
+it last saw. A constant, harmless analytics dimension becomes an inconsistent
+one. **Retire the code read first, the row second.**
+
+`flag_guided_tour` is not among the super properties the bucket-5 coverage check
+reads (`onboarding_flow`, `contract`, `reel_hook_source`, `free_tier_cohort`), so
+its removal does not disturb the T0 readout.
+
+**Surfaced by:** workspace cleanup audit, 2026-08-02.
 
 ---
 

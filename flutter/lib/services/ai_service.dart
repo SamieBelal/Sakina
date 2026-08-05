@@ -1585,8 +1585,42 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .toList();
 
   // Parse related duas
-  final relatedRaw = _parseSection(text, '##RELATED_DUAS##') ?? '';
-  final relatedDuas = relatedRaw
+  final relatedDuas =
+      parseRelatedDuaRows(_parseSection(text, '##RELATED_DUAS##') ?? '');
+
+  // Fallback: if AI didn't list names used, scan the Arabic text for known Names
+  final finalNamesUsed =
+      namesUsed.isNotEmpty ? namesUsed : _detectNamesInArabic(arabic);
+
+  return BuiltDuaResponse(
+    arabic: arabic,
+    transliteration: transliteration,
+    translation: translation,
+    breakdown: breakdown,
+    namesUsed: finalNamesUsed,
+    relatedDuas: relatedDuas,
+  );
+}
+
+/// Matches a single character in the Arabic Unicode block. Used to verify that
+/// a parsed "Arabic" column actually holds Arabic before it reaches the UI.
+final RegExp _arabicScript = RegExp(r'[؀-ۿ]');
+
+/// Parses the pipe-delimited `##RELATED_DUAS##` rows into dua entries.
+///
+/// Extracted from [buildDua] so the row guards are testable without a network
+/// call. The `buildDua` prompt spells the row format out as a literal legend
+/// line — `Title | Arabic | Transliteration | Translation | Source` — and the
+/// model sometimes echoes that line back inside the section. Split on `|` it
+/// yields title:"Title", arabic:"Arabic": both non-empty, so a presence-only
+/// guard let it through and it rendered as a real dua card. Worse, the first
+/// related card renders expanded by default, so the placeholder led the list.
+///
+/// Requiring the Arabic column to actually contain Arabic script drops the
+/// echoed legend, and any other row whose Arabic isn't Arabic.
+@visibleForTesting
+List<FindDuasDuaEntry> parseRelatedDuaRows(String raw) {
+  return raw
       .split('\n')
       .where((l) => l.trim().isNotEmpty && l.contains('|'))
       .map((line) {
@@ -1601,21 +1635,11 @@ Future<BuiltDuaResponse> buildDua(String need) async {
           source: parts.length > 4 ? parts[4] : '',
         );
       })
-      .where((d) => d.title.isNotEmpty && d.arabic.isNotEmpty)
+      .where((d) =>
+          d.title.isNotEmpty &&
+          d.arabic.isNotEmpty &&
+          _arabicScript.hasMatch(d.arabic))
       .toList();
-
-  // Fallback: if AI didn't list names used, scan the Arabic text for known Names
-  final finalNamesUsed =
-      namesUsed.isNotEmpty ? namesUsed : _detectNamesInArabic(arabic);
-
-  return BuiltDuaResponse(
-    arabic: arabic,
-    transliteration: transliteration,
-    translation: translation,
-    breakdown: breakdown,
-    namesUsed: finalNamesUsed,
-    relatedDuas: relatedDuas,
-  );
 }
 
 /// Scan Arabic dua text for Names of Allah by matching against the canonical list.

@@ -2,6 +2,17 @@
 /// Each entry captures the key teaching, emotional context, prophetic story, and dua
 /// for a Name of Allah — drawn directly from the series transcripts.
 ///
+/// SOURCE TRANSCRIPTS: `docs/content-sources/` (see the README there).
+/// That corpus is this file's INPUT, not a stale copy of it, and nothing
+/// regenerates a transcript from the distillate. It is the citation when a
+/// teaching attributed to a Name is questioned. Do not delete it for being
+/// unimported; that happened on 2026-08-02 and had to be reverted.
+///
+/// COVERAGE IS PARTIAL. Every Omar Suleiman episode below has a transcript
+/// (note Ep 7 is filed as `episode_07.txt`, not `ep07_*`). The Mikaeel Smith
+/// "The Name I Need" classes below have NONE — those entries currently have no
+/// citable source in this repo.
+///
 /// Episodes covered:
 ///   Ep 2  — Al-Wahid, Al-Ahad, Al-Witr
 ///   Ep 3  — Al-Hadi, An-Nur, Al-Mubin

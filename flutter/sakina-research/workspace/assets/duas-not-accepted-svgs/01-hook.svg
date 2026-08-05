@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <defs>
+    <linearGradient id="emeraldBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1F7150"/>
+      <stop offset="1" stop-color="#175C40"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1920" fill="url(#emeraldBg)"/>
+
+  <!-- Faint Arabic seen watermark, bottom -->
+  <text x="540" y="1820" text-anchor="middle" font-family="'Aref Ruqaa','Scheherazade New','Geeza Pro',serif" font-size="900" fill="#D4AF6E" opacity="0.07">س</text>
+
+  <!-- Top bar -->
+  <text x="80" y="160" font-family="'Aref Ruqaa','Scheherazade New','Geeza Pro',serif" font-size="64" fill="#F5EDDE">سكينة</text>
+  <text x="1000" y="155" text-anchor="end" font-family="'DM Sans','Helvetica Neue',sans-serif" font-size="22" font-weight="600" fill="#D4AF6E" letter-spacing="5">01 / 08 · DAY OF ARAFAH</text>
+
+  <!-- Eyebrow -->
+  <text x="80" y="980" font-family="Lora,Georgia,serif" font-size="32" font-style="italic" fill="#D4AF6E">A reminder for today —</text>
+
+  <!-- Display heading (left-aligned, single-word gold-italic emphasis on final word) -->
+  <text x="80" y="1100" font-family="'DM Serif Display',Lora,Georgia,serif" font-size="92" font-weight="700" fill="#F5EDDE" letter-spacing="-2">Your Arafah du'a</text>
+  <text x="80" y="1200" font-family="'DM Serif Display',Lora,Georgia,serif" font-size="92" font-weight="700" fill="#F5EDDE" letter-spacing="-2">may not be</text>
+  <text x="80" y="1300" font-family="'DM Serif Display',Lora,Georgia,serif" font-size="92" font-weight="700" font-style="italic" fill="#D4AF6E" letter-spacing="-2">answered.</text>
+
+  <!-- Pull-quote with gold left rule -->
+  <line x1="80" y1="1480" x2="80" y2="1620" stroke="#D4AF6E" stroke-width="4"/>
+  <text x="110" y="1510" font-family="Lora,Georgia,serif" font-size="30" font-weight="700" fill="#F5EDDE">The Prophet ﷺ named six things</text>
+  <text x="110" y="1550" font-family="Lora,Georgia,serif" font-size="30" font-weight="700" fill="#F5EDDE">that quietly block it.</text>
+  <text x="110" y="1600" font-family="Lora,Georgia,serif" font-size="30" fill="#F5EDDE" opacity="0.78" font-style="italic">Check yourself before you raise your hands.</text>
+
+  <!-- CTA bottom-right -->
+  <text x="1000" y="1810" text-anchor="end" font-family="'DM Sans','Helvetica Neue',sans-serif" font-size="24" font-weight="700" fill="#D4AF6E" letter-spacing="5">KEEP READING →</text>
+</svg>

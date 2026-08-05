@@ -1,0 +1,414 @@
+================================================================================
+SAKINA — APP STORE SUBMISSION COPY
+================================================================================
+
+This file is the source of truth for all App Store Connect copy.
+Copy-paste each section directly into App Store Connect.
+
+Last updated: 2026-05-11
+
+================================================================================
+PROMOTIONAL TEXT (170 char limit) — editable anytime without a new build
+================================================================================
+
+Tell Sakina how you feel. Discover the Name of Allah for this moment, with verses and a dua chosen just for you. Your daily return to peace.
+
+(146 / 170 chars)
+
+--------------------------------------------------------------------------------
+Alternate promotional text — swap in seasonally without resubmitting build
+--------------------------------------------------------------------------------
+
+RAMADAN:
+30 nights, 30 reflections. Sakina is your Ramadan companion — daily duas, a Name to anchor your iman, and a journal of every quiet moment with Allah.
+
+NEW FEATURE LAUNCH:
+Now with personal duas. Tell Sakina what you need and we'll craft a dua in your own words.
+
+SOCIAL PROOF (once available):
+Loved by 10,000+ Muslims building a daily habit with Allah. Tell Sakina how you feel.
+
+
+================================================================================
+DESCRIPTION (4,000 char limit, plain text only, no markdown)
+================================================================================
+
+Tell Sakina how you feel. In return, discover the Name of Allah for this moment — with Quran verses and a dua chosen just for you.
+
+Sakina is a daily devotional for Muslims who want to bring iman into the small, real moments of life. The anxious commute. The grateful morning. The quiet night you can't sleep.
+
+How it works:
+• Open the app, write or tap how you're feeling
+• Sakina matches your feeling to one of the 99 Names of Allah
+• Read the verses, recite the dua, save it to your journal
+• Return tomorrow. Your streak grows. Your heart settles.
+
+What's inside:
+
+THE 99 NAMES OF ALLAH
+Beautifully presented Arabic calligraphy, transliteration, and meaning. Discover a new Name through your daily check-in, or browse the full collection.
+
+DAILY MUHASABAH
+A gentle four-question check-in that helps you notice what's really happening inside — and meets you with scripture for it.
+
+PERSONAL DUAS
+Tell Sakina what you need help with and receive a dua in Arabic, transliteration, and English. Built around your moment, grounded in tradition.
+
+REFLECT WITH SCRIPTURE
+Write freely about what's on your heart. Sakina returns a Name of Allah, verses from the Quran, and a related dua — never invented, always sourced from verified Islamic scholarship.
+
+YOUR JOURNAL
+Every check-in, every reflection, every saved dua — kept in a beautiful journal you can return to. Watch your iman grow over weeks and months.
+
+NAME COLLECTION
+Build your collection of the 99 Names through daily practice. Each Name unlocks beautiful collectible cards as you deepen your connection.
+
+GENTLE STREAKS
+A daily flame keeps you returning. Miss a day? Use a Streak Freeze. This is a habit, not a guilt trip.
+
+WHY SAKINA IS DIFFERENT
+
+Sakina never generates Quran verses, hadith, or religious teachings. Every verse and every Name comes from a pre-verified scholarly database. The technology only helps connect your feeling to the right scripture — the scripture itself is exactly what Muslims have read for fourteen centuries.
+
+Designed with care. Arabic typography that honors the language. Soft, warm interface that feels like opening a beautiful mushaf. No ads. No noise.
+
+PREMIUM
+Try Sakina Premium free for 3 days. Unlimited Reflect sessions, unlimited personal duas, full access to the daily Discover Name feature, and the complete card collection. Cancel anytime.
+
+Made by Muslims, for Muslims. Whether you're returning to your deen, deepening your daily practice, or just looking for one quiet moment with Allah each day — Sakina is here for you.
+
+Indeed, in the remembrance of Allah do hearts find rest. (Quran 13:28)
+
+---
+
+Subscription details:
+• Sakina Premium — Annual: 3-day free trial, then yearly renewal at the price shown on the paywall. Cancel anytime in Settings.
+• Sakina Premium — Weekly: 3-day free trial, then weekly renewal at the price shown on the paywall. Cancel anytime in Settings.
+Payment is charged to your Apple ID at the end of the trial unless cancelled at least 24 hours before the renewal date. Subscriptions auto-renew until cancelled. Manage or cancel any time in iOS Settings → Apple ID → Subscriptions.
+
+Privacy Policy: https://ibrahim7860.github.io/sakina-legal/privacy.html
+Terms of Use (EULA): https://ibrahim7860.github.io/sakina-legal/terms.html
+
+
+================================================================================
+LEGAL APPEND (already merged into the Description above as of 2026-05-14
+after Apple guideline 3.1.2(c) rejection. Kept here for quick re-paste if
+the Description ever needs rebuilding.)
+================================================================================
+
+Subscriptions auto-renew unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings. Privacy Policy: https://ibrahim7860.github.io/sakina-legal/privacy.html · Terms of Use (EULA): https://ibrahim7860.github.io/sakina-legal/terms.html
+
+
+================================================================================
+SUBTITLE (30 char limit)
+================================================================================
+
+A Daily Devotional for Muslims
+
+(30 / 30 chars)
+
+--------------------------------------------------------------------------------
+Alternates
+--------------------------------------------------------------------------------
+
+Daily Reflection for Muslims        (28 / 30)   — feature-led
+99 Names. One Daily Habit.          (26 / 30)   — product-led, weaker audience signal
+
+
+================================================================================
+KEYWORDS (100 char limit, comma-separated, NO SPACES after commas)
+================================================================================
+
+islam,quran,dua,allah,prayer,salah,ramadan,iman,mindful,journal,gratitude,wellness,habit,dhikr,deen
+
+(99 / 100 chars)
+
+NOTE: "muslim" dropped since subtitle already contains "Muslims" (Apple
+doesn't double-count keyword + subtitle matches). Reclaimed chars used
+for "dhikr" + "deen" — two high-intent Islamic vocabulary terms.
+
+--------------------------------------------------------------------------------
+Alternate — pure Islamic, no wellness bridge (NOT recommended — leaves
+secular wellness conversion on the table)
+--------------------------------------------------------------------------------
+
+muslim,islam,quran,dua,allah,prayer,salah,ramadan,iman,dhikr,tasbih,hadith,deen,ibadah
+
+
+================================================================================
+APP CATEGORIES
+================================================================================
+
+Primary:    Lifestyle
+Secondary:  Health & Fitness
+
+WHY:
+- Lifestyle is where Hallow, Glorify, Muslim Pro all live. Canonical
+  shelf for religious devotional apps.
+- Health & Fitness puts you next to Calm / Headspace — the wellness
+  bridge audience that converts well for daily-habit apps.
+- Appearing in both categories' charts doubles browse-surface area.
+
+AVOID:
+- Medical (triggers heavy review)
+- Education (wrong shelf, less commercial)
+- Reference (for dictionaries / Quran-readers, not interactive apps)
+
+IF APP REVIEW ASKS about Health & Fitness:
+"Sakina does not use HealthKit or collect health data. It is a spiritual
+wellness app, not a medical or fitness tracker."
+
+
+================================================================================
+URLs FOR APP STORE CONNECT
+================================================================================
+
+Support URL:         https://ibrahim7860.github.io/sakina-legal/support.html
+Privacy Policy URL:  https://ibrahim7860.github.io/sakina-legal/privacy.html
+Terms of Use URL:    https://ibrahim7860.github.io/sakina-legal/terms.html
+Marketing URL:       (optional — leave blank or use index.html if no marketing site exists)
+Contact email:       ibrahim.ahmed1564@gmail.com
+
+
+================================================================================
+WHAT'S NEW IN THIS VERSION (release notes — 4,000 char limit)
+================================================================================
+
+Version 1.0.0:
+
+Welcome to Sakina.
+
+Tell us how you feel — anxious, grateful, lost, hopeful — and Sakina meets you with one of the 99 Names of Allah, verses from the Quran, and a dua chosen for the moment you're in.
+
+In this first release:
+• Daily check-in (Muhasabah) that connects how you feel to scripture
+• Reflect — write freely and receive a Name, verses, and a dua
+• Build a Dua — craft a personal dua for any need
+• The 99 Names of Allah, with Arabic calligraphy, transliteration, and meaning
+• Journal — every reflection, check-in, and saved dua kept beautifully
+• Streaks — a gentle daily habit that returns you home
+• Card Collection — discover the 99 Names through daily practice
+
+We're just getting started. Email ibrahim.ahmed1564@gmail.com if you have feedback — we read every message.
+
+
+================================================================================
+APP REVIEW NOTES (for Apple App Review team — internal, not shown to users)
+================================================================================
+
+Thank you for reviewing Sakina.
+
+ABOUT THE APP
+Sakina is a daily devotional for Muslims. The user tells the app how they
+feel, and the app matches that feeling to one of the 99 Names of Allah,
+Quranic verses, and a traditional dua (supplication).
+
+RELIGIOUS CONTENT — IMPORTANT
+Sakina does NOT generate Quran verses, hadith, or scholarly Islamic
+content. Every verse, every Name of Allah, and every dua displayed in
+the app is drawn from a pre-verified, scholarly-sourced internal
+database. Our AI features only match the user's free-text emotion input
+to an existing verified record. They never compose religious text.
+
+This is a deliberate design choice for scholarly accuracy and trust with
+the Muslim community.
+
+DEMO ACCOUNT
+Email:    [FILL IN — create a dedicated app-review account in Supabase]
+Password: [FILL IN]
+
+The demo account has Premium entitlement granted, so you can exercise
+all gated features (unlimited Reflect, unlimited Build a Dua, daily
+Name Discovery) without going through a purchase flow.
+
+If you prefer to test purchases, you may use a sandbox Apple ID — the
+app uses RevenueCat for subscription management. Available products:
+• Weekly subscription
+• Annual subscription (with 3-day free trial)
+
+SIGN-IN OPTIONS
+All three options route to the same account experience:
+• Sign in with Apple (required by App Store Guideline 4.8)
+• Sign in with Google
+• Email + password
+
+For App Review, the email/password demo account above is the fastest
+path. If you'd like to test Sign in with Apple, it works as expected.
+
+ACCOUNT DELETION
+Required by App Store Guideline 5.1.1(v). Available at:
+Settings → Danger Zone → Delete Account.
+This permanently removes the user's account and all stored data.
+
+HEALTH & FITNESS CATEGORY
+Sakina is listed under Lifestyle (primary) and Health & Fitness
+(secondary). The app does NOT use HealthKit and does NOT collect any
+health data. It is a spiritual wellness app, not a medical or fitness
+tracker. The Health & Fitness category is selected because the app
+sits naturally alongside mindfulness/wellness apps for discovery.
+
+CONTACT
+If you have questions or need anything during review, please email
+ibrahim.ahmed1564@gmail.com.
+
+
+================================================================================
+AGE RATING QUESTIONNAIRE (answer these in App Store Connect)
+================================================================================
+
+Cartoon or Fantasy Violence:                            None
+Realistic Violence:                                     None
+Prolonged Graphic or Sadistic Realistic Violence:       None
+Profanity or Crude Humor:                               None
+Mature/Suggestive Themes:                               None
+Horror/Fear Themes:                                     None
+Medical/Treatment Information:                          None
+Alcohol, Tobacco, or Drug Use or References:            None
+Simulated Gambling:                                     None
+Sexual Content and Nudity:                              None
+Graphic Sexual Content and Nudity:                      None
+Contests:                                               None
+Unrestricted Web Access:                                No
+Gambling:                                               No
+
+Expected rating: 4+
+
+NOTE ON THE CARD COLLECTION / "GACHA":
+Sakina has a card-collection mechanic where users discover one of the
+99 Names per daily check-in. This is NOT gambling because:
+• No real money is wagered for a chance outcome
+• Cards are earned through engagement, not chance-based purchase
+• Premium purchase grants entitlement, not lottery tickets
+Do NOT select "Simulated Gambling" — that's for casino-style apps.
+
+
+================================================================================
+CONTENT RIGHTS
+================================================================================
+
+App Store Connect asks: "Does your app contain, display, or access
+third-party content?"
+
+ANSWER: No (or "Yes, and I have all necessary rights" if Apple's UI
+forces a Yes/No on Islamic religious text).
+
+DETAIL IF ASKED:
+Every Quranic verse, Name of Allah, and traditional dua displayed in
+Sakina is drawn from classical Islamic religious texts that are in the
+public domain. The Quran itself has no copyright holder. The 99 Names
+of Allah are traditional Islamic theology. The duas are from
+authenticated classical sources (e.g., the Quran, well-known hadith
+collections, and traditional du'a anthologies).
+
+We use commonly-attributed English translations where applicable.
+If a specific translation requires attribution, it will be added to
+the in-app About / Credits screen.
+
+
+================================================================================
+EXPORT COMPLIANCE (Encryption)
+================================================================================
+
+App Store Connect asks: "Does your app use encryption?"
+
+ANSWER: Yes (HTTPS for Supabase, OpenAI, RevenueCat, OneSignal,
+Mixpanel — all are standard TLS connections).
+
+FOLLOW-UP: "Does your app qualify for any of the exemptions provided
+in Category 5, Part 2 of the U.S. Export Administration Regulations?"
+
+ANSWER: Yes — the app only uses encryption that is exempt under
+5D002.c.1 (using standard / mass-market encryption like HTTPS).
+
+This is the standard answer for any app that just uses HTTPS and
+doesn't ship its own custom cryptography. You can also set
+ITSAppUsesNonExemptEncryption = false in Info.plist to avoid being
+asked on every build.
+
+
+================================================================================
+APP PRIVACY DETAILS ("Data Used to Track You" / "Data Linked to You")
+================================================================================
+
+App Store Connect's privacy questionnaire. Answer each based on what
+Sakina actually collects.
+
+DATA USED TO TRACK YOU:        None
+(Sakina does NOT use any data for cross-app/cross-site tracking. No
+ad networks. No retargeting.)
+
+DATA LINKED TO YOU:
+  Contact Info → Email Address              (for account, sign-in)
+  Contact Info → Name                       (for display, optional)
+  User Content → Other User Content         (reflections, journal entries, saved duas)
+  Identifiers → User ID                     (Supabase user_id)
+  Usage Data → Product Interaction          (Mixpanel analytics)
+  Usage Data → Other Usage Data             (streak, XP, quest progress)
+  Purchases → Purchase History              (RevenueCat subscription state)
+  Diagnostics → Crash Data                  (if any crash-reporting SDK is enabled)
+  Diagnostics → Performance Data            (optional, if collected)
+
+DATA NOT LINKED TO YOU:        None
+(everything we collect is tied to the user's account)
+
+DATA NOT COLLECTED:
+  Health & Fitness, Financial Info, Location, Sensitive Info,
+  Contacts, User Content (photos/videos/audio), Browsing History,
+  Search History, Other Data Types
+
+PURPOSES (mark for each linked data category):
+  • App Functionality (always)
+  • Analytics (Mixpanel events)
+  • Product Personalization (matching feelings to Names)
+  NOT: Third-Party Advertising, Developer's Advertising or Marketing
+
+
+================================================================================
+SIGN IN WITH APPLE — APP STORE GUIDELINE 4.8
+================================================================================
+
+REQUIRED: If your app uses any third-party social sign-in (Google in
+your case), Apple Guideline 4.8 requires you to also offer Sign in
+with Apple as an equivalent option, with the same prominence in the UI.
+
+Sakina already implements all three (Apple / Google / Email).
+✓ Compliant.
+
+Verify before submission:
+• "Sign in with Apple" button appears on the same screen as Google
+• Both buttons have similar visual weight (don't bury Apple at the bottom)
+• Both lead to the same in-app experience
+
+
+================================================================================
+SUBMISSION CHECKLIST
+================================================================================
+
+Before tapping "Submit for Review":
+
+[ ] Build uploaded to App Store Connect and processed
+[ ] All app icons present (1024x1024 marketing icon)
+[ ] Screenshots uploaded for required device sizes
+    [ ] 6.9" (iPhone 16 Pro Max) — REQUIRED
+    [ ] 6.5" (iPhone 11 Pro Max) — REQUIRED
+    [ ] iPad — only if you support iPad
+[ ] App name set to "Sakina"
+[ ] Subtitle set
+[ ] Promotional text set
+[ ] Description set
+[ ] Keywords set
+[ ] Support URL set
+[ ] Privacy Policy URL set
+[ ] Marketing URL set or left blank
+[ ] Primary + Secondary categories selected
+[ ] Age rating questionnaire completed
+[ ] App Privacy details completed
+[ ] Content Rights answered
+[ ] Export Compliance answered
+[ ] App Review Notes pasted into the "Notes" field
+[ ] Demo account email + password filled in
+[ ] In-app purchases created and in "Ready to Submit" state
+[ ] OpenAI key proxy implemented (per docs/TODO.md — BLOCKER)
+[ ] Supabase migrations committed (current repo↔DB drift)
+[ ] Sign in with Apple visible with equal prominence to Google
+
