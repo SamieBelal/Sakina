@@ -807,8 +807,8 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْمَتِينُ',
     episode: 54,
     callFor: ['seeking firm ground', 'instability', 'feeling shaken', 'firmness in trials'],
-    invocationStyle: "La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem",
-    samplePhrase: "La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem",
+    invocationStyle: 'La hawla wa la quwwata illa billah',
+    samplePhrase: 'La hawla wa la quwwata illa billah',
   ),
 
   // Timing cluster

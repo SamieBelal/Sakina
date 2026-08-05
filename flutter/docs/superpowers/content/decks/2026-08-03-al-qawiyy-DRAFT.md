@@ -34,7 +34,7 @@ verse. It is that this deck does not use a verse for bar 1 at all.**
 **Why this deck exists, in one line:** the user with nothing left to push with, who has been taught —
 by every gym poster and every "you are stronger than you know" — that strength is something you
 generate. **There is a ṣaḥīḥ narration in which the Prophet ﷺ stopped a group of straining, shouting
-companions and taught them nine quiet words that say the opposite.**
+companions and taught them seven quiet words that say the opposite.**
 
 **Selection ran duʿā-first.** Catalogue id 62's duʿā is the *ḥawqala* —
 `لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِٱللَّهِ ٱلْعَلِيِّ ٱلْعَظِيمِ` — and its only imperative content is a
@@ -66,7 +66,7 @@ the deck is built to demonstrate.
 > Al-Khāfiḍ/Ar-Rāfiʿ, now Al-Qawiyy/Al-Mateen).
 
 **Beat 1 · bridge:**
-> Their voices were giving out on the climb, and the Prophet ﷺ stopped them — not to make them louder. To hand them nine quieter words.
+> Their voices were giving out on the climb, and the Prophet ﷺ stopped them — not to make them louder. To hand them seven quieter words.
 
 **Beat 2 · name_intro** *(catalogue id 62 `english` verbatim)*:
 > الْقَوِيُّ — Al-Qawiyy — The Strong
@@ -80,13 +80,13 @@ the deck is built to demonstrate.
 > "Allah is the One who created you in a state of weakness, then He created strength after weakness, then created weakness and old age after strength…" — Qur'an 30:54 (excerpt)
 
 **Beat 7 · duʿā** *(catalog id 62, verbatim in full)*:
-> لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
-> *La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem*
-> "There is no power and no strength except through Allah, the Most High, the Most Magnificent."
+> لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ
+> *La hawla wa la quwwata illa billah*
+> "There is neither might nor power except with Allah."
 > **NO source. UNPINNED** — see "The shared duʿā screen."
 
 **Beat 8 · takeaway (pair-synergy):**
-> He wasn't taught to shout louder. He was taught nine quiet words that put all of it back where it already belonged. The strength was never yours on loan, which is why volume added nothing to it. Al-Mateen — the second Name of your answer — is what it is anchored in.
+> He wasn't taught to shout louder. He was taught seven quiet words that put all of it back where it already belonged. The strength was never yours on loan, which is why volume added nothing to it. Al-Mateen — the second Name of your answer — is what it is anchored in.
 
 ---
 
@@ -139,7 +139,7 @@ traded on a weaker verse.
 | # | bar | where it is met | on screen? |
 |---|---|---|---|
 | 1 | **demonstrated in the cited text, in Allah's words — not a trailing epithet** | **Met in ḥadīth, not Qur'an — the enumeration above proves the Qur'an route is exhausted.** Bukhārī 6610: `يَا عَبْدَ اللَّهِ بْنَ قَيْسٍ، أَلاَ أُعَلِّمُكَ كَلِمَةً هِيَ مِنْ كُنُوزِ الْجَنَّةِ، لاَ حَوْلَ وَلاَ قُوَّةَ إِلاَّ بِاللَّهِ` — the Prophet ﷺ's own direct speech, undoubted (`قَالَ`, not `أَوْ قَالَ`), naming the Name's own root (`قُوَّةَ`) as the content of the taught sentence. | yes — beat 5 |
-| 2 | **shown, not stated** | The deck never asserts "Allah is strong." It narrates a specific correction of a specific group's specific behaviour (straining their voices, as if effort were what reached Him), followed by a private moment in which one companion is taught nine words that relocate power entirely. The demonstration is in the sequence, not a claim. | yes — beats 3–5 |
+| 2 | **shown, not stated** | The deck never asserts "Allah is strong." It narrates a specific correction of a specific group's specific behaviour (straining their voices, as if effort were what reached Him), followed by a private moment in which one companion is taught seven words that relocate power entirely. The demonstration is in the sequence, not a claim. | yes — beats 3–5 |
 | 3 | **no sibling collapse, incl. against its twin and shipped `ar-razzaq@1`** | Three surfaces run below, plus the twin-diff against `al-mateen@1`. **The largest disclosure is the shared theme with `ar-rauf@1`'s verse beat (root `ḍ-ʿ-f`) — flagged, not hidden.** | see below |
 | 4 | **the Name's own root in the source text** | **Met three times over: the ḥadīth's own matn (`قُوَّةَ`), the verse beat (`قُوَّةً` ×2 at 30:54), and the duʿā beat (`قُوَّةَ`, rendered in Arabic on screen).** No trade needed — this Name's difficulty was never bar 4, it was bar 1 + bar 3 together (every Qur'anic occurrence of the epithet fails one or both). | yes — beats 5, 6, 7 |
 | 5 | **register — no punishment, no arc terminating in punishment just outside the excerpt** | **This is the bar the earlier rejection failed, and it is where this deck was built most carefully.** No beat renders fighting, killing, captivity, permission-to-fight, or a threat. The ḥadīth's own setting is a journey during a military expedition (disclosed below); nothing martial is quoted, paraphrased or alluded to. | see below |
@@ -193,7 +193,7 @@ eight strings.**
 |---|---|---|---|
 | `q-w-y` (this Name) | duʿā `قُوَّةَ`; hadith matn (story beat, English-only per convention) | **yes, beat 7 only** | spent by no other deck; its 9 divine Qur'anic occurrences (above) are all unusable, so nothing to collide with |
 | `ḍ-ʿ-f` | 30:54 `ضَعْفٍ` ×2 (verse beat, English-only) | no | **⚠️ see the dedicated disclosure below — `ar-rauf@1`'s verse beat (4:28)** |
-| `ʿ-l-w` / `ʿ-ẓ-m` | duʿā `الْعَلِيِّ الْعَظِيمِ` | **yes, beat 7** | catalogue-locked (shared with id 63); Al-Ali (52) and Al-Mutaali (84) are both **BLOCKED** on the duʿā axis (§6e) and will not be drafted soon |
+| ~~`ʿ-l-w` / `ʿ-ẓ-m`~~ | ~~duʿā `الْعَلِيِّ الْعَظِيمِ`~~ | **RESOLVED 2026-08-05** | The duʿā was recut to the bare Bukhārī 6610 form, which is what the Ṣaḥīḥayn actually carry and what this deck's own story narrates. The `ʿ-l-w`/`ʿ-ẓ-m` collision no longer exists, and Al-Ali (52) / Al-Azeem (50) are no longer blocked on the duʿā axis. |
 | `ʿ-l-m` / `q-d-r` | 30:54 trailing clause | **no — elided** | precisely why it was trimmed |
 
 ### Surface 2 — token frequency, current 45-deck asset
@@ -264,9 +264,9 @@ catalogue's screen, not either deck's.
 exact string equality:
 
 ```
-arabic:          لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
-transliteration: La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem
-translation:     There is no power and no strength except through Allah, the Most High, the Most Magnificent.
+arabic:          لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ
+transliteration: La hawla wa la quwwata illa billah
+translation:     There is neither might nor power except with Allah.
 ```
 
 Both rows are the same string; the ship gate asserts each deck's `dua` beat byte-identical to its own
@@ -335,8 +335,8 @@ You did not have anything left to add to it tonight. The story is not about some
 It is about a group of people making themselves louder because they thought that was what reaching
 Him took, and being stopped — not corrected for trying, told to go easy on themselves — and then one
 of them, quietly, already had the right words. Nobody praised him for finding extra strength. He was
-handed a treasure for saying nine words that gave the strength away. **The duʿā you are about to say
-is the same nine words.** Nothing on this deck tells you to push harder. Every beat says the opposite:
+handed a treasure for saying seven words that gave the strength away. **The duʿā you are about to say
+is the same seven words.** Nothing on this deck tells you to push harder. Every beat says the opposite:
 put it down; it was never running on what you had left.
 
 ---

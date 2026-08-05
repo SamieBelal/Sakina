@@ -842,11 +842,11 @@ const List<NameTeaching> nameTeachings = [
         "The Prophet \uFDFA said: 'Shall I tell you a sentence which is one of the treasures of Paradise?' (Sahih al-Bukhari 4205) Then: 'La hawla wa la quwwata illa billah \u2014 there is no power and no strength except through Allah.' The Prophet Ayyub (\u0639\u0644\u064A\u0647 \u0627\u0644\u0633\u0644\u0627\u0645) \u2014 after years of sickness and loss \u2014 received his strength not by denying weakness, but by acknowledging that only Al-Qawi could restore him.",
     dua: NameTeachingDua(
       arabic:
-          'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+          'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
       transliteration:
-          "La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem",
+          'La hawla wa la quwwata illa billah',
       translation:
-          'There is no power and no strength except through Allah, the Most High, the Most Magnificent.',
+          'There is neither might nor power except with Allah.',
       source:
           "Bukhari and Muslim \u2014 described by the Prophet \uFDFA as a treasure from beneath Allah's throne",
     ),

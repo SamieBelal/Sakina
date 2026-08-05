@@ -75,9 +75,9 @@ forces it onto a **traded** root for the verse.
 > "We created the heavens and the earth and all that is between them in six days, and no weariness even touched Us." — Qur'an 50:38
 
 **Beat 7 · duʿā** *(catalog id 63, verbatim in full)*:
-> لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
-> *La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem*
-> "There is no power and no strength except through Allah, the Most High, the Most Magnificent."
+> لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ
+> *La hawla wa la quwwata illa billah*
+> "There is neither might nor power except with Allah."
 > **NO source. UNPINNED** — see "The shared duʿā screen."
 
 **Beat 8 · takeaway** *(**R3**: the pair-synergy label was removed — this deck is `position_in_pair: 2`, and the ship gate requires the synergy beat on **Name₁ only**. Its forward reference to Al-Qawiyy is also gone; both decks previously named the other as *"the second Name of your answer"*, which cannot both be true)*:
@@ -161,8 +161,7 @@ about the reader's deficiency. The reader is never told they are weak.
 | `l-gh-b` | 50:38 `لُّغُوبٍ` (verse beat, English-only per convention) | no | spent by no other deck |
 | `m-l-l` | Bukhārī 43 `يَمَلُّ` (story, English-only) | no | spent by no other deck |
 | `q-w-y` | duʿā `قُوَّةَ` (shared with id 62) | **yes, beat 7** | catalogue-locked; carries the twin's root, not this Name's — see the bar-4 disclosure |
-| `ʿ-l-w`/`ʿ-ẓ-m` | duʿā `الْعَلِيِّ الْعَظِيمِ` | **yes, beat 7** | same as `al-qawiyy@1`'s disclosure — both Al-Ali (52) and Al-Azeem (50) BLOCKED, undecked |
-
+| ~~`ʿ-l-w` / `ʿ-ẓ-m`~~ | ~~duʿā `الْعَلِيِّ الْعَظِيمِ`~~ | **RESOLVED 2026-08-05** | The duʿā was recut to the bare Bukhārī 6610 form, which is what the Ṣaḥīḥayn actually carry and what this deck's own story narrates. The `ʿ-l-w`/`ʿ-ẓ-m` collision no longer exists, and Al-Ali (52) / Al-Azeem (50) are no longer blocked on the duʿā axis. |
 ### Surface 2 — token frequency, current 45-deck asset
 
 **Checked against 45 decks.**
@@ -221,9 +220,9 @@ louder* vs. *never depleted by you*). **Programmatic n-gram diff, both direction
 `dua_translation`.** Verified programmatically, exact string equality:
 
 ```
-arabic:          لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ
-transliteration: La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem
-translation:     There is no power and no strength except through Allah, the Most High, the Most Magnificent.
+arabic:          لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ
+transliteration: La hawla wa la quwwata illa billah
+translation:     There is neither might nor power except with Allah.
 ```
 
 Both rows are the same string; the ship gate asserts each deck's `dua` beat byte-identical to its own

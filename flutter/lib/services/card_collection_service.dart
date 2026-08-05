@@ -1138,11 +1138,11 @@ const List<CollectibleName> allCollectibleNames = [
     hadith:
         'The Prophet ﷺ said: "The strong one is not the one who overcomes others physically. The strong one is the one who controls himself in a fit of anger." (Bukhari & Muslim)',
     duaArabic:
-        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
     duaTransliteration:
-        'La hawla wa la quwwata illa billahil \'Aliyyil \'Azeem',
+        'La hawla wa la quwwata illa billah',
     duaTranslation:
-        'There is no power and no strength except through Allah, the Most High, the Most Magnificent.',
+        'There is neither might nor power except with Allah.',
   ),
   CollectibleName(
     id: 63,
@@ -1154,11 +1154,11 @@ const List<CollectibleName> allCollectibleNames = [
         'When everything around you is shaking, Al-Mateen is the unshakeable ground.',
     hadith: 'The Prophet ﷺ said: "O \'Abdullah bin Qais! Shall I teach you a sentence which is from the treasures of Paradise? (It is): La hawla wa la quwwata illa billah — there is neither might nor power except with Allah." All strength is Allah\'s alone. (Sahih al-Bukhari 6610 — Sahih)',
     duaArabic:
-        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
     duaTransliteration:
-        'La hawla wa la quwwata illa billahil \'Aliyyil \'Azeem',
+        'La hawla wa la quwwata illa billah',
     duaTranslation:
-        'There is no power and no strength except through Allah, the Most High, the Most Magnificent.',
+        'There is neither might nor power except with Allah.',
   ),
   CollectibleName(
     id: 64,
