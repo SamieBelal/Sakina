@@ -296,6 +296,14 @@ void main() {
     // Same class the beat-field check uses (presentation forms included) — a
     // variant pasted from a source that uses them must not slip through.
     final arabicBody = RegExp(r'[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]');
+    // …with the same honorific carve-out the RTL-bleed rule makes above: ﷺ, ﷻ
+    // and ﷽ are single codepoints inside the presentation-forms block but read
+    // as English-side punctuation. Without this the gate forbids a variant from
+    // saying "the Prophet ﷺ" — which several `primary` texts already do, so the
+    // rule would have banned from the variant exactly what it permits one field
+    // over. (Wave 3's mutation test used real Arabic words and never reached
+    // this case; the first batch of authored content did, immediately.)
+    String stripHonorifics(String s) => s.replaceAll(RegExp(r'[ﷺﷻ﷽]'), '');
     // Read off the live chip taxonomy, never transcribed — a copied list would
     // drift the moment a chip is renamed, and drift here is undetectable.
     final validProblemCategories =
@@ -314,6 +322,15 @@ void main() {
         }
         if (raw == null) continue;
         final seen = <String>{};
+        // `primary` is the default AND the fallback (plan §4.1), and it is in
+        // the rotation pool. A variant that merely restates it therefore costs
+        // a repeat encounter: the selector believes it rotated, the reader gets
+        // the same sentence twice. It is also a drift surface of exactly the
+        // kind this repo keeps paying for — edit `primary`, forget the copy,
+        // and one category silently keeps serving the old words.
+        final seenText = <String>{
+          ((b['primary'] ?? '') as String).trim(),
+        };
         for (final v in (raw as List)) {
           final m = v as Map<String, dynamic>;
           final id = (m['id'] ?? '') as String;
@@ -322,9 +339,22 @@ void main() {
               reason: '${d['deck_id']} $kind variant has no id — selections '
                   'are persisted by id, and a positional fallback silently '
                   'points at different copy once variants are reordered');
-          // An id is either `default` (the authored text already in `primary`,
-          // and the fallback when nothing matches) or one of the seven
-          // `problemCategory` values the on-device matcher actually produces.
+          // An id is either `default` or one of the seven `problemCategory`
+          // values the on-device matcher actually produces.
+          //
+          // `default` is NOT a copy of `primary` — the duplicate-text rule
+          // below rejects that. It is the *no-category* text, for the case the
+          // matcher returns `unmatched` (free text with no keyword hit).
+          // `unmatched` is deliberately not a legal id: it is not a chip, and
+          // pinning ids to the live chip list is what catches typos.
+          //
+          // This distinction is load-bearing for the seven chip-pair decks
+          // whose `primary` echoes the chip label back ("For the weight you
+          // named — a mind that won't stop racing"). Onboarding picks those
+          // decks BY chip, so `primary` is always true there. Daily picks them
+          // by `deckForName(queueCard.id)` — the drawn card, not the answer —
+          // so an unmatched answer would otherwise be told it named a weight
+          // it never named.
           //
           // This is pinned against the live taxonomy rather than a copy,
           // because the first seeded batch used `far-from-allah` — the
@@ -353,11 +383,19 @@ void main() {
           expect(m.containsKey('arabic'), isFalse,
               reason: '${d['deck_id']} $kind variant "$id" carries an arabic '
                   'field — see above');
-          expect(arabicBody.hasMatch(text), isFalse,
+          expect(arabicBody.hasMatch(stripHonorifics(text)), isFalse,
               reason: '${d['deck_id']} $kind variant "$id" contains Arabic '
                   'script in its text. The gate cannot verify scripture that '
                   'reaches a screen this way, which is the whole reason this '
                   'slot is restricted');
+          expect(seenText.add(text.trim()), isTrue,
+              reason: '${d['deck_id']} $kind variant "$id" repeats text already '
+                  'in this beat (either `primary` or an earlier variant). That '
+                  'is not coverage — it spends a rotation slot to show the '
+                  'reader the same sentence again, and it duplicates a string '
+                  'that will drift the first time one copy is edited. A '
+                  'category with nothing distinctive to say should carry no '
+                  'variant and fall through to `primary`');
         }
       }
     }

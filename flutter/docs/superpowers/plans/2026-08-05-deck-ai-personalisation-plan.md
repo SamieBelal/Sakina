@@ -179,10 +179,48 @@ weeks, not an edge case.
 **Remaining:** merge the 37 with the staged 54; tighten the gate to *exactly one
 reflection unless the deck closes on a pair-synergy beat*.
 
-### Wave 2 — Variant content (the long pole, unblocked, start now)
+### Wave 2 — Variant content (the long pole)
 3–5 bridge variants × 99 decks, 3–5 reflection variants × 91. Authored, not
 generated. **No verification wave needed** — these slots are gate-forbidden from
 carrying scripture, so none of the five bars apply.
+
+**Bridges ✅ DONE 2026-08-05 — 99/99 decks, 505 variants.** Coverage per category:
+`far_from_allah` 91, `heavy` 88, `guilt` 82, `anxiety` 73, `unseen` 67, `rizq` 64,
+`unspoken` 33, `default` 7. Uneven by design: a category with nothing distinctive
+to say carries **no** variant and falls through to `primary`, which the gate now
+enforces (see below). **Reflections: not started** — 0/91.
+
+Three things the content changed about the design:
+
+1. **`default` is not a copy of `primary`.** The seeded proof batch gave each deck
+   a `default` variant byte-identical to `primary`, plus an own-chip variant
+   identical to both. That contradicts §4.1's own "`primary` stays the default and
+   the fallback", puts `primary` into the rotation pool twice (the selector
+   believes it rotated; the reader gets the same sentence again), and creates 99
+   new copies of a string that drifts the first time one side is edited — the
+   failure this repo has already paid for across the Name catalogue's mirrors. The
+   gate now **rejects any variant whose text repeats `primary` or a sibling**, and
+   `default` was re-defined to the one job it can do that `primary` cannot: the
+   *no-category* text, for `unmatched`.
+
+2. **Seven decks needed that `default` urgently, and it was a live bug.** The
+   chip-pair decks echo the chip label back — *"For the weight you named — a mind
+   that won't stop racing"*. Onboarding picks those decks BY chip, so `primary` is
+   always true there. Daily picks by `deckForName(queueCard.id)` —
+   `daily_loop_provider.dart:1423`, the drawn card, **not** the answer. A daily
+   user who wrote something with no keyword hit is currently told they named a
+   weight they never named. Affected: `as-salam@1`, `al-jabbar@1`, `al-ghaffar@1`,
+   `ar-razzaq@1`, `al-fattah@1`, `al-wadud@1`, `al-baseer@1`. Each now carries a
+   neutral `default`. **This does not fix itself until Wave 5 ships a selector** —
+   the variants are inert until something reads them.
+
+3. **The Wave 3 gate was over-strict and its mutation test missed it.** The
+   Arabic-script rule rejected ﷺ (U+FDFA, inside the presentation-forms block),
+   which several `primary` texts already carry by design — so the gate banned from
+   a variant exactly what it permits one field over. The RTL-bleed rule two tests
+   up had always stripped the three composite honorifics; the variant rule now
+   does too. Wave 3's mutation test used real Arabic words and never reached the
+   case. The first batch of authored content did, immediately.
 
 ### Wave 3 — Gate hardening (do before any variant lands)
 D4's two assertions. Ordering matters: land the gate first so the first authored

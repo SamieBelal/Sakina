@@ -13,7 +13,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "A mind that will not stop is still a mind that knows one Name. Start there, before you have sorted the rest."
+          },
+          {
+            "id": "heavy",
+            "text": "When it is all heavy at once, you do not need the right word for it. You need the Name that holds every one of them."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been working out what you are still allowed to say to Him. Before any of that, there is the Name itself."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Distance does not take the Name off you. It was the first thing you were given and it is the last thing you lose."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -177,7 +195,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "You are looking for something wide enough to steady the noise. Every chapter but one of the Qur'an opens on this Name."
+          },
+          {
+            "id": "heavy",
+            "text": "You are carrying all of it at once. This is the Name so wide the whole Book opens on it."
+          },
+          {
+            "id": "guilt",
+            "text": "You came expecting to be met with the account of what you did. The Book opens on a different Name."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "However far you have decided you have got, the first thing the Book says about Him is this."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been counting what is not there. The Name the Book opens on was never earned or counted."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has looked at this properly. The widest mercy there is opens the Book, and it is not rationed by who noticed."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -288,7 +332,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You keep asking, and you keep needing to ask again. There is a mercy aimed specifically at the ones who came back."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "One mercy keeps everyone alive, believer or not. This is the Name for the mercy that is aimed."
+          },
+          {
+            "id": "unseen",
+            "text": "They were asleep for the whole answer and nobody was watching. Being unaware of it did not slow it down."
+          },
+          {
+            "id": "anxiety",
+            "text": "You have been checking whether it worked. The story here is of an answer that ran for three centuries while nobody watched."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -462,7 +524,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Your income is decided in rooms you will never sit in. This is the Name for who those rooms belong to."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep running an outcome you cannot control. Someone is in charge of it, and it is not the people you are picturing."
+          },
+          {
+            "id": "unseen",
+            "text": "The people with a say over your life have not looked at you closely. Above them is the One whose hand they are inside."
+          },
+          {
+            "id": "heavy",
+            "text": "So much of the weight is decisions you had no part in. This is the Name for who is actually deciding."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -612,7 +692,21 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You have assumed your distance changed something on His side. Nothing that happens down here reaches Him that way."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is the thing. Part of it is the damage you think it did to Him. Only one of those is real."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps running the damage report. There is a Name for the One the report cannot touch."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -752,7 +846,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Whatever you came in carrying tonight, this is the Name for what is meant to sit underneath it."
+          },
+          {
+            "id": "heavy",
+            "text": "Underneath everything heavy is usually a wish for one quiet hour. This is the Name for where quiet comes from."
+          },
+          {
+            "id": "guilt",
+            "text": "You have not been at peace with yourself in a long time. Peace is not a mood here — it is one of His Names."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The distance is loud. This is the Name for the stillness on the other side of it."
+          },
+          {
+            "id": "rizq",
+            "text": "The arithmetic never quite settles. This is the Name for a peace that does not wait for the numbers to."
+          },
+          {
+            "id": "unseen",
+            "text": "You have been keeping it together in front of everyone. This is the Name for the peace you could not manufacture."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not put a word to it. Whatever it is, its opposite is one of His Names."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -869,7 +993,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You are the one who makes everyone else feel safe. This Name is about who does that for you."
+          },
+          {
+            "id": "heavy",
+            "text": "Bracing is its own kind of tired. This Name is not about bracing better."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been building a margin so nothing can catch you out. Safety is named here as something given, not something built."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been trying to become someone worth protecting. Being made safe is not the wage for that."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1037,7 +1179,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You told the truth and it did not land. This is the story of what gets sent when nobody agrees."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not make them understand it. What was added to the story was not agreement."
+          },
+          {
+            "id": "heavy",
+            "text": "Being outnumbered is its own weight. This is the Name for a strength that does not count heads."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You feel like the only one still trying. What arrived was not agreement — it was reinforcement."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1165,7 +1325,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Something in this is broken, whether or not you have called it that. Mending has its own Name, and this is it."
+          },
+          {
+            "id": "anxiety",
+            "text": "A mind that will not stop is often guarding a break it has not admitted to. This is the Name for what mends."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been treating it as a fault to be punished. There is a Name that treats it as a break to be set."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Something broke and you have lived at a distance from it ever since. This is the Name for the setting of bones."
+          },
+          {
+            "id": "rizq",
+            "text": "It was never only about money. It is what the shortage did to you. This is the Name for mending that."
+          },
+          {
+            "id": "unseen",
+            "text": "You set your own bone, alone, and badly. This is the Name for the One who does it properly."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot describe the break. It does not have to be described to be set."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1300,7 +1490,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "When nobody is looking it gets easy to conclude nobody meant you. This Name is about who did."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Feeling unwanted by Him and feeling unmade are close cousins. Only one of them has an answer here."
+          },
+          {
+            "id": "heavy",
+            "text": "When it is all heavy, being alive starts to feel like something that merely happened to you. It did not."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided what you are made of based on what you keep doing. Someone else did the making."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1464,7 +1672,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Some of what you brought tonight is a thing you have already asked to have covered. This is the Name that keeps answering."
+          },
+          {
+            "id": "anxiety",
+            "text": "Some of what your mind will not stop replaying is a thing you already asked to have covered. This is the Name for the covering."
+          },
+          {
+            "id": "heavy",
+            "text": "Some of the weight is old, and has been carried well past the point it was still owed. This is the Name that lifts that kind."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are reading the distance as a verdict. More often it is something left uncovered that could have been covered."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been reading the shortage as a bill coming due. This is the Name for a forgiving that does not run out."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows the thing you would have to explain first. It does not need explaining to be covered."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot say it out loud. Being covered does not require you to."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1563,7 +1801,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have priced exactly what you need. This is the Name for what arrives outside the list."
+          },
+          {
+            "id": "unseen",
+            "text": "You asked for one thing and a person turned up instead. This is the Name for gifts that were never on the list."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been counting what is missing. There is a Name for what showed up that you never thought to ask for."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped asking a while ago. This Name is about what is given without being asked for."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1721,7 +1977,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Something has reached you every day of this, whether or not you counted it. This is the Name for where it comes from."
+          },
+          {
+            "id": "anxiety",
+            "text": "A mind that runs the numbers at night is doing someone else's job. This is the Name for whose job it is."
+          },
+          {
+            "id": "heavy",
+            "text": "Some of the weight is just the arithmetic of the month. This is the Name for what reaches you regardless of it."
+          },
+          {
+            "id": "guilt",
+            "text": "You think you forfeited your share. Provision here is not a wage for good behaviour."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been eating at a table you assume you are no longer welcome at. This is the Name for who sets it."
+          },
+          {
+            "id": "unseen",
+            "text": "You are the one everyone else gets provided through. This is the Name for who provides for you."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not say what was wrong. Something has still reached you every single day of it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1826,7 +2112,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You have been assembling an explanation nobody asked you for. It was known before you started."
+          },
+          {
+            "id": "unspoken",
+            "text": "There is no version of this you can say out loud. It never needed saying to be known."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been rehearsing how to explain it. He knew it before the sentence started."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps drafting the account. The account was complete before you began drafting it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -1976,7 +2280,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Some of what is heavy is a loss you were never given room to put down. This is the Name for the one thing in it that does not end."
+          },
+          {
+            "id": "unseen",
+            "text": "You are grieving something nobody around you registered. This Name outlasts everyone who did not notice."
+          },
+          {
+            "id": "anxiety",
+            "text": "What your mind circles at night is usually a loss it is trying to prevent. There is one Name in that picture that cannot be lost."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Everything you anchored to has moved. This is the Name for the one thing that was never going to."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2108,7 +2430,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You stopped, and you decided the stopping was the whole story. The holding never stopped."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You went quiet for a while and read it as being dropped. The gap was in what you were doing."
+          },
+          {
+            "id": "heavy",
+            "text": "You have not been able to keep up the things that used to hold you. Nothing that keeps you has ever needed you to."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep checking whether you have fallen far enough behind to be let go of. Nothing holding you takes a night off."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2222,7 +2562,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "The distance usually shows up as a dimness rather than a decision. This is the Name for what is asked for when nothing in you is lit."
+          },
+          {
+            "id": "heavy",
+            "text": "Heavy and dark tend to arrive together. A boy once arranged to be woken in the middle of exactly that kind of night."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not name what is missing. Some of it may simply be light, and there is a Name for that."
+          },
+          {
+            "id": "guilt",
+            "text": "You have taken the dimness for a punishment. The prayer here does not ask to be forgiven — it asks to be lit."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2368,7 +2726,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Something in front of you is not moving. There is a Name for the One who opens, and no gatekeeper outranks it."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps trying the handle to check it is still shut. This is the Name of the One who opens."
+          },
+          {
+            "id": "heavy",
+            "text": "Everything is shut at once and you have stopped trying the handles. Opening is not something the doors get to decide."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided the door is shut because of what you did. Opening is not a reward that gets withheld."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The way back is the door you think is shut. This is the Name of the One who opens it."
+          },
+          {
+            "id": "unseen",
+            "text": "You have spent years holding doors for other people. This is the Name of the One who opens yours."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not name the thing you need. He opens without needing you to describe the door."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2494,7 +2882,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Something was taken, and the space it left is a lot of what you are carrying. It did not go nowhere."
+          },
+          {
+            "id": "rizq",
+            "text": "It got tighter and then stayed tighter. Withholding here has a direction, and it is not away from Him."
+          },
+          {
+            "id": "guilt",
+            "text": "You have read the taking as a sentence passed on you. Look at where the line about withholding actually ends."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Something was withdrawn and you took it as being let go of. It was drawn toward, not away."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody saw the thing that was taken, so nobody has marked it. It was still taken toward somewhere."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2692,7 +3102,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have run the numbers enough times to be certain nothing is coming. The certainty is the part the oath is spent on."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has checked, and checked again, and every check confirms it. Being sure is the worst of it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have concluded that nothing is coming for you in particular. That conclusion is older than you think."
+          },
+          {
+            "id": "heavy",
+            "text": "You stopped expecting anything to lift. The account here spends nearly all its words on exactly that."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2886,7 +3314,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Whatever you came in with tonight, this is the Name for how He actually feels about you."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs the distance between you and Him like a debt. This Name is about what is on the other side of it."
+          },
+          {
+            "id": "heavy",
+            "text": "Some of the weight is a coldness you assume is coming from His side. This Name says otherwise."
+          },
+          {
+            "id": "guilt",
+            "text": "You expect to be tolerated at best. There is a Name for something considerably warmer than tolerance."
+          },
+          {
+            "id": "rizq",
+            "text": "You have read the shortage as a message about how He feels about you. This is the Name that answers that."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody who was paying attention has loved you in a while. This is a Name about being loved by the One who was."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not say what it is. It does not have to be said to be met with this."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -2991,7 +3449,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps waiting for the consequence to land. Forbearance is the distance between what a thing earned and what is actually done about it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are waiting to be dealt with. Every hour you have had so far was inside that waiting, and it was a gift."
+          },
+          {
+            "id": "heavy",
+            "text": "A lot of the weight is dread of an account being called in. There is a Name for how long that is held off."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows what you did, so nobody has held it against you. That was never the thing you were afraid of."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3153,7 +3629,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have asked for the same thing so many times it has started to feel rude. The One being asked is Free of need."
+          },
+          {
+            "id": "guilt",
+            "text": "You think you have used up your allowance. There is no allowance, and there never was one."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You went quiet because you assumed you had asked too often. That supply does not run down."
+          },
+          {
+            "id": "heavy",
+            "text": "You are too tired to ask well. Generosity here does not grade the asking."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3278,16 +3772,28 @@
         "source": "",
         "variants": [
           {
-            "id": "default",
-            "text": "You think the shameful part is having to come back again. Coming back has its own Name."
-          },
-          {
-            "id": "guilt",
-            "text": "You think the shameful part is having to come back again. Coming back has its own Name."
-          },
-          {
             "id": "far_from_allah",
             "text": "The distance you are feeling is not a verdict. It is the part of the road you are standing on."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps replaying the return itself, as though coming back were the embarrassing part. Coming back has its own Name."
+          },
+          {
+            "id": "heavy",
+            "text": "The heaviest part is usually the going back again, not the thing itself. There is a Name for exactly that turn."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been reading the shortage as the bill for what you keep doing. The turn is met on the road, not at the end of it."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows how many times you have started again. The turn is met each time regardless of the count."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot say what you keep going back to. The turning does not have to be narrated to be accepted."
           }
         ]
       },
@@ -3399,7 +3905,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind has mapped every option and not one of them settles. This is the Name for being shown, rather than working it out."
+          },
+          {
+            "id": "heavy",
+            "text": "You do not know which thing to pick up first. There is a Name for being shown the next step rather than the whole road."
+          },
+          {
+            "id": "guilt",
+            "text": "You know you should turn back. Not knowing how is a separate problem, and it has its own Name."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot tell which way forward is the right one. Being shown was never the reward for having already chosen well."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has walked you through any of this. There is a Name for the One who does."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot say what you need. Guidance was never conditional on asking for it precisely."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3536,20 +4068,28 @@
         "source": "",
         "variants": [
           {
-            "id": "default",
-            "text": "Carrying it alone is the heaviest version. This Name means no one has to."
-          },
-          {
-            "id": "unseen",
-            "text": "Carrying it alone is the heaviest version. This Name means no one has to."
-          },
-          {
             "id": "heavy",
             "text": "There is a kind of tired that comes from having nowhere to set it down. This Name is the place."
           },
           {
             "id": "unspoken",
             "text": "You could not explain it to anyone tonight. You do not have to explain it to lean on it."
+          },
+          {
+            "id": "anxiety",
+            "text": "A mind that will not stop is usually a mind that believes it is the only thing holding this up. It is not."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided you forfeited the right to lean. Everyone leans here — that is what the Name means."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been managing without Him for a while and it has been expensive. This is the Name for where everything leans."
+          },
+          {
+            "id": "rizq",
+            "text": "You are the one everything depends on. This is the Name for the One you get to depend on."
           }
         ]
       },
@@ -3682,20 +4222,28 @@
         "source": "",
         "variants": [
           {
-            "id": "default",
-            "text": "A racing mind spends the night rehearsing tomorrow. This is the Name of the One you can hand tomorrow to."
-          },
-          {
-            "id": "anxiety",
-            "text": "A racing mind spends the night rehearsing tomorrow. This is the Name of the One you can hand tomorrow to."
-          },
-          {
             "id": "heavy",
             "text": "When everything is heavy, some of the weight is things you were never asked to carry. This Name is about who takes them."
           },
           {
             "id": "rizq",
             "text": "You have been doing the arithmetic on a future you cannot see. This is the Name of the One who already holds it."
+          },
+          {
+            "id": "guilt",
+            "text": "You are still holding the consequence in case putting it down looks like not caring. Handing it over is not the same as excusing it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped handing things over a while ago and started carrying them yourself. This is the Name for who you can hand them back to."
+          },
+          {
+            "id": "unseen",
+            "text": "Everyone hands their outcomes to you. This is the Name of the One you can hand yours to."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot name what you are bracing for. It can be handed over unnamed."
           }
         ]
       },
@@ -3825,7 +4373,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "A racing mind is loud and still produces nothing usable. He never needed the words."
+          },
+          {
+            "id": "heavy",
+            "text": "You could not explain the weight to anyone who asked. It was never unsaid to Him."
+          },
+          {
+            "id": "guilt",
+            "text": "You cannot say the thing out loud, even alone. It has never needed saying."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have not been able to word a single prayer in weeks. Words were never the requirement."
+          },
+          {
+            "id": "rizq",
+            "text": "You could not tell anyone how tight it actually is. This Name works in the details you never reported."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody asked, and you would not have known how to answer. What is hidden in a heart is known best by Him."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -3963,7 +4537,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind treats the silence after asking as an answer. It is not one."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped asking because nothing came back. This is the Name for what happens to a sentence after it leaves you."
+          },
+          {
+            "id": "guilt",
+            "text": "You assume you are being passed over on purpose, and you think you know why. One man asked from inside a fish."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has answered you in a long time. There is a Name for the One who responds."
+          },
+          {
+            "id": "rizq",
+            "text": "You have asked for the same relief every month for a year. The āyah about that man does not stop with him."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4091,7 +4687,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "A mind that will not stop is often circling something that has not healed. This is the Name the Prophet ﷺ called on for healing."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been treating as a crime something that is partly an injury. This is the Name for injuries."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Distance is sometimes damage rather than choice. This is the Name for what gets damaged."
+          },
+          {
+            "id": "rizq",
+            "text": "The shortage did something to you that has outlasted the shortage. There is a Name for the part that is still sore."
+          },
+          {
+            "id": "unseen",
+            "text": "You have been recovering with nobody noticing. This is the Name the Prophet ﷺ himself called on."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot describe where it hurts. It does not have to be located to be healed."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4211,7 +4833,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "The 3am version of it is the one nobody ever gets to see. You are not unattended in it."
+          },
+          {
+            "id": "guilt",
+            "text": "You think of being watched as a risk. This Name is the other kind — nothing you do alone is left unattended."
+          },
+          {
+            "id": "heavy",
+            "text": "The heaviest hours are the ones with no witnesses. There is a Name for not being left alone in them."
+          },
+          {
+            "id": "unspoken",
+            "text": "There was nothing to say and nobody there to say it to. It was attended anyway."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have assumed nobody was near you for any of it. Somebody went up with all of it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4403,7 +5047,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You had margin and now you do not, and losing the standing stings more than losing the money. That happened once over a race."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is that you used to be higher up than this. Nothing here stays up on its own."
+          },
+          {
+            "id": "guilt",
+            "text": "You have read the fall as a punishment aimed at you. This is the Name for how long anything here stays up — for everyone."
+          },
+          {
+            "id": "unseen",
+            "text": "You lost something nobody had noticed you had. That does not make the drop any smaller."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You used to be closer than this, and the comparison is the worst part. Height here was always on loan."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4526,7 +5192,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "The description people use for you is accurate, and it is not the important one. Somebody else is using the other."
+          },
+          {
+            "id": "guilt",
+            "text": "The label you have given yourself is true. It is also the smaller of the two true sentences about you."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been living inside the smaller true description of yourself. There is a larger one already in use."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have filed yourself under what you were rather than what you were doing. Both were said out loud once, about a man who was not there."
+          },
+          {
+            "id": "rizq",
+            "text": "Your work is what you are to everyone who meets you. It was the smaller of the two true things about a man on a road outside Makkah."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4658,7 +5346,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Nobody in your life responds to what you actually say. Something responds to Al-Fatihah, line by line, every time."
+          },
+          {
+            "id": "unspoken",
+            "text": "You have run out of ways to say it. The response in that narration opens the same way each time: My servant."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been praying into what feels like an empty room. That narration carries the second voice in it."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep rephrasing it, as though the wording were the problem. It is heard either way."
+          },
+          {
+            "id": "guilt",
+            "text": "You assume the silence means you were not worth answering. Every line of the answer begins with the same two words."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4792,7 +5502,37 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "default",
+            "text": "Whatever you are carrying tonight, this is the Name for the One who has already seen it."
+          },
+          {
+            "id": "anxiety",
+            "text": "A racing mind is a private thing; nobody sees the 3am version of you. This Name is about the One who always has."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been carrying it where nobody can see the size of it. It has been seen at full size the whole time."
+          },
+          {
+            "id": "guilt",
+            "text": "You are afraid of what would happen if it were seen. It has been seen, and you are still here."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You feel unnoticed by Him specifically. This Name is the answer to that exact fear."
+          },
+          {
+            "id": "rizq",
+            "text": "Nobody knows how tight it actually is. The tightness has been in full view the entire time."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not describe it to anyone. It did not have to be described to be seen."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -4897,7 +5637,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "What your mind circles at night is usually the exposure, not the consequence. This Name is the covering."
+          },
+          {
+            "id": "unseen",
+            "text": "You are terrified of the one thing about you that nobody knows. It was heard once, in private, and never told."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not say it to anyone. In that account it is named once, in private, and no one else is ever told."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have kept a distance so the thing would not be found. It was already known, and it was covered."
+          },
+          {
+            "id": "heavy",
+            "text": "A great deal of the weight is the effort of not being found out. There is a Name for the covering itself."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5065,7 +5827,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "There is not enough to go round and you have been rationing accordingly. Neither of those two sentences is about how much there is."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has nowhere left to put the next thing. That is news about where you are, not about how much was made."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided there is no longer room for you. It was never the room that was missing."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have concluded you used up your place. Check whether it was really the room that ran out."
+          },
+          {
+            "id": "unseen",
+            "text": "Everyone else's things fit into your week and yours fit nowhere. The room was never the part that was missing."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5239,7 +6023,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind has been treating every one of them as solid. Half of them are ropes."
+          },
+          {
+            "id": "rizq",
+            "text": "The number that frightens you tonight was made by people who knew exactly what they were making."
+          },
+          {
+            "id": "unseen",
+            "text": "The version of you that everyone reacts to is not the real one. Knowing which is which is the whole difficulty."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The distance feels like a settled fact. Fear has never been able to tell you which things are real."
+          },
+          {
+            "id": "guilt",
+            "text": "The case you have built against yourself feels solid. So did the ropes, to everyone except the men who threw them."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5395,7 +6201,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You are carrying it somewhere nobody who loves you can reach. There is a Name for both ends of that distance."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs through the people you cannot get to. There is a Name for who is with them while you cannot be."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are far from the people who would notice, and further from Him. One Name answers both halves."
+          },
+          {
+            "id": "rizq",
+            "text": "You are far from home because of the work. There is a Name for who is with the people you left."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not tell anyone, and the people who would have understood are not here. The Prophet ﷺ who taught these words had been an orphan himself."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5533,7 +6361,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You have been saying the right words about it and meaning none of them. The narration keeps both."
+          },
+          {
+            "id": "guilt",
+            "text": "You cannot mean the words, and you have added that to the list against yourself. She could not mean them either."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep rehearsing what you will say once you can finally mean it. She said them first and meant them after."
+          },
+          {
+            "id": "unspoken",
+            "text": "There is nothing you can say about it. Saying the words and meaning them were never the same requirement."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped saying anything because it all felt hollow. The narration keeps the hollow version too."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5671,7 +6521,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You have not stopped believing. You have stopped feeling it, and you have been treating that as desertion."
+          },
+          {
+            "id": "anxiety",
+            "text": "You know the answer and it settles nothing at 3am. Someone else asked to be shown anyway."
+          },
+          {
+            "id": "guilt",
+            "text": "You think needing to be shown is a fault. What came back was not a rebuke — it was four birds and a hill."
+          },
+          {
+            "id": "heavy",
+            "text": "The distance between knowing it and feeling it is exhausting to keep crossing. He asked to be taken across, and was."
+          },
+          {
+            "id": "rizq",
+            "text": "You know provision is guaranteed and your account still says what it says. Asking to see it was never held against anyone."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5779,7 +6651,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Some of the weight is a thing you were already forgiven for and are still carrying. There is a Name for wanting it gone."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind returns to it nightly even though it is settled. There is a Name for the erasing, not just the excusing."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows it is still sitting there. Of every request available on the best night of the year, she was taught to ask for the erasing."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You think it is still on the record and that is why the distance. The sentence she was taught asks for it to be gone."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot name it, and it has not moved. Wanting it gone has its own Name."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -5935,7 +6829,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "It is not that you stopped caring. It is that fifty was never a number anybody could carry."
+          },
+          {
+            "id": "guilt",
+            "text": "You keep failing at an amount you set yourself. Fifty came down to five, and not because anyone grew strong enough for fifty."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind reads every shortfall as a character flaw. The number came down; nobody rose to meet it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot keep up what you used to keep up, and you have read that as drifting. The number was lowered by the One who set it."
+          },
+          {
+            "id": "rizq",
+            "text": "You are working every hour there is and it is still not enough. No amount of resolve has ever closed a capacity gap."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6073,7 +6989,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Everyone else got something and nobody noticed that you did not. He told them what they were already taking home."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been carrying a sum that comes out short every time you run it. Something was left out of it."
+          },
+          {
+            "id": "guilt",
+            "text": "You assume you got less because you deserved less. He did not tell them a share was coming later."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Everyone else seems to have been given something you were not. Check what you left out of the sum."
+          },
+          {
+            "id": "anxiety",
+            "text": "You run the comparison nightly and it comes out the same every time. A whole group of people once did that out loud."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6229,7 +7167,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You are guarding what you have left. She counted what they still had; he counted what was with Allah."
+          },
+          {
+            "id": "heavy",
+            "text": "Most of what you are gripping tonight will not outlast you. Some of it already has."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been counting what you have left. The only part of that sheep that did not last is the part they kept."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Everything you built your life around is temporary and you have started to notice. Not everything is."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody saw what you gave away. That is exactly the part you still have."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6361,7 +7321,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have concluded this is a punishment aimed at you. The answer to that question started with the Prophets."
+          },
+          {
+            "id": "heavy",
+            "text": "It is still happening and you have stopped expecting it to stop. What is happening to you has a category, and it is not punishment."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have read the hardness as being pushed away. The category it belongs to is the shape given to people being taken seriously."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has registered how long this has gone on. The answer to who is tested most starts at the top, not the bottom."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps asking what this says about you. It has a category, and the category is not punishment."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6529,7 +7511,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps a ledger and every entry lands in the same column. You have been bracing for fair as though fair were the worst outcome."
+          },
+          {
+            "id": "heavy",
+            "text": "Some of the weight is an account you have been keeping against yourself. The slope of the real one runs toward you."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have added the distance to the ledger as one more entry against you. Every entry in yours is in the same column."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows about the account you keep against yourself. Nothing in it has ever been entered against you."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been reading the shortage as a debit against your name. An atom's weight against you, and a multiplier on everything else."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6650,7 +7654,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You measure yourself against people who never entered you in the comparison. This is the Name for the One who was never in any competition."
+          },
+          {
+            "id": "rizq",
+            "text": "You keep measuring what you have against what they have. Nothing shares what He is — not a rival, not a near match."
+          },
+          {
+            "id": "guilt",
+            "text": "You have measured yourself against a version of you that does not exist. There is one thing that belongs to no category at all."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is the constant measuring. There is one thing that was never entered in that competition."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You compare your worst self to other people's practice and conclude you are far. Nothing here is even the same kind of thing as Him."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6800,7 +7826,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You think you are too late to come back. Someone was genuinely last, and his place was still being kept."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have decided you missed the window. Somebody left the Fire last and entered Paradise last, and nothing had been given away."
+          },
+          {
+            "id": "heavy",
+            "text": "You are certain the good part is behind you. This is the Name for who is still there when everything is actually over."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps telling you the window has closed. His place was being kept for the very last turn."
+          },
+          {
+            "id": "rizq",
+            "text": "You think the opportunity passed and you did not take it. Someone was genuinely last."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -6944,7 +7992,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unspoken",
+            "text": "You have not been able to word it. The quiet you have read as absence may be the shape of the answer."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep listening for a reply in the register you would use with a person. What came instead has a shape you did not recognise."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody answers you in the way you need. You are not being kept outside — you are being spoken to in the only form the height permits."
+          },
+          {
+            "id": "guilt",
+            "text": "You have read the silence as being cut off. He chose to speak; the height is why the address has a shape at all."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7065,7 +8131,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "The thing your mind is turning over tonight was written before you had a word for it."
+          },
+          {
+            "id": "rizq",
+            "text": "The shortfall you are staring at was accounted for before you were. This is the Name for what was there first."
+          },
+          {
+            "id": "guilt",
+            "text": "The thing you did was known before you did it, and the answer for it was written first."
+          },
+          {
+            "id": "unspoken",
+            "text": "You do not have a name for it yet. There was already an answer written for it before you did."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "This stretch of distance surprised nobody. It was written before it started."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7215,7 +8303,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "The weight is real and you are not exaggerating it. It is still not the biggest thing in the room."
+          },
+          {
+            "id": "rizq",
+            "text": "The number is genuinely large. It is not large next to the One your own prayer names every time you bow."
+          },
+          {
+            "id": "unseen",
+            "text": "What you carry is real, and going unnoticed does not shrink it. It is still not the largest thing here."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The distance you are measuring is real. It is being measured against something with no upper end."
+          },
+          {
+            "id": "guilt",
+            "text": "The thing is genuinely serious. It is not serious next to the size of the One you name in rukuʿ."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7346,7 +8456,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You cannot see the mechanism by which the money arrives. That is a fact about seeing."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has run every route and not one of them arrives. What you cannot picture is not evidence about what is possible."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot imagine what a way back would even look like. There was no precedent for the first thing He ever made either."
+          },
+          {
+            "id": "heavy",
+            "text": "You cannot see how any of this lifts. Nothing He made had a precedent to be made from."
+          },
+          {
+            "id": "guilt",
+            "text": "You cannot picture a version of yourself that is out the other side of this. That is a fact about picturing."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7472,7 +8604,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You wrote that part of yourself off yourself. Nothing has to be salvageable first."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You decided the version of you that prayed properly is gone. This is the Name that raises what was already gone."
+          },
+          {
+            "id": "heavy",
+            "text": "You have quietly buried the parts of you that used to work. The verse never says they deserved it."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody noticed the part of you that died. It does not have to be noticed to be raised."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps returning to what you have already given up on. Nothing has to be worth saving first."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7603,7 +8757,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have been reading it as the verdict on your life. It is a line in something still being written."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been carrying it as evidence against your whole life. The register was written before the bringing."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You took it as being pushed away. What reached you is not the verdict on your life."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps trying to locate the mistake that caused this. It was written before it arrived."
+          },
+          {
+            "id": "unspoken",
+            "text": "You have never been able to explain it to anyone. It was written before it arrived, and it is not the verdict on you."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7747,7 +8923,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unspoken",
+            "text": "You cannot name what this is. They could not name what had been carrying them either, until it was over."
+          },
+          {
+            "id": "anxiety",
+            "text": "Fear is the only thing in the room with a name tonight. The goodness gets its word later."
+          },
+          {
+            "id": "heavy",
+            "text": "You will only ever remember this stretch as hard. Something was carrying you through it that you have never named."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot feel any goodness in this. They did not call Him al-Barr while they were still afraid either."
+          },
+          {
+            "id": "rizq",
+            "text": "You can name the shortfall precisely and nothing else. The word for what has been carrying you comes later."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -7903,7 +9101,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "The thing you would say last is the thing He is already closest to. He is not an accusing witness."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has ever been let near this. He is already nearer to it than you are."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is holding it alone. You do not have to bring it to Him — He is already closer to it than you are."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have kept the hidden part back and called the gap distance. Distance is the one thing this Name makes impossible."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8029,7 +9245,25 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have been treating provision as the wage for the kind of day you had. There was never a debt either way."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs a running total of the day. He loses nothing whichever way today went — and still says ask."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have not asked for anything because today's version of you did not earn it. The debt was never real."
+          },
+          {
+            "id": "heavy",
+            "text": "You are too far behind on your own scorecard to ask for anything. There was never a score."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8197,7 +9431,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind runs through all the ways you could fail to hold them. The promise here is not about your capacity to protect anything."
+          },
+          {
+            "id": "guilt",
+            "text": "You failed to hold something you loved and you have never let yourself off for it. This Name is about what happens after your hands come off."
+          },
+          {
+            "id": "unseen",
+            "text": "You are the one keeping everyone else safe, and nobody is checking on that. Keeping was never resting on you alone."
+          },
+          {
+            "id": "heavy",
+            "text": "Some of the weight is simply everything you are trying not to drop. There is a Name for what does not depend on your grip."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot guarantee the roof stays over them. What keeps them was never your grip."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8318,7 +9574,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Something was done to you and nobody has ever acknowledged it. This is the Name for whether a hearing happens at all."
+          },
+          {
+            "id": "heavy",
+            "text": "A great deal of what you carry is not the injury. It is that nothing ever followed it."
+          },
+          {
+            "id": "guilt",
+            "text": "You are both parties in the case you keep hearing. There is a Name for who actually delivers a verdict."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You stopped bringing it to Him because nothing ever came of it. This Name answers whether it is ever delivered at all."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind reopens the case nightly because it was never closed. There is a Name for who closes it."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could never prove it, so you never said it. A case does not have to be provable to be heard here."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8449,7 +9731,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You have been asking why and getting nothing back, and the asking is now part of the weight. A reason exists that you were never in a position to compute."
+          },
+          {
+            "id": "guilt",
+            "text": "You have supplied your own answer to why, and it is always about what you deserve. A reason exists — the verse does not say it is that one."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot work out why your share is the size it is. You were never in a position to compute it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been asking why He is quiet. Silence is not the same as there being no reason."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody can tell you why this is happening to you in particular. A reason exists, and it is about benefit."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot even frame the question properly. Being unable to ask it does not mean there is no answer."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8575,7 +9883,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Saying anything good tonight would feel dishonest. Praise answers what a thing is, not how it has been treating you."
+          },
+          {
+            "id": "guilt",
+            "text": "You feel like a fraud saying any of it. This Name does not ask you to feel grateful tonight."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot produce any feeling to put behind the words. The praise is owed whether or not you can currently produce any."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody praises you either, and you have noticed. Praise answers what a thing is, not how it has been treated."
+          },
+          {
+            "id": "rizq",
+            "text": "It is hard to say alhamdulillah about a month like this one. Praise answers what He is, not what the month was."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8696,7 +10026,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You half-decided it did not count because nobody could confirm it. The reckoning does not wait on your evidence."
+          },
+          {
+            "id": "anxiety",
+            "text": "You keep rehearsing the account in case you are asked for it. It does not wait on your memory."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been keeping the record yourself, because you assumed nobody else was. Sufficient as accountant means you can stop."
+          },
+          {
+            "id": "unspoken",
+            "text": "There is no one left who could confirm it, so you never say it. The reckoning does not need anyone to have been in the room."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You assume the good you did went unrecorded, given where you were at the time. It does not wait on your evidence."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8827,7 +10179,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You measure yourself against people whose money is also going to end. There is a majesty that arrives carrying honour toward you."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been standing in awe of your own failures. Awe that does not cost you your standing has a Name."
+          },
+          {
+            "id": "heavy",
+            "text": "Everything you compare yourself to is temporary, and it is still crushing. There is awe that leaves your standing intact."
+          },
+          {
+            "id": "unseen",
+            "text": "You have been in awe of people who give you nothing back. This is the word for majesty that arrives already honouring you."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You approach Him braced, as though nearness had to cost you something. It does not cost you your standing."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -8948,7 +10322,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Some of the weight is people you cannot get back to. He had not done anything to earn it — he had only said who he loved."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody in your life is going to gather you back to anyone. There is an answer to that, and it was given to someone who asked almost nothing."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You do not feel like you belong among the people you want to end up with. He had only said who he loved."
+          },
+          {
+            "id": "guilt",
+            "text": "You think you are not the standard of person who ends up with them. He had not done anything to earn it either."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not say what you actually want. Two or three names is the whole of what was asked for."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9092,7 +10488,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind has made it the largest object in the room. It is not the largest object anywhere."
+          },
+          {
+            "id": "rizq",
+            "text": "The number looming over you is real, and it is finite. That verse performs the comparison once."
+          },
+          {
+            "id": "heavy",
+            "text": "It has loomed long enough that you stopped measuring it. It still has something it is smaller than."
+          },
+          {
+            "id": "guilt",
+            "text": "The thing you did looms over everything else about you. It has a size, and something it is smaller than."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The distance looks total from where you are standing. It has an edge, and something it is smaller than."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9213,7 +10631,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have been managing the gap between the two versions for years. He is already inside the account."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind rehearses the explanation for the gap. The explaining was never necessary."
+          },
+          {
+            "id": "heavy",
+            "text": "Keeping the two versions apart is most of the tiredness. You do not have to perform for the One already inside the account."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not describe the version only you have seen. It was never something He had to be told."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been performing for Him too, and it is exhausting. He holds the motive you never admitted to."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9339,7 +10779,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "Good news arrives and you look for the catch, because you know what you are. The proof He gave was the man He was speaking to."
+          },
+          {
+            "id": "rizq",
+            "text": "Something finally came in and you are waiting for it to be taken back. Al-Qadir answers whether He can; this answers whether He would, for someone like you."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have decided you are not the kind of person these things happen to. The proof was not a miracle somewhere else."
+          },
+          {
+            "id": "unseen",
+            "text": "Nothing good has arrived for you in a long time, and now you would not trust it. This is scale that comes close without shrinking to do it."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind is already working out how it goes wrong. That reflex has a history, and the history is not about the news."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9470,7 +10932,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You cannot receive anything without immediately owing for it. That honouring answers no merit at all."
+          },
+          {
+            "id": "rizq",
+            "text": "Every kindness has become an entry on a ledger you are already behind on. It reports a quality, not a transaction."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is everything you feel you owe people. Nobility is not diminished by being spent on people who could never repay it."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has been kind to you without wanting something back. There is a giving that reveals its source rather than setting a price."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been trying to deserve your place. It was already given to the category you belong to."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9596,7 +11080,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have been looking for the door you failed to knock on. There was not one."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided it did not come because of you. What did not come was never anyone else's to give."
+          },
+          {
+            "id": "heavy",
+            "text": "You stopped asking for that one a while ago. Notice you also stopped looking for who else could have given it."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps auditing what you did wrong in the asking. It was never anyone else's to give."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You read the refusal as being cut off. A withholding is still a hand, and only one hand ever had it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9697,7 +11203,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You are holding it up alone and nobody has offered. What holds is not what pushes hardest."
+          },
+          {
+            "id": "anxiety",
+            "text": "You are braced for the whole night. There is a Name for what never has to brace."
+          },
+          {
+            "id": "heavy",
+            "text": "You have held it up so long that the holding is now the heavy part. He does not tire, and you would."
+          },
+          {
+            "id": "guilt",
+            "text": "You think that if you stop bracing it all falls, and that it would be your fault. He told her to do less."
+          },
+          {
+            "id": "rizq",
+            "text": "You are carrying a whole household on your own strength. He told her to do less — and not because she was weak."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -9847,7 +11375,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You have been counting the months. What you are inside has an edge, and it was never unknown to the One who set it."
+          },
+          {
+            "id": "anxiety",
+            "text": "The number only ever gets bigger and you check it anyway. It was fixed, not vague."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have counted how long it has been since any of it felt like anything. The term is fixed, and it is not yours to move."
+          },
+          {
+            "id": "guilt",
+            "text": "You have counted how long you have been like this. Nuh did not give his people a guess — he gave them a term."
+          },
+          {
+            "id": "heavy",
+            "text": "The waiting has become heavier than the thing you are waiting for. It was fixed, and it was fixed by someone."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10015,7 +11565,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You tried to change once, it failed, and you filed that as the verdict. Whatever ended did not use up His capacity to begin."
+          },
+          {
+            "id": "rizq",
+            "text": "One thing failed and you have not started anything since. The verse offers the first beginning as security for the next one."
+          },
+          {
+            "id": "heavy",
+            "text": "You do not have another start in you. The starting was never the part that was yours."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You came back once, it did not hold, and you have not tried since. He is known for the beginning, not for the one that failed."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps replaying the attempt that failed. It was one beginning, and He is the One who starts."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10136,7 +11708,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You have been standing guard over something nobody else is watching. It already has someone above it."
+          },
+          {
+            "id": "heavy",
+            "text": "The checking has become its own exhaustion. Whatever you are supervising from underneath already has someone over it."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot watch the thing your whole family depends on. Something with the standing to rule on it is already over it."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been trying to supervise your own heart, and losing. It was never yours to authorise."
+          },
+          {
+            "id": "guilt",
+            "text": "You have appointed yourself auditor of your own soul. That job already has someone in it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10257,7 +11851,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Today felt like it produced nothing at all. Nothing is rounded off or absorbed into a total — in either direction."
+          },
+          {
+            "id": "guilt",
+            "text": "You have totalled the day and the total is bad. This Name itemises, which cuts both ways, and you have only counted one."
+          },
+          {
+            "id": "anxiety",
+            "text": "You cannot remember whether any of it counted. It was itemised, not estimated."
+          },
+          {
+            "id": "rizq",
+            "text": "Nobody paid you for most of what you did today. It was still entered."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You feel as though none of it registered anywhere. This Name does not round anything off."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10395,7 +12011,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "You stopped expecting to feel anything in prayer again. You have watched ground do this every spring of your life."
+          },
+          {
+            "id": "guilt",
+            "text": "You have written off the version of you that used to care. Dead land answers every year without a miracle."
+          },
+          {
+            "id": "heavy",
+            "text": "Nothing in you has felt alive for a while. Ground gives up every year and is green again by morning."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has already concluded how this ends. You have watched ground contradict that every spring of your life."
+          },
+          {
+            "id": "rizq",
+            "text": "The work dried up and you stopped expecting it back. Dead land answers to Him every year, without a miracle."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10569,7 +12207,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "You did everything right and nobody has raised you for it. Al-Muizz was never for the person pushing to the front."
+          },
+          {
+            "id": "rizq",
+            "text": "You have worked and worked and nothing has moved. Every raising in that sentence starts with someone letting go of something first."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been trying to earn your way back up. Every raising in that sentence begins with someone putting something down."
+          },
+          {
+            "id": "heavy",
+            "text": "You did everything right and it changed nothing. Name what you would have to put down first."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have done the right things and felt nothing rise. The raising starts with a letting go, not with the effort."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10749,7 +12409,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind circles the one date it can get no information about. The time in front of it is the part that is yours."
+          },
+          {
+            "id": "heavy",
+            "text": "You are tired in a way that sleep does not fix. Musa was offered more time and asked for better ground instead."
+          },
+          {
+            "id": "guilt",
+            "text": "You are afraid of what you would be caught in the middle of. He asked to be near what was sacred when it came."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You are afraid of where you would be standing if it came tonight. He did not ask for more time — he asked for better ground."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows how often you think about this. Musa was offered more time, counted out in strands of hair, and did not take it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -10911,7 +12593,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Everyone your age is further along and you could list them. The order was set before either of you arrived."
+          },
+          {
+            "id": "guilt",
+            "text": "You think you were passed over because of what you are. It already has an order, known before you were."
+          },
+          {
+            "id": "heavy",
+            "text": "Watching everyone move has become its own weight. It was never a contest you could win by asking first."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has noticed that you have not moved. It was never a contest you could win by being noticed."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Everyone else seems further along with Him than you are. The order is held by the One who named Himself for it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11073,7 +12777,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind runs the sum again every night and it comes out short every time. The quantity was set into the earth before you arrived on it."
+          },
+          {
+            "id": "heavy",
+            "text": "Part of the weight is a sum that never comes out. It was measured in before you got here."
+          },
+          {
+            "id": "guilt",
+            "text": "You think there is less because you deserve less. The quantity was set before you arrived."
+          },
+          {
+            "id": "unseen",
+            "text": "You are rationing so that everyone else has enough. Something was apportioned before you got here."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have read the shortfall as a message about you. The measuring happened before you were here to be judged."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11199,7 +12925,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have stopped expecting fairness for yourself, and part of you thinks that is correct. The scale is level before the first soul steps onto it."
+          },
+          {
+            "id": "unseen",
+            "text": "Nothing has ever been adjudicated in your favour. Equity here is never a favour granted case by case."
+          },
+          {
+            "id": "heavy",
+            "text": "You gave up on fair, and the giving up is its own weight. This Name acts on the instrument itself, not on the case."
+          },
+          {
+            "id": "rizq",
+            "text": "You have watched who gets what too many times to expect it to be fair. Equity is not something a better advocate could have won you more of."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps rehearsing an argument you will never get to make. This Name acts before the first case is ever heard."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have quietly concluded you will not get a fair hearing from Him either. The scale was level before anyone stepped onto it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11320,7 +13072,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "The people who decide your income really do decide it. The last place that word is set down is beside a seat, not over a ruin."
+          },
+          {
+            "id": "guilt",
+            "text": "The habit really does have power over you. Al-Qadir is that He can; Al-Muqtadir is that He prevails."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind is not wrong that the thing is powerful. It is wrong that it is final."
+          },
+          {
+            "id": "heavy",
+            "text": "What is pressing down on you is genuinely strong. Strong was never the same as final."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "Whatever took you this far from where you were is real. It does not get the last word on you."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody sees what has a hold on you. It has a hold, and it is not the final one."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11446,7 +13224,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "unseen",
+            "text": "Nobody looks at you properly. Every line of you carries intention anyway."
+          },
+          {
+            "id": "guilt",
+            "text": "You have decided that what you are is a mistake. The specific fact of being you was chosen."
+          },
+          {
+            "id": "heavy",
+            "text": "You have been carrying a version of yourself you would never have picked. It was not arrived at by default."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You assume the shape of your life is what is keeping you out. The particular form was chosen, not conceded."
+          },
+          {
+            "id": "anxiety",
+            "text": "You have spent the whole day monitoring how you come across. The form was settled before you started managing it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11547,7 +13347,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "far_from_allah",
+            "text": "The God you feel far from may not be the one there is. Whatever you have concluded He is, He is already beyond it."
+          },
+          {
+            "id": "guilt",
+            "text": "The God you are hiding from is a picture you built. Every picture anyone has ever held was too small."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has built a precise model of how He will respond. He is already past it."
+          },
+          {
+            "id": "heavy",
+            "text": "You have concluded something about Him from what happened to you. Hold it loosely tonight."
+          },
+          {
+            "id": "unspoken",
+            "text": "You cannot say what you believe any more. Not being able to describe Him is the one thing you can be certain of."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11668,7 +13490,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Something has been acting all day as though its claim on you were settled. It has been refused before."
+          },
+          {
+            "id": "rizq",
+            "text": "Money is behaving as though it had the final say over your life. That claim was refused before its owner left the room."
+          },
+          {
+            "id": "guilt",
+            "text": "The thing you keep going back to acts as though it owns you. Nothing posturing as bigger than you has ever outranked that refusal."
+          },
+          {
+            "id": "heavy",
+            "text": "Something has stood over you all week as if that were its right. The first claim of that kind was refused on the spot."
+          },
+          {
+            "id": "unseen",
+            "text": "The people with power over you behave as though it were theirs by nature. It never was."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -11848,7 +13692,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "Someone with far more than you is certain it cannot be taken. The same sentence that removes a false standing is the one that gives the real one."
+          },
+          {
+            "id": "unseen",
+            "text": "The people above you are certain they belong there. That certainty has always been wrong."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been treating something as your source of standing, and it has been costing you. Ask it something, and notice what it says back."
+          },
+          {
+            "id": "heavy",
+            "text": "You lost standing and it has not stopped hurting. What can take a false standing away is what gives the real one."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You built your standing on something that could not speak and could not guide. That is exactly why it feels like this."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12028,7 +13894,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "Something has been coming at you so long you stopped expecting it to stop. An army once came certain of the same thing, and never arrived."
+          },
+          {
+            "id": "rizq",
+            "text": "The thing coming for you has a date and a number on it. An army came once, certain nothing could stand in its way."
+          },
+          {
+            "id": "guilt",
+            "text": "The habit behaves as though it cannot be broken. It would not be the first thing to be certain of that."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The drift feels unstoppable now, as though it had its own momentum. Whatever is marching at you is not the exception."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody around you knows what is bearing down on you. Something once marched on the thing that mattered most, and never arrived."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12208,7 +14096,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You have been shouting to keep something upright. He handed them seven quieter words instead."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your voice gives out and your mind does not. He was not taught to shout louder."
+          },
+          {
+            "id": "rizq",
+            "text": "You have been pushing harder because harder is all you have. Volume added nothing to it."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been trying to make up the shortfall with effort. The strength was never yours on loan."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody hears how hard you are working at this. Volume was never what it rested on."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been straining to feel something and it will not come. Seven quiet words put all of it back where it already belonged."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12370,7 +14284,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind is negotiating with four things at once. Only one of them has a real vote."
+          },
+          {
+            "id": "guilt",
+            "text": "You have been answering to something that behaves like a second authority. There is no second."
+          },
+          {
+            "id": "heavy",
+            "text": "Everyone wants a different thing from you and you are trying to satisfy all of it. Underneath is one grip that was never divided."
+          },
+          {
+            "id": "rizq",
+            "text": "You answer to the market, to the bills, and to what people expect. Not one of them is a rival for control."
+          },
+          {
+            "id": "unseen",
+            "text": "Everyone pulls at you and nobody holds you. Whatever is holding your life together is not divided between rivals."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been serving several things and calling one of them Him. Only one of them was ever real."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12520,7 +14460,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have been circling the same failure and calling it stuck. He did not wait to be searched for."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been in the same place for months and named it drift. Before anything was worked out, He had already found what was lost."
+          },
+          {
+            "id": "heavy",
+            "text": "You are in the same spot you were in last month, and the month before. Being found there is a different thing from getting out."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind returns to the same spot every night. What if that were the place you were found?"
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has come looking for you where you are. Being found was never conditional on being searched for."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12676,7 +14638,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "You have been holding it together by attention alone, and the attention is the exhausting part. You are asking whether anybody is at the controls."
+          },
+          {
+            "id": "unseen",
+            "text": "You are the only one watching this, so you cannot stop. It is already being administered."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot stop monitoring the money for a single day. You are not asking to be defended — you are asking whether anyone is at the controls."
+          },
+          {
+            "id": "guilt",
+            "text": "You think that if you look away it falls, and that it would be on you. Nobody made you the one at the controls."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been running your own life without asking anyone. There is a difference between an ally and the One at the controls."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12797,7 +14781,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You are waiting on somebody's yes. Everyone who ever wanted to help you was limited to what was already written for you to receive."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody has helped you, and you have stopped expecting them to. Their yes or no was always a small part of the story."
+          },
+          {
+            "id": "heavy",
+            "text": "Nothing feels as though it is going your way. The whole creation was never enough on its own — and never the whole story either."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You assume nothing is being arranged for you any more. This is not a guess about your circumstances."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs every way it could go wrong. Every person who could help you was always limited to what was already written."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -12953,7 +14959,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "anxiety",
+            "text": "Your mind cannot find the thread, so it has concluded there is not one. Not seeing where this goes is not evidence that nobody is steering."
+          },
+          {
+            "id": "heavy",
+            "text": "You cannot see where this is going and you have stopped trying to. The sun moved while they slept."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You cannot see any arrangement in your life any more. The arrangement is precisely the part you never see."
+          },
+          {
+            "id": "rizq",
+            "text": "You cannot see the route by which this resolves. They did not see theirs either — they were asleep for it."
+          },
+          {
+            "id": "guilt",
+            "text": "You have concluded this is going nowhere because of what you are. Ar-Rasheed is the arrangement you never see."
+          },
+          {
+            "id": "unspoken",
+            "text": "You could not say where any of this is going. It was arranged while nobody was awake for it."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13079,7 +15111,33 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "The waiting has gone on long enough to look like a refusal. He is not on your clock."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The silence has lasted long enough that you took it for a verdict. It is a matter still ascending."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has read the delay as the answer. He is not withholding from you."
+          },
+          {
+            "id": "guilt",
+            "text": "You think the delay is what you are owed. As-Sabur is not restraint at all — it is scale."
+          },
+          {
+            "id": "heavy",
+            "text": "The waiting is now heavier than the thing you are waiting for. Put the number next to the one in the verse."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody knows how long you have been waiting on this. The silence you read as refusal is a matter still ascending."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13215,7 +15273,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You have started to doubt your own account of it. There is a witness who can be called."
+          },
+          {
+            "id": "heavy",
+            "text": "The part nobody attended is the heaviest part to carry. It still has a witness who can be called."
+          },
+          {
+            "id": "unspoken",
+            "text": "You have never told anyone, and you have started to doubt it happened. You are not the only one who knows it did."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind keeps re-litigating it because nobody can confirm it. This is the Name for the One who will say what He saw."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "The worst of it happened when you were nowhere near Him. It was attended anyway, and it can still be spoken to."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13336,7 +15416,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "What it cost you is invisible, which is why it feels as though it did not count. The smallness of what you managed is not being politely overlooked."
+          },
+          {
+            "id": "guilt",
+            "text": "You assume the little you managed does not count against what you did not. It is answered out of proportion, not weighed against."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You think the small things you kept doing were not worth much. The word in the verse is not a reward — it is a Name."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind discounts everything you did because it was not enough. The smallness is not what He is responding to."
+          },
+          {
+            "id": "rizq",
+            "text": "You gave when you did not have it to give, and nobody noticed. That is exactly the part that is answered out of proportion."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13457,7 +15559,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "heavy",
+            "text": "The day was ordinary and heavy and you got through it. You were standing inside something you did not see."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been looking for a sign and finding nothing. This is not knowledge you achieve — it is what is already laid out."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind has been scanning for evidence all day. You walked past it without stopping."
+          },
+          {
+            "id": "unseen",
+            "text": "Nobody addressed anything to you today. Something did, and you have not looked at it yet."
+          },
+          {
+            "id": "guilt",
+            "text": "You decided you would not be shown anything, given what you are. He is the One who keeps showing."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13589,7 +15713,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "guilt",
+            "text": "You want to come close, and you expect to be crushed for it. The Qur'an never separates the two, and neither does the Name."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You keep back because closeness has always cost you something. Majesty by itself would be a reason to keep back — it is not by itself."
+          },
+          {
+            "id": "heavy",
+            "text": "You are too tired for anything that would demand more of you. Honour alone would be warmth without weight; this is both at once."
+          },
+          {
+            "id": "unseen",
+            "text": "Every vast thing in your life has flattened you. Those two do not usually arrive together — here they never arrive apart."
+          },
+          {
+            "id": "anxiety",
+            "text": "You have been choosing between being safe and being close. The conjunction is the whole point."
+          }
+        ]
       },
       {
         "kind": "name_intro",
@@ -13715,7 +15861,29 @@
         "arabic": "",
         "transliteration": "",
         "translation": "",
-        "source": ""
+        "source": "",
+        "variants": [
+          {
+            "id": "rizq",
+            "text": "You are afraid of losing what you have. It was never held on your account."
+          },
+          {
+            "id": "guilt",
+            "text": "You are afraid what you have will be taken because of what you did. This is how the ownership was always arranged."
+          },
+          {
+            "id": "heavy",
+            "text": "You are holding on to things that are already leaving. That is not a threat being made to you."
+          },
+          {
+            "id": "anxiety",
+            "text": "Your mind runs the inventory of everything that could be taken. Whatever share you hold, you never owned the holding."
+          },
+          {
+            "id": "far_from_allah",
+            "text": "You have been afraid He will take things from you. He owns kingship itself, including whatever share of it you are holding."
+          }
+        ]
       },
       {
         "kind": "name_intro",
