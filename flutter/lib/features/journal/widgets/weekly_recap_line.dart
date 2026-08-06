@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
 
@@ -54,17 +55,19 @@ class WeeklyRecapLine extends StatelessWidget {
         child: Container(
           width: double.infinity,
           // ~44 tall: a full tap target, and a fifth of what the block cost.
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
             color: const Color(0xFFF5EBD9),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+            // Borderless, radius 14, to match the archive's cards after the
+            // 2026-08-06 redesign. The sand fill already separates this from
+            // the page; the outline was a second boundary drawn over the first.
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           ),
           child: Row(
             children: [
               const Icon(Icons.auto_awesome,
                   color: AppColors.secondary, size: 16),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
               if (quote.isNotEmpty) ...[
                 // Flexible, and it is the only flexible child: the quote is what
                 // gives way on a narrow screen, because a truncated quote still

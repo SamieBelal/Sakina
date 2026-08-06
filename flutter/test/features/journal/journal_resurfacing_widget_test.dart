@@ -159,7 +159,16 @@ void main() {
       expect(find.byType(OnThisNightCard), findsOneWidget);
       expect(find.text(MuhasabahCompletionCopy.timeMachineMonth),
           findsOneWidget);
-      expect(find.text('The result comes on Thursday.'), findsOneWidget);
+      // Scoped to the card. The feed card below it renders the same words
+      // unquoted now, so an unscoped finder matches both — which is the point
+      // of the resurfacing card, not a bug in it.
+      expect(
+        find.descendant(
+          of: find.byType(OnThisNightCard),
+          matching: find.text('The result comes on Thursday.'),
+        ),
+        findsOneWidget,
+      );
 
       await t.tap(find.text(JournalResurfacingCopy.onThisNightOpen));
       await t.pumpAndSettle();
@@ -303,7 +312,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.descendant(of: anchor, matching: find.text('"tonight"')),
+        find.descendant(of: anchor, matching: find.text('tonight')),
         findsOneWidget,
       );
     });
@@ -315,7 +324,7 @@ void main() {
       expect(find.byType(AnsweredDuaCard), findsNothing);
       expect(find.byType(WeeklyRecapLine), findsNothing);
       // And the entry is still there.
-      expect(find.text('"I could not sleep."'), findsOneWidget);
+      expect(find.text('I could not sleep.'), findsOneWidget);
     });
   });
 }

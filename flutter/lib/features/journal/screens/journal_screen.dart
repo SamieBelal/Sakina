@@ -335,13 +335,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(totalCount, reflections),
-            if (totalCount > 0) ...[
-              const SizedBox(height: 12),
-              _buildInlineStats(
-                  reflections, builtDuas.length + savedDuas.length),
-            ],
-            const SizedBox(height: 16),
+            _buildHeader(
+              totalCount,
+              reflections,
+              builtDuas.length + savedDuas.length,
+            ),
+            if (totalCount > 0) _buildRecapBlock(reflections),
+            const SizedBox(height: 20),
             _buildTabs(),
             Expanded(
               child: IndexedStack(
@@ -362,10 +362,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(int total, List<SavedReflection> reflections) {
+  Widget _buildHeader(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
+          AppSpacing.pagePadding, 20, AppSpacing.pagePadding, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -384,11 +388,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                       duration: context.motion(AppMotion.entrance),
                       curve: AppMotion.enter,
                     ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
-                  total == 0 ? 'Your spiritual diary' : '$total entries',
-                  style: AppTypography.bodyMedium
-                      .copyWith(color: AppColors.textSecondaryLight),
+                  _statsLine(total, reflections, duasCount),
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textTertiaryLight),
                 ).animate().fadeIn(
                       duration: context.motion(AppMotion.entrance),
                       delay: context.motion(AppMotion.beat),
@@ -785,198 +789,146 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   String? _topTheme(List<SavedReflection> reflections) =>
       journalTopTheme(reflections);
 
-  Widget _buildInlineStats(List<SavedReflection> reflections, int duasCount) {
-    final statsAsync = ref.watch(_journalStatsProvider);
+  /// The lifetime counts, as one quiet line under the title.
+  ///
+  /// This used to be a bordered box of four icon tiles — ~72px of the first
+  /// screen spent on numbers nobody opens the Journal to read. The counts are
+  /// worth keeping (they are the only place "19 Names" is ever stated) but not
+  /// worth a card: they are context for the title, so they render as the
+  /// title's subtitle and the screen starts ~92px higher.
+  ///
+  /// The streak segment is dropped while [_journalStatsProvider] is in flight
+  /// or has failed, rather than holding the whole line behind a loader. A line
+  /// that grows by one clause when the fetch lands is invisible; the 120px
+  /// spinner that used to sit here was not.
+  String _statsLine(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
+    if (total == 0) return 'Your spiritual diary';
 
-    // Unique Names encountered
     final uniqueNames = reflections.map((r) => r.name).toSet().length;
+    final parts = <String>[
+      '$total ${total == 1 ? 'entry' : 'entries'}',
+      if (duasCount > 0) '$duasCount ${duasCount == 1 ? 'duʿā' : 'duʿās'}',
+      if (uniqueNames > 0) '$uniqueNames ${uniqueNames == 1 ? 'Name' : 'Names'}',
+    ];
 
-    final topTheme = _topTheme(reflections);
+    final best = ref.watch(_journalStatsProvider).valueOrNull?.streak.longestStreak;
+    if (best != null && best > 0) parts.add('best streak $best');
 
-    // E2. The recap wins the slot when the week has something in it AND the
-    // cadence gate lets it; the lifetime line is the fallback, exactly as it is
-    // when the window is empty. See [_gatedWeeklyRecap].
+    return parts.join('  ·  ');
+  }
+
+  /// E2's weekly recap, else the lifetime theme line, else nothing.
+  ///
+  /// One slot, never both: the recap wins when the week has something in it AND
+  /// the cadence gate lets it, exactly as before. What changed is that the slot
+  /// is no longer nested inside the stats card — it is the first thing under
+  /// the title, which is the only place on this screen worth spending on
+  /// something the archive is OFFERING rather than something it holds.
+  Widget _buildRecapBlock(List<SavedReflection> reflections) {
     final recap = _gatedWeeklyRecap(reflections);
+    final topTheme = recap != null ? null : _topTheme(reflections);
+    if (recap == null && topTheme == null) return const SizedBox.shrink();
 
-    return statsAsync
-        .when(
-          loading: () => const SizedBox(
-            height: 120,
-            child: Center(child: SakinaLoader()),
-          ),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (stats) => Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── 4 stat tiles ──
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                    border: Border.all(color: AppColors.borderLight),
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _statItem(
-                            Icons.auto_stories_rounded,
-                            '${reflections.length}',
-                            'Reflections',
-                            AppColors.primary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(Icons.auto_awesome, '$duasCount', 'Duas',
-                            AppColors.secondary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(Icons.star_rounded, '$uniqueNames', 'Names',
-                            AppColors.secondary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(
-                            Icons.local_fire_department,
-                            '${stats.streak.longestStreak}',
-                            'Best streak',
-                            AppColors.streakAmber),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── E2 weekly recap, else the lifetime theme line ──
-                if (recap != null) ...[
-                  const SizedBox(height: 10),
-                  WeeklyRecapLine(
-                    recap: recap,
-                    onOpen: () => _openWeeklyRecapStory(recap),
-                  ),
-                ] else if (topTheme != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5EBD9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: AppColors.secondary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.auto_awesome,
-                            color: AppColors.secondary, size: 16),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'You often turn to Allah with $topTheme',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 0),
+      child: recap != null
+          ? WeeklyRecapLine(
+              recap: recap,
+              onOpen: () => _openWeeklyRecapStory(recap),
+            )
+          : Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome,
+                      color: AppColors.secondary, size: 16),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(
+                      'You often turn to Allah with $topTheme',
+                      // `goldInk`, not `secondary`: the sand fill this sits on
+                      // takes C8985E to about 2.1:1, and this line is the whole
+                      // point of the pill.
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.goldInk,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        )
-        .animate()
-        .fadeIn(duration: context.motion(AppMotion.layer));
-  }
-
-  Widget _statItem(IconData icon, String value, String label, Color color) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
+    ).animate().fadeIn(duration: context.motion(AppMotion.layer));
   }
 
   // ── Tabs ────────────────────────────────────────────────────────────────────
 
   Widget _buildTabs() {
     const labels = ['All', 'Reflections', 'Duas', 'Badges'];
+    // An underline row, not the four-segment pill this used to be. The pill
+    // gave each tab a quarter of the width whether or not its word fitted, so
+    // "Reflections" was scaled down by a `FittedBox` on every phone and the
+    // four labels rendered at four different sizes. Underlined tabs are sized
+    // by their own text, which is why they can afford to be 15px.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderLight),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.dividerLight)),
       ),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final selected = _tab.index == i;
-          return Flexible(
-            child: GestureDetector(
+      // Scrollable so a large text scale pushes the row sideways instead of
+      // overflowing it — the `FittedBox` used to absorb that by shrinking, and
+      // shrinking text is the wrong answer to someone who asked for bigger.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding:
+            const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+        child: Row(
+          children: List.generate(labels.length, (i) {
+            final selected = _tab.index == i;
+            return GestureDetector(
               // Keyed because the tab labels are not unique on this screen —
-              // the inline stats row also renders the word "Reflections", and a
-              // `find.text` in a test would match the stat tile first.
+              // a `find.text` in a test would have to disambiguate.
               key: ValueKey('journal-tab-$i'),
+              behavior: HitTestBehavior.opaque,
               onTap: () => _tab.animateTo(i),
               child: Container(
-                height: 40,
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+                margin:
+                    EdgeInsets.only(right: i == labels.length - 1 ? 0 : 24),
+                // 12 top / 11 bottom keeps the target at ~44px without the
+                // label sitting off-centre against the divider.
+                padding: const EdgeInsets.only(top: 12, bottom: 11),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      labels[i],
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w400,
-                        fontSize: 13,
-                        color: selected
-                            ? Colors.white
-                            : AppColors.textSecondaryLight,
-                      ),
+                  border: Border(
+                    bottom: BorderSide(
+                      color:
+                          selected ? AppColors.primary : Colors.transparent,
+                      width: 2,
                     ),
                   ),
                 ),
+                child: Text(
+                  labels[i],
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected
+                        ? AppColors.textPrimaryLight
+                        : AppColors.textTertiaryLight,
+                  ),
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -1630,69 +1582,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       // same word on them.
       topLeft: r.isMuhasabah
           ? _typeChip('Muhāsabah', AppColors.primary)
-          : _typeChip('Reflection', AppColors.secondary),
+          : _typeChip('Reflection', AppColors.goldInk),
       topRight: _dateLabel(date),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          // Name badge
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5EE),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      r.nameArabic,
-                      // `AppTypography.quranArabic`, NOT a raw
-                      // `fontFamily: 'Amiri'` string. The app bundles no font
-                      // assets at all — every face is loaded at runtime by
-                      // `google_fonts`, which registers Amiri under the family
-                      // name **`Amiri_regular`**. A literal `'Amiri'` therefore
-                      // matched nothing and fell back to the system font, so
-                      // the Name on every journal card rendered in SF/Roboto
-                      // instead of Amiri. Same bug class DESIGN.md §3 recorded
-                      // for the hardcoded `'DM Sans'` in the coachmark.
-                      style: AppTypography.quranArabic.copyWith(
-                        fontSize: 16,
-                        color: AppColors.primary,
-                        height: 1.2,
-                      ),
-                      textDirection: TextDirection.rtl,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      r.name,
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '"${r.userText}"',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontStyle: FontStyle.italic,
-              height: 1.5,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      // The entry, unquoted. The quotation marks were there to mark 15px grey
+      // italic as the user's voice; at 19px near-black leading the card, the
+      // voice is unambiguous and the marks are two glyphs of chrome on the one
+      // line that should have none.
+      summary: _FadingText(
+        r.userText,
+        style: _entryWordsStyle,
+        maxLines: 3,
       ),
+      // The Name, on the footer rather than above the words.
+      //
+      // Reading order is now *what you carried* → *the Name you met*, which is
+      // the order the night actually happened in. The badge used to sit first,
+      // so every card opened with the app's answer before the user's question.
+      leadingAction: _nameLine(r),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1765,20 +1671,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       topLeft: d.isAnswered
           ? _typeChip(
               JournalResurfacingCopy.answeredChip, AppColors.primary)
-          : _typeChip('Personal Dua', AppColors.secondary),
+          : _typeChip('Personal Dua', AppColors.goldInk),
       topRight: _dateLabel(date),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(
-            d.need,
-            style: AppTypography.labelLarge
-                .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      summary: _FadingText(
+        d.need,
+        style: _entryWordsStyle.copyWith(fontSize: 18),
+        maxLines: 3,
       ),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1827,24 +1725,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   )),
         );
       },
-      topLeft: _typeChip('Saved Dua', AppColors.secondary),
+      topLeft: _typeChip('Saved Dua', AppColors.goldInk),
       topRight: Text(
         d.source,
-        style: AppTypography.bodySmall
-            .copyWith(color: AppColors.textTertiaryLight),
+        style: AppTypography.labelSmall.copyWith(
+          color: AppColors.textTertiaryLight,
+          letterSpacing: 0.2,
+        ),
       ),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(
-            d.title,
-            style: AppTypography.labelLarge
-                .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      summary: _FadingText(
+        d.title,
+        style: _entryWordsStyle.copyWith(fontSize: 18),
+        maxLines: 3,
       ),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2149,22 +2041,81 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
+  /// The entry's kind, as a caption on the background above its card.
+  ///
+  /// Was a filled 9px pill inside the card. Out on the page it needs no fill to
+  /// be legible, so [color] survives only as a 6px dot — enough to tell the two
+  /// sources apart at a glance down the feed, and the one thing the deleted
+  /// 4px gold rail was supposed to be doing but could not, because every card
+  /// got the same rail.
+  ///
+  /// Gold callers pass [AppColors.goldInk], not [AppColors.secondary]: at 6px
+  /// the dot has no area to carry a tint, and `C8985E` sits at about 2.1:1 on
+  /// this page. The dot is never the ONLY cue — the word next to it says the
+  /// same thing — but a cue too faint to see is not worth the 13px it costs.
   Widget _typeChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTypography.labelSmall.copyWith(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-      ),
+        const SizedBox(width: 7),
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textSecondaryLight,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The Name, on a reflection card's footer.
+  ///
+  /// Two [Text]s, never one: Arabic and Latin in a single widget is banned
+  /// (CLAUDE.md), and they need different faces anyway.
+  Widget _nameLine(SavedReflection r) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          r.nameArabic,
+          // `AppTypography.quranArabic`, NOT a raw `fontFamily: 'Amiri'`
+          // string. The app bundles no font assets at all — every face is
+          // loaded at runtime by `google_fonts`, which registers Amiri under
+          // the family name **`Amiri_regular`**. A literal `'Amiri'` therefore
+          // matched nothing and fell back to the system font, so the Name on
+          // every journal card rendered in SF/Roboto instead of Amiri. Same bug
+          // class DESIGN.md §3 recorded for the hardcoded `'DM Sans'` in the
+          // coachmark.
+          style: AppTypography.quranArabic.copyWith(
+            fontSize: 19,
+            color: AppColors.primary,
+            height: 1.1,
+          ),
+          textDirection: TextDirection.rtl,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            r.name,
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -2232,8 +2183,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     }
     return Text(
       label,
-      style:
-          AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+      style: AppTypography.labelSmall.copyWith(
+        color: AppColors.textTertiaryLight,
+        letterSpacing: 0.2,
+      ),
     );
   }
 }
@@ -2241,6 +2194,81 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 // ---------------------------------------------------------------------------
 // Reusable expandable card
 // ---------------------------------------------------------------------------
+
+/// Softer than [AppSpacing.cardRadius] (14), which is the app's radius for
+/// dense controls. A journal card is the largest surface on its screen and 14
+/// reads as tight at that size.
+const double _cardRadius = 20;
+
+/// The entry's own words, as the headline of its card.
+///
+/// This is the whole redesign in one style. The words used to render at
+/// `bodyMedium` (15) in `textSecondaryLight` grey, italic, clamped to two lines
+/// with an ellipsis — the smallest, faintest, most truncated thing on a card
+/// whose only subject they are. The Name badge above them was larger and had a
+/// filled background. On a journal, the entry outranks the app's label for it.
+TextStyle get _entryWordsStyle => AppTypography.bodyLarge.copyWith(
+      fontSize: 19,
+      fontWeight: FontWeight.w500,
+      color: AppColors.textPrimaryLight,
+      height: 1.45,
+      letterSpacing: -0.15,
+    );
+
+/// [Text] that fades out at the bottom when it overflows, instead of ellipsing.
+///
+/// An ellipsis reports that the string was cut; a fade reports that the entry
+/// continues, which is the true thing and the one that invites the tap. It is
+/// applied ONLY when the text actually overflows — an unconditional
+/// [ShaderMask] would wash out the last line of every short entry, which is
+/// most of them.
+class _FadingText extends StatelessWidget {
+  const _FadingText(this.text, {required this.style, required this.maxLines});
+
+  final String text;
+  final TextStyle style;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Measured with the SAME text scaler the paint will use, so a user at
+        // 200% type does not get a fade over text that fits (or none over text
+        // that does not).
+        final probe = TextPainter(
+          text: TextSpan(text: text, style: style),
+          maxLines: maxLines,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final overflows = probe.didExceedMaxLines;
+        probe.dispose();
+
+        final child = Text(
+          text,
+          style: style,
+          maxLines: maxLines,
+          overflow: overflows ? TextOverflow.clip : TextOverflow.visible,
+        );
+        if (!overflows) return child;
+
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Opaque until well into the last line, so only the final ~third
+            // of it dissolves.
+            colors: [Colors.white, Colors.white, Colors.transparent],
+            stops: [0, 0.72, 1],
+          ).createShader(rect),
+          child: child,
+        );
+      },
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Achievement card
@@ -2450,101 +2478,116 @@ class _ExpandableCardState extends State<_ExpandableCard> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap ??
-          () {
-            HapticFeedback.selectionClick();
-            setState(() => _open = !_open);
-          },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-          border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Gold accent bar
-              Container(
-                width: 4,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(AppSpacing.cardRadius),
-                    bottomLeft: Radius.circular(AppSpacing.cardRadius),
-                  ),
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 26),
+      child: GestureDetector(
+        onTap: widget.onTap ??
+            () {
+              HapticFeedback.selectionClick();
+              setState(() => _open = !_open);
+            },
+        // Opaque so the gap between the metadata row and the card face is still
+        // part of the card's target rather than a dead strip.
+        //
+        // The 26px separating one card from the next is NOT part of it, which is
+        // why that space is a `Padding` outside this detector rather than a
+        // `margin` inside it: an opaque detector hits its own margin box, so a
+        // margin here would make the gap below every card open the card above it.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Metadata, OUTSIDE the card ──
+            //
+            // Type and date used to be the first row inside the card, at full
+            // contrast, above the user's own words. That put the app's labels
+            // ahead of the entry on the entry's own card. Out here they read as
+            // what they are — a caption on the thing below — and the card face
+            // is left for content only.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 9),
+              child: Row(
+                children: [
+                  widget.topLeft,
+                  const Spacer(),
+                  widget.topRight,
+                ],
               ),
-              // Content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top row: type chip + date/action
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          widget.topLeft,
-                          widget.topRight,
-                        ],
-                      ),
-                      // Summary (always visible)
-                      widget.summary,
-                      const SizedBox(height: 8),
-                      if (widget.onTap != null)
-                        // Navigate hint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (widget.leadingAction != null) ...[
-                              widget.leadingAction!,
-                              const Spacer(),
-                            ],
-                            _viewFullHint(),
-                          ],
-                        )
-                      else ...[
-                        // Expand toggle hint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AnimatedRotation(
-                              turns: _open ? 0.5 : 0,
-                              duration: const Duration(milliseconds: 200),
-                              child: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 18,
-                                color: AppColors.textTertiaryLight,
-                              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(_cardRadius),
+                // No border. The cream page behind these cards (#FBF7F2)
+                // already separates a white surface from the background —
+                // which is the job the reference art gets from its tints — so
+                // the 1px outline was drawing a boundary that was already
+                // visible, on every card, twice per gap.
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.textPrimaryLight.withValues(alpha: 0.045),
+                    blurRadius: 14,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Summary (always visible)
+                  widget.summary,
+                  if (widget.onTap != null) ...[
+                    // A hairline, not a gap: it separates the entry from the
+                    // Name without spending another 12px on a screen whose
+                    // whole complaint was density.
+                    Container(
+                      height: 1,
+                      margin: const EdgeInsets.only(top: 18, bottom: 12),
+                      color: AppColors.dividerLight,
+                    ),
+                    Row(
+                      children: [
+                        if (widget.leadingAction != null)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: widget.leadingAction!,
                             ),
-                          ],
-                        ),
-                        // Expanded content
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                          child:
-                              _open ? widget.expanded : const SizedBox.shrink(),
+                          )
+                        else
+                          const Spacer(),
+                        _viewFullHint(),
+                      ],
+                    ),
+                  ] else ...[
+                    // Expand toggle hint
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        AnimatedRotation(
+                          turns: _open ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppColors.textTertiaryLight,
+                          ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
+                    ),
+                    // Expanded content
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      child:
+                          _open ? widget.expanded : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -178,12 +178,10 @@ void main() {
       // Both chips are present on the All feed: one entry of each kind.
       expect(find.text('MUHĀSABAH'), findsOneWidget);
       expect(find.text('REFLECTION'), findsOneWidget);
-      expect(find.text('I snapped at my brother tonight.'), findsNothing,
-          reason: 'the card quotes the words, so the raw string is wrapped');
-      expect(
-        find.text('"I snapped at my brother tonight."'),
-        findsOneWidget,
-      );
+      // 2026-08-06: the card no longer wraps the words in quotation marks.
+      // They existed to mark 15px grey italic as the user's voice; the words
+      // now lead the card at 19px near-black, where the marks are chrome.
+      expect(find.text('I snapped at my brother tonight.'), findsOneWidget);
     });
 
     testWidgets('the Nightly filter shows only muhasabah entries', (t) async {
@@ -299,6 +297,62 @@ void main() {
     });
   });
 
+  // 2026-08-06 — the archive's cards were rebuilt around the entry rather than
+  // around the app's labels for it. Two things that redesign can silently lose.
+  group('the entry leads its card', () {
+    /// A real phone. The default 800x600 test surface is wide enough that a
+    /// paragraph fits in three lines, so nothing ever overflows and the fade
+    /// branch below would never run.
+    Future<void> phone(WidgetTester t) async {
+      await t.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+    }
+
+    const long = 'I keep replaying the conversation from work. I said '
+        'something careless and now I cannot tell whether to apologise again '
+        'or leave it alone and let it fade on its own.';
+
+    testWidgets('a long entry fades out instead of ellipsing', (t) async {
+      await phone(t);
+      await pump(t, reflections: [muhasabah(words: long)]);
+
+      expect(
+        find.ancestor(of: find.text(long), matching: find.byType(ShaderMask)),
+        findsOneWidget,
+        reason: 'an ellipsis says the string was cut; a fade says the entry '
+            'continues, which is the true thing and the one that invites the '
+            'tap',
+      );
+    });
+
+    testWidgets('a short entry gets no fade at all', (t) async {
+      await phone(t);
+      await pump(t, reflections: [muhasabah(words: 'Short.')]);
+
+      expect(
+        find.ancestor(
+            of: find.text('Short.'), matching: find.byType(ShaderMask)),
+        findsNothing,
+        reason: 'an unconditional ShaderMask would wash out the last line of '
+            'every short entry, which is most of them',
+      );
+    });
+
+    testWidgets('the archive opens in the top quarter of the screen',
+        (t) async {
+      await phone(t);
+      await pump(t, reflections: [muhasabah()]);
+
+      // The chip is the top of the first entry block. Before this redesign the
+      // screen spent ~285px on a title, a four-tile stats card and a pill tab
+      // row before reaching it — a third of the phone, above the fold, on
+      // chrome. Pinned as a fraction rather than a pixel so it survives a font
+      // bump but still fails if a new banner moves in.
+      final chipY = t.getTopLeft(find.text('MUHĀSABAH')).dy;
+      expect(chipY, lessThan(844 * 0.25));
+    });
+  });
+
   group('D6 — undated saved duʿās stop pinning themselves to the top', () {
     testWidgets('a 2024 reflection still outranks an undated saved duʿā',
         (t) async {
@@ -309,8 +363,8 @@ void main() {
       );
 
       final reflectionY = t
-          .getTopLeft(find.text('"The interview is tomorrow and I cannot '
-              'sleep."'))
+          .getTopLeft(find.text('The interview is tomorrow and I cannot '
+              'sleep.'))
           .dy;
       final duaY = t.getTopLeft(find.text('Dua for ease')).dy;
 
