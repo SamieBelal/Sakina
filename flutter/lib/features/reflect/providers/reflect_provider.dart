@@ -867,6 +867,50 @@ Future<SavedReflection?> setMuhasabahAzm({
   return _persistUpdatedReflection(entry.copyWith(azm: next));
 }
 
+/// Rewrites the user's own words on a saved entry (2026-08-06).
+///
+/// **Only [SavedReflection.userText], and only ever that.** The Name, the
+/// reframe, the story, the verses and the duʿā are what the app said back on the
+/// night in question, and an edit must not rewrite history it did not author.
+/// The reframe therefore stays the response to what was originally written —
+/// which is the honest record, even when the two no longer read as a matched
+/// pair.
+///
+/// **It does not re-open the night.** Like every other function in this section
+/// it is a pure text write against a row that already exists: no reveal, no
+/// streak, no reward ladder, no allowance. That is also why editing is allowed
+/// on an entry of ANY age while "add to tonight" stops at the local-day
+/// rollover — an append is a new line the night did not have, and a night that
+/// has closed does not get new lines; a correction is not a new line.
+///
+/// Returns the updated entry, the entry unchanged when [text] is already what is
+/// stored, or null when the entry is not in the cache, when [text] is blank (an
+/// entry cannot be edited into having no words — that is what delete is for), or
+/// when the server refuses the write.
+Future<SavedReflection?> editReflectionText({
+  required String id,
+  required String text,
+}) async {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  SavedReflection? entry;
+  for (final r in await _readCachedReflections()) {
+    if (r.id == id) {
+      entry = r;
+      break;
+    }
+  }
+  if (entry == null) return null;
+
+  // Clamped here as well as in `toSupabaseRow`, per the P2-5 REVIEW Finding 1
+  // doctrine: local state, the prefs blob and the row must all see the same
+  // truncated value, so what stays on screen is exactly what was stored.
+  final next = _clampText(trimmed, _userTextMaxChars);
+  if (next == entry.userText) return entry;
+  return _persistUpdatedReflection(entry.copyWith(userText: next));
+}
+
 /// The append that will actually fit, or null when the entry has no room left.
 ///
 /// Enforces BOTH caps the server does on a whole `thread`: the element count,

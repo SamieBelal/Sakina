@@ -2565,6 +2565,28 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     }
   }
 
+  /// Adopts an entry that was edited SOMEWHERE ELSE — the Journal's edit sheet,
+  /// which writes through `editReflectionText` and has no view of this notifier.
+  ///
+  /// Two copies of a muḥāsabah row can be on screen at once: this notifier's
+  /// `tonightEntry` (the completion screen, and the source of the compose
+  /// control's meaning) and `timeMachineEntry` (the "On This Night" anchor).
+  /// Without this, editing tonight's words from the Journal and returning to the
+  /// completion screen would show the pre-edit text until the next launch.
+  ///
+  /// Matches on id and touches nothing else, so an edit to an unrelated entry is
+  /// a no-op rather than a state write.
+  void adoptEditedEntry(SavedReflection updated) {
+    if (!mounted) return;
+    final isTonight = state.tonightEntry?.id == updated.id;
+    final isAnchor = state.timeMachineEntry?.id == updated.id;
+    if (!isTonight && !isAnchor) return;
+    state = state.copyWith(
+      tonightEntry: isTonight ? updated : state.tonightEntry,
+      timeMachineEntry: isAnchor ? updated : state.timeMachineEntry,
+    );
+  }
+
   /// **"Add to tonight" (Wave C, C1) — a pure text write, and nothing else.**
   ///
   /// This is the appended half of the night. It does **not** call

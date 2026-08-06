@@ -178,6 +178,7 @@ abstract final class AnalyticsEvents {
   static const paywallViewed = 'paywall_viewed';
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
+
   /// Fired on ✕ / dismiss of ANY paywall placement. Props: `{placement}` —
   /// `arm` arrives free via the `paywall_exp_arm` super property.
   ///
@@ -958,6 +959,18 @@ abstract final class AnalyticsEvents {
   /// separable from "people re-read their Reflect saves".
   static const String journalEntryOpened = 'journal_entry_opened';
 
+  /// The user's own words on a saved entry were rewritten (2026-08-06).
+  ///
+  /// **Fires only on a committed change.** A blank edit, an unchanged re-save,
+  /// an entry missing from the cache and a server refusal are all silent — the
+  /// event counts edits the journal KEPT, exactly like
+  /// [muhasabahThreadAppended].
+  ///
+  /// Props: [propSource] (`muhasabah` | `reflect`) and [propAgeDays] — how old
+  /// the entry was when it was edited, which is the question the feature exists
+  /// to answer. Never the text, before or after.
+  static const String journalEntryEdited = 'journal_entry_edited';
+
   /// The Month of Light calendar was opened as the Journal's browse control
   /// (D4). The denominator for `journal_entry_opened{origin: journal_calendar}`
   /// — without it, a calendar nobody converts from is indistinguishable from a
@@ -999,6 +1012,11 @@ abstract final class AnalyticsEvents {
   static const String propOnThisNight = 'on_this_night';
   static const String propWeeklyRecap = 'weekly_recap';
   static const String propAnsweredPrompt = 'answered_prompt';
+
+  /// On [journalEntryEdited]. Whole days between the entry's own date and the
+  /// edit, clamped at zero: "people fix tonight's typo" and "people revisit a
+  /// night from March" are different features wearing the same button.
+  static const String propAgeDays = 'age_days';
 
   static const String composeActionStartTonight = 'start_tonight';
   static const String composeActionAddToTonight = 'add_to_tonight';

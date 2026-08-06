@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
@@ -6,6 +7,12 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/widgets/share_card.dart';
 
 void main() {
+  /// The page became a `ConsumerWidget` when the edit control landed — it now
+  /// re-resolves its entry from `reflectProvider` so an edit made here is on
+  /// screen the instant it commits. A bare `MaterialApp` has no scope for that
+  /// to read, so every pump goes through this.
+  Widget host(Widget child) => ProviderScope(child: MaterialApp(home: child));
+
   SavedReflection buildReflection({List<ReflectVerse> verses = const []}) {
     return SavedReflection(
       id: 'reflection-1',
@@ -25,22 +32,18 @@ void main() {
   }
 
   testWidgets('renders verse section when verses are present', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ReflectionDetailPage(
-          reflection: buildReflection(
-            verses: const [
-              ReflectVerse(
-                arabic: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
-                translation:
-                    'Verily, in the remembrance of Allah do hearts find rest.',
-                reference: 'Ar-Ra\'d 13:28',
-              ),
-            ],
+    await tester.pumpWidget(host(ReflectionDetailPage(
+      reflection: buildReflection(
+        verses: const [
+          ReflectVerse(
+            arabic: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+            translation:
+                'Verily, in the remembrance of Allah do hearts find rest.',
+            reference: 'Ar-Ra\'d 13:28',
           ),
-        ),
+        ],
       ),
-    );
+    )));
 
     await tester.pumpAndSettle();
 
@@ -51,9 +54,7 @@ void main() {
 
   testWidgets('hides verse section for legacy reflections', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: ReflectionDetailPage(reflection: buildReflection()),
-      ),
+      host(ReflectionDetailPage(reflection: buildReflection())),
     );
 
     await tester.pumpAndSettle();
@@ -68,12 +69,10 @@ void main() {
     var removeCallCount = 0;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: ReflectionDetailPage(
-          reflection: buildReflection(),
-          onRemove: () => removeCallCount++,
-        ),
-      ),
+      host(ReflectionDetailPage(
+        reflection: buildReflection(),
+        onRemove: () => removeCallCount++,
+      )),
     );
     await tester.pumpAndSettle();
 
@@ -128,9 +127,7 @@ void main() {
     addTearDown(() => shareReflectionCard = original);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: ReflectionDetailPage(reflection: buildReflection()),
-      ),
+      host(ReflectionDetailPage(reflection: buildReflection())),
     );
     await tester.pumpAndSettle();
 
