@@ -1609,7 +1609,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  MuhasabahCompletionCopy.addToTonight,
+                  MuhasabahCompletionCopy.addToCtaFor(DateTime.now().hour),
                   style: AppTypography.headlineMedium
                       .copyWith(color: AppColors.textPrimaryLight),
                 ),

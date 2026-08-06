@@ -1,3 +1,4 @@
+import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 
 /// What the Journal's ONE primary control does right now (Wave D, D3).
@@ -55,7 +56,12 @@ abstract final class JournalComposeCopy {
         JournalComposeAction.startTonight => 'Begin Muḥāsabah',
         // Verbatim the completion screen's label. The same act, reached from a
         // second place, must not acquire a second name.
-        JournalComposeAction.addToTonight => 'Add to tonight',
+        // Hour-aware for the same reason the completion screen is: the entry
+        // is local-DAY keyed, so a morning reader is adding to *today*. Still
+        // "verbatim the completion screen's label" — both now call
+        // [MuhasabahCompletionCopy.addToCtaFor], so the two cannot drift.
+        JournalComposeAction.addToTonight =>
+          MuhasabahCompletionCopy.addToCtaFor(DateTime.now().hour),
         JournalComposeAction.freeWrite => 'Free write',
       };
 

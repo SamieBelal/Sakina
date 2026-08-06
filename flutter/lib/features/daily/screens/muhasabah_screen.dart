@@ -6,6 +6,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -980,7 +983,36 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// night remains "Return to Home".
   Widget _buildCompleted(DailyLoopState state) {
     final entry = state.tonightEntry;
+    // One clock read for the completion screen's copy. The muḥāsabah is
+    // local-DAY keyed, not night-gated, so a 9am reader gets a correct entry —
+    // and used to be told "Tonight is written down". See
+    // [MuhasabahCompletionCopy.dayNoun].
+    final completionHour = DateTime.now().hour;
     final anchor = state.timeMachineEntry;
+    // The completion screen's SECOND time-varying card, and the reason it
+    // exists is a timing problem the plan did not price.
+    //
+    // `TimeMachineCard` is the mechanic the design ranks #1 of fifteen, but it
+    // is structurally impossible before night 31 (offsets are 30/90/365, exact
+    // days only). Measured evidence says that is the wrong window to be empty:
+    // Duolingo's retention PM reports the curve flattens after day 7, and the
+    // JMIR 2024 scoping review (18 studies, n=525,824) finds abandonment is
+    // "sharper immediately after acquisition". So the highest-traffic surface
+    // in the whole wave had nothing that varied for its first thirty nights.
+    //
+    // The fix is How We Feel's shipped pattern — a post-entry CARD STACK rather
+    // than one conditional card. `resolveWeeklyRecap` already fires at >= 2
+    // entries in a 7-day window, so it pays out inside week one, and it was
+    // already built; it was simply only wired to the Journal tab, which a new
+    // user has little reason to open.
+    //
+    // NOT a lowered time-machine threshold: its power is that it cannot be
+    // peeked at and is gated on having a past. The two never render together
+    // (see below) so the screen never becomes a feed.
+    final weeklyRecap = resolveWeeklyRecap(
+      entries: ref.watch(reflectProvider).savedReflections,
+      todayLocalDay: entry?.entryLocalDay,
+    );
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
       child: Column(
@@ -1011,7 +1043,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  MuhasabahCompletionCopy.header,
+                  MuhasabahCompletionCopy.headerFor(completionHour),
                   style: AppTypography.headlineMedium.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
@@ -1024,7 +1056,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       // a legacy completion restored from a blob. Never claim to
                       // have saved something that is not there.
                       ? "You've reflected, gone deeper, and connected with Allah today."
-                      : MuhasabahCompletionCopy.subheader,
+                      : MuhasabahCompletionCopy.subheaderFor(completionHour),
                   style: AppTypography.bodyMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -1049,6 +1081,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       anchor: anchor,
                       tonightLocalDay: entry.entryLocalDay,
                     ),
+                  ]
+                  // Only when the time machine did not answer. A night that
+                  // surfaces a year-old entry should not also summarise the
+                  // week — the whole posture of `journal_resurfacing.dart` is
+                  // that "a resurfacing feature that fires every day is a
+                  // feed", and stacking both is how a card stack becomes one.
+                  else if (weeklyRecap != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    WeeklyRecapCard(recap: weeklyRecap),
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   AzmField(
@@ -1068,7 +1109,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      MuhasabahCompletionCopy.addToTonight,
+                      MuhasabahCompletionCopy.addToCtaFor(completionHour),
                       style: AppTypography.labelLarge.copyWith(
                         color: AppColors.textPrimaryLight,
                       ),

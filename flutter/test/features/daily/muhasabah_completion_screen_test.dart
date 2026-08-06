@@ -193,7 +193,16 @@ void main() {
         (t) async {
       await pump(t, completed(tonight: entry()));
 
-      expect(find.text(MuhasabahCompletionCopy.header), findsOneWidget);
+      // Hour-aware since 2026-08-06: the muḥāsabah is local-DAY keyed, not
+      // night-gated, so a morning reader is told "Today", not "Tonight".
+      // Asserted through the same helper the screen calls — pinning a literal
+      // here would make this test pass in the evening and fail in the morning.
+      // The noun logic itself is pinned exhaustively and clock-free in
+      // test/features/daily/muhasabah_completion_copy_test.dart.
+      expect(
+        find.text(MuhasabahCompletionCopy.headerFor(DateTime.now().hour)),
+        findsOneWidget,
+      );
       expect(find.byType(TonightEntrySummary), findsOneWidget);
       expect(
         find.text('I snapped at my brother and I have been sitting with it.'),
@@ -216,7 +225,10 @@ void main() {
       expect(find.byType(AddToTonightCard), findsNothing);
       expect(find.byType(AzmField), findsNothing);
       expect(find.byType(TimeMachineCard), findsNothing);
-      expect(find.text(MuhasabahCompletionCopy.subheader), findsNothing);
+      expect(
+        find.text(MuhasabahCompletionCopy.subheaderFor(DateTime.now().hour)),
+        findsNothing,
+      );
       // …and the way out still works.
       expect(find.text(MuhasabahCompletionCopy.returnHome), findsOneWidget);
     });

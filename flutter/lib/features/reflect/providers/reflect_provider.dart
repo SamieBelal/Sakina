@@ -1477,6 +1477,52 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     }
   }
 
+  /// Destroys every saved reflection — the D2 "delete all" control.
+  ///
+  /// D2 made server-side storage of confessional text conditional on this
+  /// existing (plan §B4: *"the decision was 'store it *with* the controls', not
+  /// 'store it'"*). Shipping the storage without it is the half-decision this
+  /// method closes.
+  ///
+  /// Mirrors [deleteReflection]'s shape exactly, and for the same reason:
+  /// optimistic local clear, then the server delete, then a **full rollback**
+  /// if the server refused. `deleteRow` swallows its exception and returns
+  /// false, so a silent failure would otherwise leave the user believing their
+  /// journal was destroyed while every row survives and resurrects on the next
+  /// `hydrateReflectionCacheFromRows`. On a destroy-everything action that
+  /// divergence is the worst possible outcome, so it is handled explicitly.
+  ///
+  /// One `deleteRow` call, not N: it filters on `user_id`, and RLS scopes the
+  /// statement to the caller's own rows.
+  Future<bool> deleteAllReflections() async {
+    final previous = List<SavedReflection>.from(state.savedReflections);
+    if (previous.isEmpty) return true;
+
+    state = state.copyWith(savedReflections: const [], clearError: true);
+    await _persistReflections(const []);
+
+    final userId = supabaseSyncService.currentUserId;
+    // Signed out: the local cache IS the journal, so clearing it is the whole
+    // job and there is nothing on a server to refuse.
+    if (userId == null) return true;
+
+    try {
+      final deleted = await supabaseSyncService.deleteRow(
+          'user_reflections', 'user_id', userId);
+      if (!deleted) {
+        throw Exception('deleteRow(user_reflections by user_id) returned false');
+      }
+      return true;
+    } catch (_) {
+      state = state.copyWith(
+        savedReflections: previous,
+        error: "Couldn't delete your journal. Please try again.",
+      );
+      await _persistReflections(previous);
+      return false;
+    }
+  }
+
   @visibleForTesting
   void debugSeedReflections(List<SavedReflection> reflections) {
     state = state.copyWith(savedReflections: reflections);

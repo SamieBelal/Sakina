@@ -120,4 +120,46 @@ abstract final class MuhasabahCompletionCopy {
   /// card re-roll, premium-gated for `reel_v1`, and conflating it with the
   /// journaling path is the confusion this screen exists to remove.
   static const String returnHome = 'Return to Home';
+
+  // ── The morning reader ────────────────────────────────────────────────────
+  //
+  // The muḥāsabah is NOT night-gated. It is keyed on `entry_local_day` with a
+  // one-per-user-per-local-day unique index, and nothing in the daily provider
+  // consults the clock to decide whether it may be done — the only
+  // `DateTime.now().hour` reads there pick a greeting and a quest duʿā. So a
+  // user who opens the app at 9am does a complete, correct muḥāsabah and then
+  // gets told "Tonight is written down."
+  //
+  // That is a copy bug, not a behaviour bug, and the fix is a noun rather than
+  // a gate: the entry belongs to a DAY, so before evening it should say so.
+  // Classical muḥāsabah is evening-associated but not evening-restricted, and
+  // refusing a morning reader — or lying to them about when they are — would
+  // both be worse than swapping one word.
+  //
+  // [hour] is passed in, never read from `DateTime.now()` here, so every string
+  // below stays pure and testable.
+
+  /// The hour at which "today" becomes "tonight". 17:00 local — late enough
+  /// that an afternoon session still reads as daytime, early enough that it has
+  /// turned over before ʿIshāʾ anywhere this app ships.
+  static const int eveningStartsAtHour = 17;
+
+  static bool _isEvening(int hour) => hour >= eveningStartsAtHour;
+
+  /// "Tonight" after [eveningStartsAtHour], "Today" before it. Capitalised.
+  static String dayNoun(int hour) => _isEvening(hour) ? 'Tonight' : 'Today';
+
+  /// Lowercase form, for mid-sentence use.
+  static String dayNounLower(int hour) => _isEvening(hour) ? 'tonight' : 'today';
+
+  /// [header], with the right noun for the hour.
+  static String headerFor(int hour) => '${dayNoun(hour)} is written down.';
+
+  /// [subheader], with the right noun for the hour.
+  static String subheaderFor(int hour) =>
+      'Your words, the Name you met, and the duʿā are saved to your journal. '
+      '${dayNoun(hour)} stays open until tomorrow.';
+
+  /// [addToTonightCta], with the right noun for the hour.
+  static String addToCtaFor(int hour) => 'Add to ${dayNounLower(hour)}';
 }

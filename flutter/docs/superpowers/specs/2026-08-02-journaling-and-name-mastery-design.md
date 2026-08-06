@@ -155,7 +155,20 @@ Standard multiple-choice pedagogy says build distractors from misconceptions. Ap
 
 > **Every option on screen is a true Name or a true statement. The stem asks which one *fits*.** A wrong tap means "you picked a less-fitting true Name" — never "you endorsed a falsehood."
 
-Corollaries: no red ✗, no timer, no failure state, no correctness leaderboard (rank *effort* if anything — Quran Companion's precedent), every answer cited to the approved catalog, and **"report this question" in v1, not v2.** Pack content cannot be AI-authored — `CLAUDE.md` already forbids fabricated scripture, decks need `review_verdict = 'good'` behind a CI ship gate.
+Corollaries: no red ✗, no timer, no failure state, **no leaderboard of any kind**, every answer cited to the approved catalog, and **"report this question" in v1, not v2.**
+
+> ⚠️ **CORRECTION, 2026-08-06.** This line previously read *"no correctness leaderboard (rank effort if anything — **Quran Companion's precedent**)"*. That citation was exactly backwards and would have led whoever builds Wave F straight into the failure it was meant to prevent. Quran Companion is not a precedent to follow; **it is the app that crossed the line.** Its own FAQ documents a **Daily Hasanah Leaderboard** — *"The Top 100 Hasanah points will be shown by everyone who is using the app, sorted out by country, and by Facebook friends"*, reset daily — fed by a *"Hasanah Calculator"* that multiplies memorised letters tenfold.
+>
+> There is a mainstream classical ruling directly against this, and it is the document to end any future points-on-worship conversation with:
+>
+> - **[IslamQA 247769](https://islamqa.info/en/answers/247769)** — calculating ḥasanāt per letter *in the abstract* is permissible, but **using devices to count your own ḥasanāt is makrūh**. Ibn Masʿūd: *"Is he reminding Allah of his good deeds?"* Two grounds: **acceptance of deeds is of the unseen**, so counting manufactures a false certainty; and the believer must hold hope and fear *together*, not pride in an accumulated number.
+> - **[IslamQA 128914](https://islamqa.info/en/answers/128914)** — adopting counting tools *"in order to show off to people, such as **displaying them publicly**, this is either showing off to people or is likely to be thought to be showing off, which is **haraam**… one of the gravest of sins."*
+>
+> For fairness, the boundary is not "all competition": [IslamQA 156560](https://islamqa.info/en/answers/156560) permits prizes in Qurʾān-memorisation competitions by analogy to archery. The distinction that matters is **a bounded, sponsored competition vs. an always-on public ranking of private worship** — only the second triggers the riyāʾ ruling.
+>
+> **So: no ḥasanāt counter, no points on ʿibādah, no public ranking, and no "effort" ranking either** — an effort leaderboard is still a public ranking of private worship, which is the thing the ruling names. Verified 2026-08-06: the app ships no such counter today. This note exists so it never acquires one by accident.
+>
+> Related, from the same research: **Muslim Pro denominates worship as currency** (500 Stars = 1 Crescent, *"rate may change… due to platform fees"*, redeemable against your own subscription), and a user has publicly filed for **reimbursement of un-credited worship points**. That is the reductio. It is a second reason to keep the Noor/token merge deferred rather than inventing anything a user could describe as *earned by praying*. Pack content cannot be AI-authored — `CLAUDE.md` already forbids fabricated scripture, decks need `review_verdict = 'good'` behind a CI ship gate.
 
 ### 8.3 Format — designed for the ICP (REWRITTEN after founder direction, 2026-08-02)
 
