@@ -121,6 +121,7 @@ Every event also carries the super properties above. Build funnels by chaining t
 | The night (Wave C) | `muhasabah_completion_shown{has_entry, has_time_machine, offset_days, thread_length, has_azm}` → `muhasabah_thread_appended{surface, thread_length}` · `muhasabah_azm_set{first_time, cleared, char_count_bucket}` | see below |
 | The archive (Wave D) | `journal_entry_opened{origin, format, source}` · `journal_compose_tapped{action, entry_point}` · `journal_browse_opened` | see below |
 | Resurfacing (Wave E) | `journal_resurfacing_shown{on_this_night, weekly_recap, answered_prompt, offset_days}` | session-aggregated, once per Journal visit — see below |
+| Find + fix (2026-08-06) | `journal_searched{result_count, has_results}` · `journal_entry_edited{source, age_days}` | search is debounced (one event per settled query) and **never carries the query**; `origin: journal_search` is a fourth value on `journal_entry_opened` — see below |
 
 ---
 
@@ -362,6 +363,39 @@ The nightly muḥāsabah is a journal entry, so it fires the journal's event. `s
 `journal_browse_opened` exists purely as the denominator for `origin = journal_calendar`. Without it, a calendar nobody converts from reads identically to one nobody opens.
 
 `journal_compose_tapped{action, entry_point}` — one control, three meanings (`start_tonight` / `add_to_tonight` / `free_write`), rendered in two places (`fab` / `empty_state`). Both are properties for the same reason: the meanings are mutually exclusive at any moment, and the empty-state rendering is aimed at a different user than the FAB.
+
+### Finding and fixing an entry (2026-08-06)
+
+Two controls landed after Wave E closed the archive: a **search** over the whole
+journal, and an **edit** of the user's own words on a saved entry.
+
+`journal_searched{result_count, has_results}` is **debounced (700ms), one event
+per settled query** — `p` `pa` `pai` `pain` is one search and not four. Emitting
+per keystroke would have made the has-results ratio meaningless, since every
+prefix of a real query is a miss.
+
+* **`has_results: false` is the slice that matters.** A search that finds
+  nothing is either a journal that does not contain the memory or a matcher that
+  cannot reach it, and only the ratio over time tells you which. The matcher
+  searches the user's own words (answer, thread appends, ʿazm) and the Name; it
+  deliberately does NOT search the reframe or the story, which say *Allah*,
+  *heart* and *mercy* on every entry — see `journal_search.dart`.
+* **Conversion is `journal_entry_opened{origin: journal_search}`**, a fourth
+  value on the existing event rather than a second event here. "People find
+  things and read them" stays separable from "people scroll and read things"
+  without a union query.
+* **The query never leaves the device — not the text, and not its length.** A
+  journal search box is a second place to type the same confessional text the
+  answer-text rule already keeps off the wire, and a doctrine that protected the
+  entry but not the search for it would be a strange one. Pinned by a test.
+
+`journal_entry_edited{source, age_days}` fires **only on a committed change**: a
+blank edit, an unchanged re-save, an entry missing from the cache and a server
+refusal are all silent, exactly like `muhasabah_thread_appended`. `age_days` is
+the question the feature exists to answer — *"people fix tonight's typo"* and
+*"people revisit a night from March"* are different features wearing the same
+button, and only the distribution separates them. Never the text, before or
+after.
 
 ### Resurfacing (Wave E) — and what is deliberately dark
 

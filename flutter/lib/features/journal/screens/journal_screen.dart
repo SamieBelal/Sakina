@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -16,6 +18,7 @@ import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/journal_search.dart';
 import 'package:sakina/features/journal/journal_themes.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
@@ -159,6 +162,37 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// Index of the Badges tab in [_buildScaffold]'s IndexedStack / TabBar.
   static const _achievementsTabIndex = 3;
 
+  // ── Search (2026-08-06) ───────────────────────────────────────────────────
+  //
+  // Search is a MODE, not a fifth tab and not a fourth filter chip.
+  //
+  // The filters and the tabs both answer "which KIND of thing", and the archive
+  // already has two rows of controls saying so. The question search answers —
+  // "where is the night I wrote about my father" — is not a kind, it cuts across
+  // every tab at once, and a per-tab search box would have meant a user who
+  // searched from the wrong tab being told, truthfully and uselessly, that their
+  // entry does not exist. So the whole screen becomes the results, and closing
+  // it puts every one of those controls back exactly as it was.
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  bool _searching = false;
+
+  /// The parsed query. Empty means "not filtering" even while the mode is open,
+  /// which is what the prompt state renders.
+  List<String> _searchTokens = const [];
+
+  /// Set during build, read by [_searchDebounce] when it fires — the count is a
+  /// property of the results the user is looking at, and that is the only place
+  /// it is known.
+  int _searchResultCount = 0;
+  Timer? _searchDebounce;
+
+  /// Debounced so `p` / `pa` / `pai` / `pain` is one `journal_searched` and not
+  /// four. Long enough to sit out ordinary typing, short enough that a user who
+  /// pauses to read their results has already been counted.
+  static const _searchAnalyticsDebounce = Duration(milliseconds: 700);
+
   @override
   void initState() {
     super.initState();
@@ -179,6 +213,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   @override
   void dispose() {
     _tab.dispose();
+    // Cancelled, not left to fire: the timer's callback reads `ref` and calls
+    // `setState`, and both are errors once this State is gone.
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -245,7 +284,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   ) {
     // Wave E's strip, resolved HERE so its `ref.watch` calls happen during
     // build. See [_buildResurfacingStrip].
+    //
+    // Built BEFORE the search branch even though search never renders it. It
+    // holds the only surviving `ref.watch(journalLocalDayProvider)` once
+    // `_resurfacingFired` latches, and that provider is `autoDispose`: skipping
+    // this line while searching drops its last watcher, disposes it, and makes
+    // closing search re-await a future — so the strip would pop back in a frame
+    // late, every time.
     final resurfacing = _buildResurfacingStrip(reflections);
+
+    if (_searching) return _buildSearchScaffold(allEntries);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
@@ -318,10 +366,290 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               ],
             ),
           ),
+          _buildSearchButton(),
           _buildBrowseButton(reflections),
         ],
       ),
     );
+  }
+
+  // ── Search (2026-08-06) ─────────────────────────────────────────────────────
+
+  /// The entry point, next to the calendar.
+  ///
+  /// Both are ways of *finding* an entry rather than of making one, so they sit
+  /// together in the header and leave the compose FAB as the only primary
+  /// control on the screen (D3). Search first, because it is the one that works
+  /// on a journal of any size.
+  Widget _buildSearchButton() {
+    return Semantics(
+      button: true,
+      label: 'Search your journal',
+      child: IconButton(
+        onPressed: _openSearch,
+        icon: const Icon(Icons.search_rounded, size: 22),
+        color: AppColors.textSecondaryLight,
+        tooltip: 'Search',
+      ),
+    ).animate().fadeIn(
+          duration: context.motion(AppMotion.entrance),
+          delay: context.motion(AppMotion.beat),
+        );
+  }
+
+  void _openSearch() {
+    HapticFeedback.lightImpact();
+    setState(() => _searching = true);
+    // After the frame that builds the field — a focus request against a node
+    // whose widget does not exist yet is dropped, and the keyboard never opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _searching) _searchFocus.requestFocus();
+    });
+  }
+
+  /// Leaves search and forgets the query.
+  ///
+  /// The query is cleared rather than kept, so re-opening search starts from the
+  /// prompt. A box that reopens holding a half-typed word from twenty minutes
+  /// ago is answering a question the user is no longer asking, and the archive
+  /// behind it would come back pre-filtered with no visible reason why.
+  void _closeSearch() {
+    _searchDebounce?.cancel();
+    _searchFocus.unfocus();
+    _searchController.clear();
+    setState(() {
+      _searching = false;
+      _searchTokens = const [];
+      _searchResultCount = 0;
+    });
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchTokens = journalSearchTokens(value));
+    _searchDebounce?.cancel();
+    if (_searchTokens.isEmpty) return;
+    // Reads [_searchResultCount], which the build triggered by the `setState`
+    // above will have written by the time this fires.
+    _searchDebounce = Timer(_searchAnalyticsDebounce, () {
+      if (!mounted) return;
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.journalSearched,
+        properties: {
+          AnalyticsEvents.propResultCount: _searchResultCount,
+          AnalyticsEvents.propHasResults: _searchResultCount > 0,
+        },
+      );
+    });
+  }
+
+  /// The whole screen while searching: the field, and the results.
+  ///
+  /// The stats row, the tab bar, the filter chips, the resurfacing strip and the
+  /// compose FAB are all gone — deliberately. Results are the only thing on
+  /// screen that can answer the question being asked, the keyboard is already
+  /// covering half of it, and a FAB floating over a result list is a target for
+  /// the thumb that is reaching past it.
+  Widget _buildSearchScaffold(List<_JournalEntry> allEntries) {
+    final results = _searchTokens.isEmpty
+        ? const <_JournalEntry>[]
+        : allEntries.where(_matchesSearch).toList();
+    // Written during build on purpose — see [_searchResultCount].
+    _searchResultCount = results.length;
+
+    // A back gesture closes SEARCH, not the Journal. Search is a mode on this
+    // screen rather than a pushed route, so without this the system back swipe
+    // would skip straight past it to the previous tab and leave the user
+    // wondering where the archive went.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeSearch();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFBF7F2),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchField(),
+              Expanded(child: _buildSearchResults(results)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _matchesSearch(_JournalEntry entry) {
+    switch (entry.type) {
+      case _EntryType.reflection:
+        return reflectionMatchesSearch(
+            entry.data as SavedReflection, _searchTokens);
+      case _EntryType.builtDua:
+        return builtDuaMatchesSearch(
+            entry.data as SavedBuiltDua, _searchTokens);
+      case _EntryType.savedDua:
+        return relatedDuaMatchesSearch(
+            entry.data as SavedRelatedDua, _searchTokens);
+    }
+  }
+
+  Widget _buildSearchField() {
+    final hasText = _searchController.text.isNotEmpty;
+    return Padding(
+      // Top matches the header's 32, so the field lands where the title was and
+      // the screen does not jump when search opens.
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'Search your journal',
+              textField: true,
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                style: AppTypography.bodyMedium
+                    .copyWith(color: AppColors.textPrimaryLight),
+                decoration: InputDecoration(
+                  hintText: 'Search your journal',
+                  hintStyle: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textTertiaryLight),
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      size: 20, color: AppColors.textTertiaryLight),
+                  suffixIcon: !hasText
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          color: AppColors.textTertiaryLight,
+                          tooltip: 'Clear',
+                        ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm + 4,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                        color: AppColors.borderLight, width: 0.5),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                        color: AppColors.borderLight, width: 0.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          TextButton(
+            onPressed: _closeSearch,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondaryLight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              minimumSize: const Size(0, 44),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTypography.labelLarge
+                  .copyWith(color: AppColors.textSecondaryLight),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: context.motion(AppMotion.feedback));
+  }
+
+  Widget _buildSearchResults(List<_JournalEntry> results) {
+    if (_searchTokens.isEmpty) {
+      return _searchMessage(
+        'Search your entries, your duas and the Names.',
+        sub: 'A word you wrote, a place, a feeling.',
+      );
+    }
+    if (results.isEmpty) {
+      return _searchMessage(
+        'Nothing matches that.',
+        sub: 'Try one word rather than a phrase — every word you type has to '
+            'appear in the entry.',
+      );
+    }
+
+    return ListView.builder(
+      // The keyboard is up: dragging the list should put it away, the way every
+      // other search list on the platform does.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
+      itemCount: results.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              results.length == 1 ? '1 entry' : '${results.length} entries',
+              style: AppTypography.labelSmall
+                  .copyWith(color: AppColors.textTertiaryLight),
+            ),
+          );
+        }
+        return _animatedCard(
+          index - 1,
+          _buildEntryCard(
+            results[index - 1],
+            origin: AnalyticsEvents.originJournalSearch,
+          ),
+        );
+      },
+    );
+  }
+
+  /// The two quiet states of search — nothing typed, and nothing found.
+  ///
+  /// Deliberately not [_buildEmptyState]: that one carries a 200px illustration
+  /// and a primary button, and neither belongs on a screen where the keyboard is
+  /// already covering the bottom half and the user is mid-question.
+  Widget _searchMessage(String message, {required String sub}) {
+    return Align(
+      alignment: const Alignment(0, -0.5),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: AppTypography.bodyLarge
+                  .copyWith(color: AppColors.textSecondaryLight),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              sub,
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textTertiaryLight, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: context.motion(AppMotion.item));
   }
 
   // ── Browse (D4) ─────────────────────────────────────────────────────────────
@@ -1057,10 +1385,19 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Entry card dispatcher ───────────────────────────────────────────────────
 
-  Widget _buildEntryCard(_JournalEntry entry) {
+  /// [origin] is where the card is being rendered, and it travels with the tap
+  /// into `journal_entry_opened`. The feed's own value is the default because
+  /// that is where every card was rendered before search existed; passing it
+  /// explicitly from search is what keeps "people find things and read them"
+  /// separable from "people scroll and read things".
+  Widget _buildEntryCard(
+    _JournalEntry entry, {
+    String origin = AnalyticsEvents.originJournalFeed,
+  }) {
     switch (entry.type) {
       case _EntryType.reflection:
-        return _buildReflectionCard(entry.data as SavedReflection);
+        return _buildReflectionCard(entry.data as SavedReflection,
+            origin: origin);
       case _EntryType.builtDua:
         return _buildBuiltDuaCard(entry.data as SavedBuiltDua);
       case _EntryType.savedDua:
@@ -1140,14 +1477,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     }
   }
 
-  Widget _buildReflectionCard(SavedReflection r) {
+  Widget _buildReflectionCard(
+    SavedReflection r, {
+    String origin = AnalyticsEvents.originJournalFeed,
+  }) {
     final date = DateTime.parse(r.date);
     final canReadAsStory = ReflectionStoryPage.canRenderAsStory(r);
     return _ExpandableCard(
-      onTap: () => _openReflectionDetail(
-        r,
-        origin: AnalyticsEvents.originJournalFeed,
-      ),
+      onTap: () => _openReflectionDetail(r, origin: origin),
       // D2's entry point. Shown only when there is a story to read — an entry
       // that saved nothing but the user's words would open on a cover card and
       // end there, which is a worse read than the detail page.
@@ -1156,10 +1493,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           : _cardTextAction(
               icon: Icons.auto_stories_rounded,
               label: 'Read as story',
-              onTap: () => _openReflectionStory(
-                r,
-                origin: AnalyticsEvents.originJournalFeed,
-              ),
+              onTap: () => _openReflectionStory(r, origin: origin),
             ),
       // D1: the chip tells the two sources apart. A nightly accounting and an
       // ad-hoc Reflect save land in the same table and used to render with the

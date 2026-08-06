@@ -959,6 +959,24 @@ abstract final class AnalyticsEvents {
   /// separable from "people re-read their Reflect saves".
   static const String journalEntryOpened = 'journal_entry_opened';
 
+  /// A settled journal search (2026-08-06). **Debounced, never per keystroke** —
+  /// one event per query the user stopped typing, so `p` `pa` `pai` `pain` is one
+  /// search and not four.
+  ///
+  /// Props: [propResultCount] and [propHasResults]. **The query itself is never
+  /// sent, and neither is its length.** What someone types into a journal search
+  /// box is the same confessional text the answer-text rule already keeps off
+  /// the wire — the search box is simply a second place to type it, and it would
+  /// be a strange doctrine that protected the entry and not the search for it.
+  ///
+  /// `has_results: false` is the slice that matters: a search that finds nothing
+  /// is either a journal that does not contain the memory or a matcher that
+  /// cannot reach it, and the ratio is the only way to tell which.
+  ///
+  /// Conversion is measured through [journalEntryOpened] with
+  /// [originJournalSearch], not by a second event here.
+  static const String journalSearched = 'journal_searched';
+
   /// The user's own words on a saved entry were rewritten (2026-08-06).
   ///
   /// **Fires only on a committed change.** A blank edit, an unchanged re-save,
@@ -1013,6 +1031,10 @@ abstract final class AnalyticsEvents {
   static const String propWeeklyRecap = 'weekly_recap';
   static const String propAnsweredPrompt = 'answered_prompt';
 
+  /// On [journalSearched]. A count of matched entries — never the query.
+  static const String propResultCount = 'result_count';
+  static const String propHasResults = 'has_results';
+
   /// On [journalEntryEdited]. Whole days between the entry's own date and the
   /// edit, clamped at zero: "people fix tonight's typo" and "people revisit a
   /// night from March" are different features wearing the same button.
@@ -1033,6 +1055,7 @@ abstract final class AnalyticsEvents {
   static const String originJournalFeed = 'journal_feed';
   static const String originJournalCalendar = 'journal_calendar';
   static const String originOnThisNight = 'on_this_night';
+  static const String originJournalSearch = 'journal_search';
 
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
