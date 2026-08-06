@@ -405,7 +405,7 @@ ul.bens .t{font-size:15px;color:var(--ink);font-weight:400;line-height:1.35}
     <li><b>Copy drift reverted.</b> The first pass shouted the badge as "7 DAYS FREE FIRST" and the tier as "SILVER" — the approved copy is sentence case, and copy is locked.</li>
     <li><b>The benefit row is the shipped one</b> — 22px circle, <code>primaryLight</code> fill, 14px check, 10px gap, bodyMedium at 1.35. Lifted from <code>paywall_screen.dart:852</code> so the two surfaces can't drift.</li>
     <li><b>Motion added:</b> staggered fade + 9px rise, 450ms easeOutCubic — the same beat-advance rhythm as the sacred canvas. Hover and pressed states on everything tappable; honours <code>prefers-reduced-motion</code>.</li>
-    <li><b>Prices are real now:</b> $49.99/year and $0.96 a week, matching App Store Connect and the shipped <code>paywallAnnualPerWeek</code> constant. The "Save 50% vs weekly" chip uses the existing <code>paywallAnnualBadge</code> claim, restated so the math is checkable against the weekly row right below it.</li>
+    <li><b>Store economics are illustrative in this historical mock:</b> the shipped renderer now reads localised annual and weekly prices from RevenueCat, derives any savings label from those packages, and renders no economics when offerings are unavailable.</li>
     <li><b>Page 3 scrolls</b> with a soft bottom mask, CTA pinned — the 844pt frame can't hold title + five benefits + two plans + terms + legal, and a hidden Restore button is an App Store review risk.</li>
   </ul>
 

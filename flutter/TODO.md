@@ -95,18 +95,18 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
     two can disagree for a window after travel. Verify a streak day is neither
     gained nor lost.
   - **The value-depth and trial-timeline paywall pages against the copy
-    firewall.** `check_no_fake_strings.sh` scans purchase surfaces only, by
-    design (W7 owns the full sweep), and nobody has read those two pages
-    against the rules.
+    firewall.** The W5 implementation now pins the page roles and locked copy,
+    and blocks fabricated prices/terms/CTAs while offerings are unavailable;
+    the full purchase-surface sweep remains a W7 task.
   - **A second account on the same device.** Four cross-user leaks of one shape
     were fixed on this branch; sign out, sign in as someone else, and confirm no
     Name, streak, cohort, onboarding state, or widget content carries over.
 
 - [ ] **Physical-device StoreKit pass** (W5 plan §5 — the simulator cannot complete a
   purchase, so this is the only place these are provable): trial start · a
-  previously-trialed account gets the **"Subscribe"** variant and never "7 days free" ·
-  restore · dismissal → always-free card → home. Note the trial still reads **3 days** until
-  bucket 4 runs, so verify the *mechanism*, not the number.
+  previously-trialed account gets the **"Subscribe"** variant and never a trial promise ·
+  restore · dismissal → always-free card → home. Verify the live storefront's trial duration
+  and localised prices rather than assuming a hard-coded number.
 
 ### 2 — At submission (App Store Connect metadata)
 

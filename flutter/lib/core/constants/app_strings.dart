@@ -26,14 +26,11 @@ abstract final class AppStrings {
 
   // Screen 2: Intention
   static const intentionTitle = 'What brings you here?';
-  static const intentionSubtitle =
-      'This helps us personalize your experience';
+  static const intentionSubtitle = 'This helps us personalize your experience';
   static const intentionSpiritualGrowth = 'Spiritual Growth';
-  static const intentionSpiritualGrowthDesc =
-      'Deepen my connection with Allah';
+  static const intentionSpiritualGrowthDesc = 'Deepen my connection with Allah';
   static const intentionDifficultTime = 'Difficult Time';
-  static const intentionDifficultTimeDesc =
-      'Find comfort in Allah\'s words';
+  static const intentionDifficultTimeDesc = 'Find comfort in Allah\'s words';
   static const intentionBuildHabit = 'Build a Daily Habit';
   static const intentionBuildHabitDesc = 'Consistent spiritual reflection';
   static const intentionCurious = 'Just Curious';
@@ -73,12 +70,10 @@ abstract final class AppStrings {
 
   // Screen 6: First Check-in
   static const checkinTitle = 'Let\'s try it';
-  static const checkinSubtitle =
-      'Tell us how you\'re feeling right now';
+  static const checkinSubtitle = 'Tell us how you\'re feeling right now';
   static const checkinReflectButton = 'Reflect';
   static const checkinLoadingTitle = 'Finding your reflection...';
-  static const checkinLoadingSubtitle =
-      'Searching Allah\'s names and Quran';
+  static const checkinLoadingSubtitle = 'Searching Allah\'s names and Quran';
   static const checkinResultLabel = 'Your Starting Name';
   static const checkinResultFooter = 'This is just the beginning';
   static const checkinResultUnlockCopy =
@@ -92,80 +87,47 @@ abstract final class AppStrings {
   static const chipLost = 'Lost';
   static const chipHopeful = 'Hopeful';
 
-  // Screen 7: Paywall
-  static const paywallTitle = 'Your personal path\nto peace';
-  static const paywallSubtitle =
-      'Unlimited spiritual guidance from the Quran, just for you.';
-  static const paywallBenefit1 = 'Connect with Allah whenever you need Him';
-  static const paywallBenefit2 =
-      'Beautiful audio recitation for every reflection';
-  static const paywallBenefit3 = 'Never lose your spiritual streak';
-  static const paywallBenefit4 = 'Revisit every moment of your journey';
-  // Concrete premium unlocks shown on the paywall benefit list (2026-07-20).
-  // These name the *tangible* things premium grants — unlike the older
-  // emotional benefit1/3/4 copy which never said what you actually get.
-  // "Unlimited" is the established term for the 30/day fair-use ceiling
-  // (see gating_service.dart); benefit2's 5× applies to token/scroll daily
-  // rewards (daily_rewards_service.dart), not the streak-freeze day.
-  //
-  // benefit5 (streak protection) is now BACKED (2026-07-22): the streak freeze
-  // is a per-tier HOLD cap — free holds 1, premium holds up to
-  // premiumStreakFreezeCap (3) and is topped up each month by
-  // grant_premium_monthly. Enforced server-side in claim_daily_reward /
-  // grant_premium_monthly via has_active_premium_entitlement (see
-  // 20260722000000_streak_freeze_premium_tier.sql + daily_rewards_service.dart).
-  // (benefit3, Emerald cards, is likewise backed: premium tier ceiling +
-  // server-side grant RPC.)
-  static const paywallPremiumBenefitsHeader = 'Everything premium unlocks';
+  // W5 paywall — the five canonical Premium entitlements. These strings are
+  // rendered verbatim by the complete checklist on page 3 and may be reused
+  // by separate condensed purchase surfaces.
   static const paywallPremiumBenefit1 =
       'Unlimited reflections, duʿās & Name discoveries';
   static const paywallPremiumBenefit2 = '5× daily rewards, every single day';
   static const paywallPremiumBenefit3 =
       'Exclusive Emerald cards for every Name of Allah';
   static const paywallPremiumBenefit4 = 'A monthly gift of tokens & scrolls';
-  // Kept tight to match the sibling benefits' length (they wrap poorly on the
-  // paywall). Keeps both value hooks: the concrete premium differentiator (3,
-  // vs free's 1) and the "never lose progress" promise.
   static const paywallPremiumBenefit5 =
       '3 streak freezes so you never lose progress';
-  static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
   static const paywallAnnualLabel = 'Yearly';
-  // UNUSED since the W5 gate rebuild (2026-07-31). It was the floating badge on
-  // the old side-by-side pricing cards, which the 3-page gate replaced. Left in
-  // place rather than deleted because its claim now lives on as
-  // `paywallPlanAnnualSavingsTemplate` — but note the two disagreed: this said 50%,
-  // computed against a fabricated 2x anchor, while the real saving against the
-  // weekly SKU is ~80%. If anything ever renders this again, fix the number
-  // first.
-  static const paywallAnnualBadge = 'SAVE 50%';
-  static const paywallAnnualPerWeek = '\$0.96';
-  static const paywallAnnualPerWeekLabel = 'Per Week';
-  static const paywallAnnualTotal = '\$49.99 Total';
-  // No static anchor string. The annual strikethrough is computed at
-  // runtime from `_annualPackage.storeProduct.price` in paywall_screen.dart
-  // (`_annualAnchorPrice`) so it's always in the user's storefront currency
-  // (e.g. £79.99 in UK, ¥15,600 in JP, ₹6,999 in IN). A USD-only static
-  // fallback would render "$99.99" next to a "£39.99" price — strictly
-  // worse than no anchor at all.
-  static const paywallWeeklyPrice = '\$4.99';
   static const paywallWeeklyPeriod = '/week';
   static const paywallWeeklyLabel = 'Weekly';
-  static const paywallWeeklyPerWeekLabel = 'Per Week';
-  static const paywallSocialProof = '4.9 \u00B7 Loved by 10,000+ Muslims';
-  static const paywallStarsLabel = '4.9';
-  static const paywallReviewsCount = 'from 10,000+ reviews';
-  static const paywallCta = 'Start Free Trial';
-  // Used when the selected plan has no introductory free trial configured
-  // (or when the user is no longer eligible for one). The honest-trial
-  // timeline strip hides in that mode and we billed-today copy below the
-  // cards instead. Keeps the paywall from claiming a trial that StoreKit
-  // won't actually grant.
   static const paywallCtaSubscribe = 'Subscribe';
-  static const paywallNoTrialNote = 'Billed today \u00B7 Cancel anytime';
   static const paywallRestore = 'Restore Purchase';
   static const paywallTerms = 'Terms';
   static const paywallPrivacy = 'Privacy';
+
+  // Offer-state and purchase-flow copy. Keeping these here prevents one
+  // surface from inventing a different failure or loading message.
+  static const paywallOffersLoading = 'Loading subscription options…';
+  static const paywallOffersUnavailable =
+      'Unable to load subscription options right now. Please try again.';
+  static const paywallPurchaseFailed =
+      'We couldn\'t complete your purchase. Please try again.';
+  static const paywallRestoreFailed =
+      'We couldn\'t restore your purchase. Please try again.';
+  static const paywallPremiumNotActive =
+      'Premium access is not active yet. Please try restoring your purchase.';
+  static const paywallRestoreNotFound =
+      'No active premium subscription was found to restore.';
+  static const paywallLegalPageUnavailable =
+      'Could not open the page. Try again.';
+  static const paywallRestoring = 'Restoring…';
+  static const paywallExitOfferNoTrialBodyTemplate =
+      'Not ready for a year? Try the weekly plan — {price}/week, cancel anytime.';
+  static const paywallExitOfferAfterTrialTemplate =
+      '{price} / week after trial';
+  static const paywallExitOfferTryWeekly = 'Try weekly';
 
   // REMOVED 2026-08-01 (string-hygiene pass): the deprecated timeline-strip
   // constants (`paywallTimeline*`, dead since the 2026-05-14 rebuild) and the
@@ -195,8 +157,8 @@ abstract final class AppStrings {
   // chain) so the next call on it is made with data. Recorded in the W5 plan
   // doc so the two artefacts do not silently disagree.
   //
-  // The hardcoded "3-day" is a `{trial}` placeholder (W5 Wave B.4) so this can
-  // never again promise a duration the store will not grant.
+  // The duration is a `{trial}` placeholder (W5 Wave B.4) so this can never
+  // promise a duration the store will not grant.
   static const paywallExitOfferTitle = 'Wait — try weekly first?';
   static const paywallExitOfferBodyTemplate =
       'Not ready for a year? Start with the weekly plan and your {trial} free trial. Cancel anytime.';
@@ -211,61 +173,24 @@ abstract final class AppStrings {
   // store's introductory offer (`TrialOffer.label`) — never a literal, so copy
   // can no longer disagree with what StoreKit will actually grant.
 
-  // Page 1 — `value_depth`. Two variants keyed by the hook contract the user
-  // chose: `problem` (they named something) and `sign` (they could not put it
-  // into words). {name} is the transliteration of the Name the reveal awarded.
+  // Page 1 — `value_depth`. The headline is personalized with the Name the
+  // reveal awarded. Its three claims are deliberately distinct from the
+  // complete Premium entitlement checklist on page 3.
+  static const paywallValueDepthHeadlineFallback = 'Made for this moment.';
   static const paywallValueDepthHeadlineTemplate = 'You\'ve met {name}.';
   static const paywallValueDepthHeadlineSignTemplate =
       'You\'ve met {name} — the first Name of your journey.';
   static const paywallValueDepthSubline =
       'Premium goes deeper into what you named:';
   static const paywallValueDepthSublineSign = 'Premium goes deeper, every day:';
-  // The draft writes bullet 1 as "A personal reflection on {chip phrase}" and
-  // defines {chip phrase} as "canonical chip phrasing only, never raw free
-  // text". No canonical noun-phrase form of a chip exists in the taxonomy —
-  // the labels are first-person clauses ("My mind won't stop racing") that do
-  // not fit the slot — and the approved mock resolves the slot to this one
-  // constant. Rendering the mock's literal is the only reading that invents no
-  // copy; a per-chip phrase map would be six new marketing strings.
-  // Rewritten 2026-08-01 (founder). The three gains carried the entire
-  // premium argument and, checked against the live free tier, two of them did
-  // not differentiate anything:
-  //
-  //  * Bullet 2 named no frequency at all, and Build-a-Duʿā is a FREE feature
-  //    — so it described the product rather than the upgrade.
-  //  * Bullet 3 promised the journal. `lib/features/journal/` contains no
-  //    GatingService reference, no premium check, and no row cap: the journal
-  //    is unlimited for everyone. Listing it under "Premium goes deeper"
-  //    implied a gain that does not exist.
-  //
-  // What is actually behind the paywall is a FREQUENCY ceiling, so each line
-  // now names one. Bullet 3 moves to the second daily Name, which is a real
-  // gate (`discoverName` is 1/day free) and ties back to the card above it.
-  //
-  // **Stated as what PREMIUM gives, never as what free withholds** (founder,
-  // 2026-08-01). An interim draft read "Unlimited reflections — free gives
-  // you three a week". It differentiated well but was wrong for THIS surface:
-  // the ceremony is a user's first exposure, before they have hit any cap, so
-  // naming the free allowance advertises the free tier at the moment the
-  // screen asks for money and teaches a limit they had not yet met. The
-  // contrast still gets delivered — by `DailyCapSheet` ("Your reflections for
-  // this week are used — Premium is unlimited"), at the moment it is actually
-  // felt.
-  //
-  // It also removes a real trap: a number here would have been
-  // `app_config.weekly_pool_size`, a runtime dial, so tuning it would have
-  // turned a shipped purchase surface into a false claim with no code change.
-  // Do not reintroduce a free-tier quantity on this page — pinned by
-  // `test/features/paywall/paywall_copy_matches_dials_test.dart`.
   static const paywallValueDepthBullet1 =
-      'Unlimited reflections, day or night';
+      'Reflections that meet you where you are.';
   static const paywallValueDepthBullet1Sign = paywallValueDepthBullet1;
   static const paywallValueDepthBullet2 =
-      'Your own duʿā, whenever you need one';
-  static const paywallValueDepthBullet2Sign =
-      'Your own duʿā, even when the words won\'t come';
+      'Space for the duʿā you\'re carrying.';
+  static const paywallValueDepthBullet2Sign = paywallValueDepthBullet2;
   static const paywallValueDepthBullet3 =
-      'A new Name of Allah whenever you want one';
+      'A Name of Allah to return to when you need one.';
   static const paywallGateContinue = 'Continue';
 
   // Page 2 — `trial_timeline`. The middle beat rides Apple's SYSTEM
@@ -278,33 +203,25 @@ abstract final class AppStrings {
       'Try everything free for {trial}.';
   static const paywallTrialTimelineTodayHeading = 'Today';
   static const paywallTrialTimelineTodayBody =
-      'Everything unlocks: daily reflections and your own duʿās, saved to your journal.';
+      'Your trial starts today with full Premium access.';
   static const paywallTrialTimelineDayHeadingTemplate = 'Day {day}';
   static const paywallTrialTimelineReminderBody =
       'Apple reminds you before your trial ends.';
   static const paywallTrialTimelineChargeBody =
-      'Your plan begins. Cancel anytime before — no charge.';
+      'Your selected plan begins after the trial. Cancel anytime before renewal.';
   static const paywallTrialTimelineFootnote = 'No charge today.';
 
   // Page 3 — `plan_select`. The benefit checklist reuses the five shipped
   // `paywallPremiumBenefit1-5` strings verbatim.
   static const paywallPlanSelectHeadline = 'Choose how you continue.';
-  // Checkable against the weekly row directly below it, which is the whole
-  // point of stating it this way: \$49.99/year against \$4.99/week × 52
-  // (\$259.48) is an 80.7% saving. The shipped `paywallAnnualBadge` said 50%,
-  // computed against a fabricated 2x anchor rather than against the plan we
-  // actually sell beside it — founder corrected this to 80% on 2026-07-31.
-  //
-  // `{percent}` IS COMPUTED AT RUNTIME (`_annualSavingsLabel`) from the two
-  // live packages, for the same reason the annual strikethrough anchor is
-  // (see `paywallAnnualPerWeek` above). Apple's price tiers are not
-  // proportional across territories, so a frozen "80%" can be arithmetically
-  // false in a storefront where both numbers beside it are localised — on the
-  // one screen whose layout invites the user to check the subtraction. There
-  // is deliberately NO static fallback: when the packages will not load the
-  // sticker is not rendered, because a wrong saving is worse than none.
+  // `{percent}` is computed at runtime (`_annualSavingsLabel`) from the two
+  // live packages. Apple's price tiers are not proportional across territories,
+  // so a frozen percentage can be arithmetically false beside localised prices.
+  // There is deliberately no static fallback: when packages will not load, the
+  // sticker is not rendered because a wrong saving is worse than none.
   static const paywallPlanAnnualSavingsTemplate = 'Save {percent}% vs weekly';
-  static const paywallPlanAnnualPriceTemplate = '{price}/year · {perWeek} a week';
+  static const paywallPlanAnnualPriceTemplate =
+      '{price}/year · {perWeek} a week';
   static const paywallPlanWeeklyRowTemplate = 'Weekly — {price}/week';
   static const paywallGateCtaTrialTemplate = 'Start my {trial} free';
   // Plain terms under the CTA. `textSecondaryLight` minimum, never tertiary —
@@ -356,8 +273,7 @@ abstract final class AppStrings {
   static const familiaritySomewhat = 'Somewhat Familiar';
   static const familiaritySomewhatDesc = 'I know many and their meanings';
   static const familiarityVeryFamiliar = 'Very Familiar';
-  static const familiarityVeryFamiliarDesc =
-      'I study them regularly';
+  static const familiarityVeryFamiliarDesc = 'I study them regularly';
 
   // Screen 5: Quran Connection
   static const quranConnectionTitle =
@@ -394,8 +310,7 @@ abstract final class AppStrings {
       'Small daily steps lead to lasting change';
   static const encouragementHeadlineCurious =
       'You\'re about to discover something beautiful';
-  static const encouragementHeadlineDefault =
-      'Something beautiful awaits you';
+  static const encouragementHeadlineDefault = 'Something beautiful awaits you';
   static const encouragementSubtitleBeginner =
       'Sakina will gently introduce you to the Names of Allah through your everyday emotions.';
   static const encouragementSubtitleSomewhat =
@@ -404,7 +319,8 @@ abstract final class AppStrings {
       'Sakina will bring fresh perspective to the Names you already know through emotional reflection.';
   static const encouragementSubtitleDefault =
       'Sakina will guide you to the perfect reflection for every moment.';
-  static const encouragementBismillah = '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650';
+  static const encouragementBismillah =
+      '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650';
 
   // Screen 10: Generating
   static const generatingTitle = 'Preparing your reflection\u2026';
@@ -439,8 +355,7 @@ abstract final class AppStrings {
   static const paywallFlowJourneyDay30Heading = 'Day 30 — One month';
   static const paywallFlowJourneyDay30Line1 =
       'A habit that holds — no missed days';
-  static const paywallFlowJourneyDay30Line2 =
-      'A growing collection of Names';
+  static const paywallFlowJourneyDay30Line2 = 'A growing collection of Names';
   static const paywallFlowJourneyDay30Line3 = 'A journal of how Allah met you';
   static const paywallFlowJourneyDay30Line4 = 'Closer to Allah, every day';
   // {minutes} replaced at render time with state.dailyCommitmentMinutes.
@@ -448,25 +363,44 @@ abstract final class AppStrings {
       'Built on {minutes} minutes a day.';
   static const paywallFlowJourneyCta = 'Begin my 30 days';
 
-  // ───── Paywall additions (page 25) ─────
-  // {name} replaced at render time with state.signUpName (or "friend").
-  static const paywallPersonalizedHeaderTemplate = 'YOU\'RE 1 STEP AWAY, {name}';
-  // REMOVED 2026-08-01 (string-hygiene pass): `paywallTrialMicrocopyTemplate`,
-  // `paywallTrialMicrocopyWeeklyTemplate` and `paywallCtaTrial` — all three
-  // hardcoded "3 days". Dead on this branch since the W5 gate; their live
-  // equivalents are `paywallGateTermsTrialTemplate` and
-  // `paywallGateCtaTrialTemplate`, whose `{trial}` slot is filled from
-  // `TrialOffer.label` (the store's actual introductory offer).
-  static const paywallNoPaymentTodayLine = 'No payment due today.';
-  static const paywallCtaSubscribeRevised = 'Start your subscription';
-
   // ───── Personalized Plan screen (page 23) ─────
   static const personalizedPlanRibbon = '✨ Crafted for you';
+  static const personalizedPlanFallbackName = 'Ar-Rahman';
+  static const personalizedPlanDefaultReminder = '08:00';
+  static const personalizedPlanDefaultName = 'friend';
+  static const personalizedPlanDefaultIntention = 'growing closer to Allah';
+  static const personalizedPlanTitleTemplate = 'Your plan, {name}.';
+  static const personalizedPlanSubtitle = 'Everything you need, one tap away.';
+  static const personalizedPlanFirstNameLabel = 'First Name in your collection';
+  static const personalizedPlanDailyCheckInLabel = 'Your daily check-in';
+  static const personalizedPlanWhyHereLabel = 'Why you\'re here';
+  static const personalizedPlanMinutesTemplate = '{minutes} min  ·  {time}';
+
+  // ───── Value prop screen (legacy paywall-flow step) ─────
+  static const valuePropAspirationMorePatient = 'more patient';
+  static const valuePropAspirationMoreGrateful = 'more grateful';
+  static const valuePropAspirationCloserToAllah = 'closer to Allah';
+  static const valuePropAspirationMorePresent = 'more present';
+  static const valuePropAspirationStrongerFaith = 'stronger in faith';
+  static const valuePropAspirationMoreConsistent = 'more consistent';
+  static const valuePropAspirationDefault = 'who you want to be';
+  static const valuePropHeadlineTemplate =
+      'Sakina helps you become {aspiration}.';
+  static const valuePropFlowSubtitle =
+      'In the time you already have — even 1 minute a day.';
+  static const valuePropDailyCheckInTitle = 'Daily check-in';
+  static const valuePropDailyCheckInBody =
+      'Name your feeling, meet it with Qur\'an.';
+  static const valuePropNamesTitle = '99 Names';
+  static const valuePropNamesBody = 'Collect, study, and reflect.';
+  static const valuePropJournalTitle = 'Your journal';
+  static const valuePropJournalBody = 'Every reflection saved.';
 
   // ───── Encouragement #2 tease (page 21) — OV4 mitigation ─────
   static const encouragementPlanReadyTease =
       'Your plan is ready, just past the gate.';
-  static const generatingBismillah = '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u064E\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0645\u0650';
+  static const generatingBismillah =
+      '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u064E\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0645\u0650';
 
   // Screen 12: Sign-Up Choice
   static const signUpChoiceTitle = 'Save your progress';

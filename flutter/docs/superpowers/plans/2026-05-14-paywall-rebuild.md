@@ -1,5 +1,9 @@
 # Paywall Rebuild Implementation Plan
 
+> **Superseded (2026-08-03):** The implementation described below is retained for
+> historical context. Do not copy its static price or trial constants into the
+> shipped paywall; current W5 rendering requires live storefront metadata.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebuild the onboarding paywall at PageView index 26 (was 25 — see `2026-05-14-rating-gate.md`) to match the 6 structural decisions that the 2026 paywall research surfaced as the actual conversion drivers. Result: Weekly + Annual side-by-side (annual default-selected), short trial framing, animated CTA, honest billing copy, optional social proof (off by default until real reviews exist), no monthly. Ship the full 6-change bundle as one PR — this is v1 of the paywall and there is no prior production cohort to confound. v1 IS the baseline.

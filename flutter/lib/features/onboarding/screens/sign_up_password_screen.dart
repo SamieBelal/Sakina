@@ -96,9 +96,10 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(duration: kSnackBarDuration, 
-            content:
-                Text('That email already has an account. Try logging in instead.'),
+          const SnackBar(
+            duration: kSnackBarDuration,
+            content: Text(
+                'That email already has an account. Try logging in instead.'),
           ),
         );
         return;
@@ -119,7 +120,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(duration: kSnackBarErrorDuration, 
+          SnackBar(
+            duration: kSnackBarErrorDuration,
             content: Text(
               result.errorMessage ?? 'Something went wrong. Please try again.',
             ),
@@ -155,7 +157,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       try {
         await ref.read(referralServiceProvider).ensureReferralCode(userId);
       } catch (e) {
-        debugPrint('[SignUpPassword] ensureReferralCode failed (non-fatal): $e');
+        debugPrint(
+            '[SignUpPassword] ensureReferralCode failed (non-fatal): $e');
       }
       try {
         final applyResult = await ref
@@ -185,7 +188,9 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       // flow (signUpWithRecovery itself never throws AuthException). Map to a
       // bounded reason so signup_failed.error stays low-cardinality.
       if (!mounted) return;
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {
+      ref
+          .read(analyticsProvider)
+          .track(AnalyticsEvents.signupFailed, properties: {
         'method': 'email',
         'error': AnalyticsEvents.signupFailedReasonForCode(e.code),
       });
@@ -202,7 +207,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
         },
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, 
+        const SnackBar(
+            duration: kSnackBarDuration,
             content: Text('Something went wrong. Please try again.')),
       );
     } finally {
@@ -293,6 +299,12 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
                       label: AppStrings.signUpPasswordCta,
                       onPressed: _submit,
                       enabled: _isValid,
+                      // Four sequential network calls run before this screen
+                      // advances (sign-up, referral code, pending referral,
+                      // profile persist). `_isLoading` used to be a re-entry
+                      // guard only, so the whole chain ran with nothing on
+                      // screen changing.
+                      loading: _isLoading,
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],

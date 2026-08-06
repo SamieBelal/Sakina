@@ -2,15 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/services/gating_service.dart';
 
-/// The value-depth bullets name the free tier's actual numbers ("three a
-/// week"). That is the strongest version of the argument and the most
-/// fragile: the number lives in `app_config.weekly_pool_size`, which is a
-/// runtime dial, so tuning it turns a shipped purchase surface into a false
-/// claim with no code change and no review.
-///
-/// The copy firewall cannot catch this — "three a week" is a legitimate
-/// sentence, and it is TRUE today. Only the relationship between the string
-/// and the dial is checkable.
+/// Value-depth copy must not leak free-tier allowances or duplicate the
+/// concrete Premium checklist. The latter is the only place where the five
+/// entitlement strings belong; the former is a runtime dial and does not
+/// belong in first-exposure purchase copy.
 ///
 /// **What this test can and cannot do.** It pins the copy against
 /// [GatingService.weeklyPoolSizeFallback], the client-side constant that
@@ -42,8 +37,13 @@ void main() {
     //     copy firewall can detect, because the sentence is legitimate today.
     const pool = GatingService.weeklyPoolSizeFallback;
     const numberWords = <int, String>{
-      1: 'one', 2: 'two', 3: 'three', 4: 'four',
-      5: 'five', 6: 'six', 7: 'seven',
+      1: 'one',
+      2: 'two',
+      3: 'three',
+      4: 'four',
+      5: 'five',
+      6: 'six',
+      7: 'seven',
     };
 
     for (final bullet in _valueDepthBullets) {

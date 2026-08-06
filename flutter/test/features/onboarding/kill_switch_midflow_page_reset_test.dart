@@ -48,7 +48,8 @@ void main() {
           resolved: OnboardingFlowKind.trimmed,
         ),
         0,
-        reason: 'index 12 is WidgetOfferScreen in reel and SocialProofScreen in '
+        reason:
+            'index 12 is WidgetOfferScreen in reel and SocialProofScreen in '
             'trimmed — one page before signup, with twelve required questions '
             'never asked',
       );

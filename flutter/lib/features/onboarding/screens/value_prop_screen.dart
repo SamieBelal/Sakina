@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
@@ -27,19 +28,19 @@ class ValuePropScreen extends ConsumerWidget {
   static String aspirationPhrase(String? id) {
     switch (id) {
       case 'morePatient':
-        return 'more patient';
+        return AppStrings.valuePropAspirationMorePatient;
       case 'moreGrateful':
-        return 'more grateful';
+        return AppStrings.valuePropAspirationMoreGrateful;
       case 'closerToAllah':
-        return 'closer to Allah';
+        return AppStrings.valuePropAspirationCloserToAllah;
       case 'morePresent':
-        return 'more present';
+        return AppStrings.valuePropAspirationMorePresent;
       case 'strongerFaith':
-        return 'stronger in faith';
+        return AppStrings.valuePropAspirationStrongerFaith;
       case 'moreConsistent':
-        return 'more consistent';
+        return AppStrings.valuePropAspirationMoreConsistent;
       default:
-        return 'who you want to be';
+        return AppStrings.valuePropAspirationDefault;
     }
   }
 
@@ -51,8 +52,9 @@ class ValuePropScreen extends ConsumerWidget {
 
     return OnboardingQuestionScaffold(
       progressSegment: 18,
-      headline: 'Sakina helps you become $aspiration.',
-      subtitle: 'In the time you already have — even 1 minute a day.',
+      headline: AppStrings.valuePropHeadlineTemplate
+          .replaceAll('{aspiration}', aspiration),
+      subtitle: AppStrings.valuePropFlowSubtitle,
       onBack: onBack,
       continueEnabled: true,
       onContinue: onNext,
@@ -61,20 +63,20 @@ class ValuePropScreen extends ConsumerWidget {
         children: [
           _ValueRow(
             icon: Icons.favorite_border,
-            title: 'Daily check-in',
-            body: 'Name your feeling, meet it with Qur\'an.',
+            title: AppStrings.valuePropDailyCheckInTitle,
+            body: AppStrings.valuePropDailyCheckInBody,
           ),
           SizedBox(height: AppSpacing.lg),
           _ValueRow(
             icon: Icons.collections_bookmark_outlined,
-            title: '99 Names',
-            body: 'Collect, study, and reflect.',
+            title: AppStrings.valuePropNamesTitle,
+            body: AppStrings.valuePropNamesBody,
           ),
           SizedBox(height: AppSpacing.lg),
           _ValueRow(
             icon: Icons.auto_stories_outlined,
-            title: 'Your journal',
-            body: 'Every reflection saved.',
+            title: AppStrings.valuePropJournalTitle,
+            body: AppStrings.valuePropJournalBody,
           ),
         ],
       ),

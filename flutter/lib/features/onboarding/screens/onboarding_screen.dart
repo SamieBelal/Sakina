@@ -117,6 +117,7 @@ const Duration reelFlagFreshReadTimeout = Duration(seconds: 2);
 ///
 /// Top-level so the timeout behaviour is unit-testable without a PageView.
 @visibleForTesting
+
 /// Which page a resumed session should open on, given the page it saved and the
 /// flow it saved it under.
 ///
@@ -163,15 +164,63 @@ int resolveResumePage({
   return savedFlow == resolvedValue ? savedPage : 0;
 }
 
+/// The sign-up password page per flow — the last page reachable WITHOUT an
+/// account, and therefore the boundary [shouldRestartOnboarding] tests against.
+int _passwordPageIndexFor(OnboardingFlowKind kind) => switch (kind) {
+      OnboardingFlowKind.reel => onboardingReelPasswordPageIndex,
+      OnboardingFlowKind.trimmed => onboardingPasswordPageIndex,
+      OnboardingFlowKind.legacy => onboardingLegacyPasswordPageIndex,
+    };
+
+/// The sign-up boundary to use for the one moment the flow is not known yet
+/// (`initState`, before the flag read resolves).
+///
+/// The LATEST of the three, and the direction matters enormously. The predicate
+/// is `savedPage > boundary`, so a LOWER boundary matches MORE pages — the
+/// earliest boundary (trimmed's 15) would restart a reel user sitting on the
+/// sign-up email or password screen (16, 17), who has no account yet and whose
+/// entire intake would be `reset()` out from under them.
+///
+/// Erring high is nearly free: the flow-exact pass a frame later still catches
+/// the run, so the cost is at most one frame rendering the previous page.
+/// Erring low costs a real user everything they just typed, irreversibly.
+const int _latestPasswordPageIndex = onboardingLegacyPasswordPageIndex; // 20
+
+/// Whether the saved run belongs to an account that no longer exists, and must
+/// therefore be thrown away rather than resumed.
+///
+/// The password screen only advances past itself on a SUCCESSFUL sign-up, so a
+/// saved page beyond it proves an account was created. No session now means that
+/// account is gone — deleted from Settings, deleted server-side, or any other
+/// route that ends with a dead refresh token. Its answers belong to a person who
+/// is no longer here, and the next user must not inherit them.
+///
+/// Capping the page alone is not enough: it lands the newcomer on "What's your
+/// email?" with the previous user's name, intention and address still in state.
+///
+/// Everyone at or before the trio is left alone — they are unauthenticated
+/// because sign-up has not happened yet, not because it was undone.
+@visibleForTesting
+bool shouldRestartOnboarding({
+  required int savedPage,
+  required OnboardingFlowKind? flow,
+  required bool isAuthenticated,
+}) {
+  if (isAuthenticated) return false;
+  final password =
+      flow == null ? _latestPasswordPageIndex : _passwordPageIndexFor(flow);
+  return savedPage > password;
+}
+
 Future<OnboardingFlowKind> resolveOnboardingFlow(
   AppConfigService config, {
   Duration freshReadTimeout = reelFlagFreshReadTimeout,
 }) async {
   try {
     if (!await config.hasCachedValue(reelFirstOnboardingFlag)) {
-      await config
-          .primeCache(const [reelFirstOnboardingFlag])
-          .timeout(freshReadTimeout, onTimeout: () {});
+      await config.primeCache(const [reelFirstOnboardingFlag]).timeout(
+          freshReadTimeout,
+          onTimeout: () {});
     }
   } catch (_) {
     // The probe is an optimisation on top of the read below. If prefs or the
@@ -364,13 +413,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     // flow's paywall. The FutureBuilder + PageView re-correct the bounds once
     // the flow resolves (and that re-clamp waits for `hasData` for the same
     // reason). Legacy is the longest of the three, so nobody is affected.
-    const maxInitial =
-        onboardingLegacyLastPageIndex > onboardingLastPageIndex
-            ? onboardingLegacyLastPageIndex
-            : onboardingLastPageIndex;
-    final initialPage = restoredPage.clamp(0, maxInitial);
+    const maxInitial = onboardingLegacyLastPageIndex > onboardingLastPageIndex
+        ? onboardingLegacyLastPageIndex
+        : onboardingLastPageIndex;
+    // The lost-account check runs HERE as well as in the flow-exact pass below,
+    // because the PageView renders on the optimistic default flow before the
+    // flag resolves. Deciding only afterwards would still flash the previous
+    // user's page — and their answers — to whoever is holding the phone now.
+    final restart = shouldRestartOnboarding(
+      savedPage: restoredPage,
+      flow: null,
+      isAuthenticated: ref.read(appSessionProvider).isAuthenticated,
+    );
+    // Deferred off the life-cycle for the same reason `setPage` below is:
+    // Riverpod refuses a provider mutation during `initState`. The controller
+    // still opens on page 0 immediately, so nothing of the old run is drawn.
+    if (restart) {
+      Future(() {
+        if (mounted) ref.read(onboardingProvider.notifier).reset();
+      });
+    }
+    final initialPage = restart ? 0 : restoredPage.clamp(0, maxInitial);
     _pageController = PageController(initialPage: initialPage);
-    if (initialPage != restoredPage) {
+    // Skipped on the restart path: `reset()` already lands on page 0 and
+    // persists, so a `setPage` here would be a second write of the same value.
+    if (!restart && initialPage != restoredPage) {
       Future(() => ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
     // Mirror the resolved flow into a field so `_next`, the abandonment gate,
@@ -387,14 +454,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       // overwrites the recorded flow with the resolved one and would erase the
       // evidence of the mismatch.
       final state = ref.read(onboardingProvider);
-      final safePage = resolveResumePage(
+      // Re-checked against the RESOLVED flow: `initState` had to decide with no
+      // flow in hand, using the earliest sign-up boundary of the three. A run
+      // saved under a longer flow can clear that bar and still be a lost
+      // account, so the authoritative call is made here.
+      //
+      // NOT an early return: a restarted run is still an onboarding start, so
+      // the flow record and the funnel-entry events below have to fire for it.
+      if (shouldRestartOnboarding(
         savedPage: state.currentPage,
-        savedFlow: state.onboardingFlow,
-        resolved: kind,
-      );
-      if (safePage != state.currentPage) {
-        ref.read(onboardingProvider.notifier).setPage(safePage);
-        if (_pageController.hasClients) _pageController.jumpToPage(safePage);
+        flow: kind,
+        isAuthenticated: ref.read(appSessionProvider).isAuthenticated,
+      )) {
+        ref.read(onboardingProvider.notifier).reset();
+        if (_pageController.hasClients) _pageController.jumpToPage(0);
+      } else {
+        final safePage = resolveResumePage(
+          savedPage: state.currentPage,
+          savedFlow: state.onboardingFlow,
+          resolved: kind,
+        );
+        if (safePage != state.currentPage) {
+          ref.read(onboardingProvider.notifier).setPage(safePage);
+          if (_pageController.hasClients) _pageController.jumpToPage(safePage);
+        }
       }
       // Record which EXPERIENCE this user ran, at entry rather than at
       // completion: it rides every `saveOnboardingData` persist (including the
@@ -414,7 +497,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       // it through `cacheDeviceSuperProperties`, which is boot-only).
       ref.read(analyticsProvider).setSuperProperties({
         AnalyticsEvents.propOnboardingFlow: onboardingFlowValueFor(kind),
-        AnalyticsEvents.propReelHookSource: AnalyticsEvents.reelHookSourceUnknown,
+        AnalyticsEvents.propReelHookSource:
+            AnalyticsEvents.reelHookSourceUnknown,
         AnalyticsEvents.propReelHook: AnalyticsEvents.reelHookSourceUnknown,
       });
       _emitEntryFunnelEvents(initialPage);
@@ -566,8 +650,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   /// Reel-flow social-auth landing (W2-E2): jump to the final gate (12).
   /// Nothing is left to show an already-authenticated user — the reveal and the
   /// plan both ran before signup — so the page after the trio IS the gate.
-  void _skipToReelPostSignup() =>
-      _goToPage(onboardingReelPostSignupPageIndex);
+  void _skipToReelPostSignup() => _goToPage(onboardingReelPostSignupPageIndex);
 
   /// Legacy-flow social-auth landing: jump to Encouragement (21).
   /// Kept while the dual-flow kill switch is live; PR-2b will delete the
@@ -1062,10 +1145,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         //            and every other text-entry page there wants the resize.
         final keepBottomInset = switch (flow) {
           OnboardingFlowKind.reel => true,
-          OnboardingFlowKind.trimmed =>
-            currentPage != 0 && currentPage != 6,
-          OnboardingFlowKind.legacy =>
-            currentPage != 0 && currentPage != 7,
+          OnboardingFlowKind.trimmed => currentPage != 0 && currentPage != 6,
+          OnboardingFlowKind.legacy => currentPage != 0 && currentPage != 7,
         };
 
         return Scaffold(

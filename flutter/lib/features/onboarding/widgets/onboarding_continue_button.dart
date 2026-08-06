@@ -9,6 +9,7 @@ class OnboardingContinueButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.enabled = true,
+    this.loading = false,
     super.key,
   });
 
@@ -16,8 +17,22 @@ class OnboardingContinueButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool enabled;
 
+  /// Swaps the label for a spinner and blocks further taps.
+  ///
+  /// Every screen whose Continue awaits the network needs this. Without it the
+  /// button renders identically before and during the work, so the only
+  /// feedback a tap produces is the haptic — and the spinner the user
+  /// eventually sees belongs to the NEXT screen, which cannot be built until
+  /// the await that is keeping them waiting has already finished. The
+  /// indicator then marks the end of the wait instead of the start of it.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
+    // `loading` implies un-tappable: a second tap is at best wasted and at
+    // worst a duplicate sign-up.
+    final tappable = enabled && !loading;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AnimatedOpacity(
@@ -39,7 +54,7 @@ class OnboardingContinueButton extends StatelessWidget {
                 : null,
           ),
           child: ElevatedButton(
-            onPressed: enabled
+            onPressed: tappable
                 ? () {
                     HapticFeedback.mediumImpact();
                     onPressed?.call();
@@ -55,13 +70,22 @@ class OnboardingContinueButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(100),
               ),
             ),
-            child: Text(
-              label,
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.textOnPrimary,
-                fontSize: 16,
-              ),
-            ),
+            child: loading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.textOnPrimary,
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textOnPrimary,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ),
       ),

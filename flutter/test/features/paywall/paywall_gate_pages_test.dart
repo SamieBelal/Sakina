@@ -11,6 +11,7 @@ import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/collection/widgets/silver_card_preview.dart';
 import 'package:sakina/features/paywall/widgets/paywall_gate_page.dart';
+import 'package:sakina/features/paywall/widgets/paywall_trial_timeline_page.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
@@ -57,7 +58,19 @@ Package _package({
   required double price,
   String currencyCode = 'USD',
   int? trialDays,
+  PeriodUnit trialUnit = PeriodUnit.day,
+  int? trialUnits,
+  String? trialPeriod,
 }) {
+  final units = trialUnits ?? trialDays;
+  final period = trialPeriod ??
+      switch (trialUnit) {
+        PeriodUnit.day => 'P${units}D',
+        PeriodUnit.week => 'P${units}W',
+        PeriodUnit.month => 'P${units}M',
+        PeriodUnit.year => 'P${units}Y',
+        PeriodUnit.unknown => 'P${units}Z',
+      };
   return Package(
     type.name,
     type,
@@ -68,15 +81,15 @@ Package _package({
       price,
       priceString,
       currencyCode,
-      introductoryPrice: trialDays == null
+      introductoryPrice: units == null
           ? null
           : IntroductoryPrice(
               0,
               'Free',
-              'P${trialDays}D',
+              period,
               1,
-              PeriodUnit.day,
-              trialDays,
+              trialUnit,
+              units,
             ),
     ),
     const PresentedOfferingContext('default', null, null),
@@ -212,8 +225,8 @@ void main() {
       expect(tester.takeException(), isNull);
 
       // Page 2 — trial_timeline. "7 days" is derived from the P7D fixture.
-      await tester.tap(find.widgetWithText(
-          ElevatedButton, AppStrings.paywallGateContinue));
+      await tester.tap(
+          find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue));
       await tester.pumpAndSettle();
       expect(find.text('Try everything free for 7 days.'), findsOneWidget);
       expect(find.text('Day 6'), findsOneWidget);
@@ -225,8 +238,8 @@ void main() {
       expect(tester.takeException(), isNull);
 
       // Page 3 — plan_select.
-      await tester.tap(find.widgetWithText(
-          ElevatedButton, AppStrings.paywallGateContinue));
+      await tester.tap(
+          find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue));
       await tester.pumpAndSettle();
       expect(find.text(AppStrings.paywallPlanSelectHeadline), findsOneWidget);
       expect(find.text(AppStrings.paywallPremiumBenefit1), findsOneWidget);
@@ -250,11 +263,197 @@ void main() {
         expect(finder, findsOneWidget, reason: '$label must be rendered');
         final rect = tester.getRect(finder);
         expect(
-          viewport.contains(rect.topLeft) && viewport.contains(rect.bottomRight),
+          viewport.contains(rect.topLeft) &&
+              viewport.contains(rect.bottomRight),
           isTrue,
           reason: '$label must sit inside the frame without scrolling — a '
               'Restore button below the fold is an App Store review risk',
         );
+      }
+    });
+  }
+
+  testWidgets('rendered ceremony pages keep their copy roles distinct',
+      (tester) async {
+    await pumpGate(tester);
+
+    final pageOneClaims = <String>[
+      AppStrings.paywallValueDepthBullet1,
+      AppStrings.paywallValueDepthBullet2,
+      AppStrings.paywallValueDepthBullet3,
+    ];
+    final pageTwoClaims = <String>[
+      AppStrings.paywallTrialTimelineTodayBody,
+      AppStrings.paywallTrialTimelineReminderBody,
+      AppStrings.paywallTrialTimelineChargeBody,
+    ];
+    final pageThreeClaims = <String>[
+      AppStrings.paywallPremiumBenefit1,
+      AppStrings.paywallPremiumBenefit2,
+      AppStrings.paywallPremiumBenefit3,
+      AppStrings.paywallPremiumBenefit4,
+      AppStrings.paywallPremiumBenefit5,
+    ];
+    final allClaims = [...pageOneClaims, ...pageTwoClaims, ...pageThreeClaims];
+    String normalize(String value) =>
+        value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+    expect(
+      allClaims.map(normalize).toSet(),
+      hasLength(allClaims.length),
+      reason: 'ceremony body claims must not repeat across page roles',
+    );
+
+    List<String> renderedText() => tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data)
+        .whereType<String>()
+        .toList();
+
+    for (final claim in pageOneClaims) {
+      expect(renderedText(), contains(claim));
+    }
+    for (final benefit in pageThreeClaims) {
+      expect(renderedText(), isNot(contains(benefit)));
+    }
+
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+    );
+    await tester.pumpAndSettle();
+    for (final claim in pageTwoClaims) {
+      expect(renderedText(), contains(claim));
+    }
+    for (final claim in [...pageOneClaims, ...pageThreeClaims]) {
+      expect(renderedText(), isNot(contains(claim)));
+    }
+
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+    );
+    await tester.pumpAndSettle();
+    for (final benefit in pageThreeClaims) {
+      expect(
+        renderedText().where((text) => text == benefit),
+        hasLength(1),
+        reason: 'page 3 owns each complete Premium entitlement exactly once',
+      );
+    }
+    for (final claim in [...pageOneClaims, ...pageTwoClaims]) {
+      expect(renderedText(), isNot(contains(claim)));
+    }
+  });
+
+  testWidgets('eligible weekly row contains price only', (tester) async {
+    await pumpGate(tester);
+    await advanceToPlanSelect(tester);
+
+    expect(find.text('Weekly — \$4.99/week'), findsOneWidget);
+    expect(find.textContaining('free first'), findsNothing);
+    expect(find.textContaining('Weekly — \$4.99/week ·'), findsNothing);
+
+    final weekly = find.text('Weekly — \$4.99/week');
+    await tester.ensureVisible(weekly);
+    await tester.tap(weekly);
+    await tester.pumpAndSettle();
+    expect(find.text('Start my 7 days free'), findsOneWidget);
+    expect(
+      find.textContaining('Free for 7 days, then \$4.99/week'),
+      findsOneWidget,
+    );
+  });
+
+  final trialShapes = <({
+    String name,
+    int? trialDays,
+    PeriodUnit trialUnit,
+    int? trialUnits,
+    String? trialPeriod,
+    int pageCount,
+  })>[
+    (
+      name: 'one day',
+      trialDays: 1,
+      trialUnit: PeriodUnit.day,
+      trialUnits: null,
+      trialPeriod: null,
+      pageCount: 2,
+    ),
+    (
+      name: 'one month',
+      trialDays: null,
+      trialUnit: PeriodUnit.month,
+      trialUnits: 1,
+      trialPeriod: 'P1M',
+      pageCount: 2,
+    ),
+    (
+      name: 'unknown day unit',
+      trialDays: null,
+      trialUnit: PeriodUnit.unknown,
+      trialUnits: 1,
+      trialPeriod: 'P1Z',
+      pageCount: 2,
+    ),
+    (
+      name: 'no trial',
+      trialDays: null,
+      trialUnit: PeriodUnit.day,
+      trialUnits: null,
+      trialPeriod: null,
+      pageCount: 2,
+    ),
+    (
+      name: 'two days',
+      trialDays: 2,
+      trialUnit: PeriodUnit.day,
+      trialUnits: null,
+      trialPeriod: null,
+      pageCount: 3,
+    ),
+  ];
+
+  for (final shape in trialShapes) {
+    testWidgets('trial shape ${shape.name} preserves truthful page list',
+        (tester) async {
+      purchaseService.offerings = [
+        _package(
+          type: PackageType.annual,
+          productId: _annualId,
+          priceString: '\$49.99',
+          price: 49.99,
+          trialDays: shape.trialDays,
+          trialUnit: shape.trialUnit,
+          trialUnits: shape.trialUnits,
+          trialPeriod: shape.trialPeriod,
+        ),
+        _package(
+          type: PackageType.weekly,
+          productId: _weeklyId,
+          priceString: '\$4.99',
+          price: 4.99,
+          trialDays: shape.trialDays,
+          trialUnit: shape.trialUnit,
+          trialUnits: shape.trialUnits,
+          trialPeriod: shape.trialPeriod,
+        ),
+      ];
+
+      await pumpGate(tester);
+      expect(
+        tester.widget<PaywallStepDots>(find.byType(PaywallStepDots)).count,
+        shape.pageCount,
+      );
+
+      await tester.tap(
+        find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+      );
+      await tester.pumpAndSettle();
+      if (shape.pageCount == 3) {
+        expect(find.byType(PaywallTrialTimelinePage), findsOneWidget);
+      } else {
+        expect(find.byType(PaywallTrialTimelinePage), findsNothing);
+        expect(find.text(AppStrings.paywallPlanSelectHeadline), findsOneWidget);
       }
     });
   }
@@ -306,13 +505,17 @@ void main() {
     // sure". One way out, and it goes home.
     expect(find.byType(ElevatedButton), findsNothing);
 
-    await tester.tap(find.widgetWithText(
-        OutlinedButton, AppStrings.paywallGateContinue));
-    await tester.pumpAndSettle();
+    await tester.tap(
+        find.widgetWithText(OutlinedButton, AppStrings.paywallGateContinue));
+    // `pump`, not `pumpAndSettle`: leaving puts an indeterminate loader up so
+    // the tap has immediate feedback, and that loader never settles. The router
+    // replaces this screen in the app; here `onComplete` only flips a bool.
+    await tester.pump();
     expect(completed, isTrue);
   });
 
-  testWidgets('the always-free card is once-ever: a later dismiss goes '
+  testWidgets(
+      'the always-free card is once-ever: a later dismiss goes '
       'straight home', (tester) async {
     SharedPreferences.setMockInitialValues({
       '${PaywallScreen.alwaysFreeCardShownPrefsBaseKey}:user-1': true,
@@ -320,7 +523,9 @@ void main() {
 
     await pumpGate(tester);
     await tester.tap(find.byType(PaywallCloseButton));
-    await tester.pumpAndSettle();
+    // See above: this dismissal hands off directly, so it ends on the loader.
+    await tester.pump();
+    await tester.pump();
 
     expect(completed, isTrue);
     expect(find.text(AppStrings.paywallAlwaysFreeCardBody), findsNothing);
@@ -363,8 +568,8 @@ void main() {
         tester.widget<PaywallStepDots>(find.byType(PaywallStepDots)).count,
         2,
       );
-      await tester.tap(find.widgetWithText(
-          ElevatedButton, AppStrings.paywallGateContinue));
+      await tester.tap(
+          find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue));
       await tester.pumpAndSettle();
       expect(find.text(AppStrings.paywallPlanSelectHeadline), findsOneWidget);
       expect(
@@ -425,9 +630,8 @@ void main() {
   });
 
   testWidgets('the onboarding contract keys page one\'s copy', (tester) async {
-    container.read(onboardingProvider.notifier).state = container
-        .read(onboardingProvider)
-        .copyWith(contract: 'sign');
+    container.read(onboardingProvider.notifier).state =
+        container.read(onboardingProvider).copyWith(contract: 'sign');
 
     await pumpGate(tester);
 

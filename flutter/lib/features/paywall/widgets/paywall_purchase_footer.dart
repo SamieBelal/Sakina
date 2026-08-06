@@ -119,15 +119,17 @@ class PaywallPurchaseFooter extends StatelessWidget {
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _PaywallLegalLink(
-              label: restoring ? 'Restoring…' : AppStrings.paywallRestore,
+            PaywallLegalLink(
+              label: restoring
+                  ? AppStrings.paywallRestoring
+                  : AppStrings.paywallRestore,
               onPressed: onRestore,
             ),
-            _PaywallLegalLink(
+            PaywallLegalLink(
               label: AppStrings.paywallTerms,
               onPressed: onOpenTerms,
             ),
-            _PaywallLegalLink(
+            PaywallLegalLink(
               label: AppStrings.paywallPrivacy,
               onPressed: onOpenPrivacy,
             ),
@@ -139,8 +141,13 @@ class PaywallPurchaseFooter extends StatelessWidget {
   }
 }
 
-class _PaywallLegalLink extends StatelessWidget {
-  const _PaywallLegalLink({required this.label, this.onPressed});
+/// One of the small underlinks under the CTA — Restore / Terms / Privacy.
+///
+/// Public because the offer-unavailable surface reuses it for Restore: it has
+/// no purchase footer to host the link, and hand-rolling a second one there
+/// would drop the 44pt hit area this widget exists to guarantee.
+class PaywallLegalLink extends StatelessWidget {
+  const PaywallLegalLink({required this.label, this.onPressed, super.key});
 
   final String label;
   final VoidCallback? onPressed;

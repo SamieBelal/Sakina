@@ -15,16 +15,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
 
-/// Pins the Blinkist-style honest-billing footer behavior introduced by the
-/// 2026-05-14 paywall rebuild:
+/// Pins the live-package billing disclosure behavior of the W5 paywall:
 ///
-///   - Annual selected + intro price == 0 → footer reads
-///     "Day 7: \$X/year unless cancelled" with the live storefront price.
-///   - Weekly selected + intro price == 0 → footer reads
-///     "Day 3: \$X/week unless cancelled" with the live storefront price.
-///   - No introductory offer (storefront edge case) → no "Day N:" footer
-///     line at all; `_planHasTrial` gates the entire block so the paywall
-///     never promises a trial StoreKit won't grant.
+///   - Annual and weekly selection update the terms line from the live
+///     localized price and the selected plan's period.
+///   - No introductory offer (storefront edge case) → the CTA is "Subscribe"
+///     and no trial wording appears, while plain cancellation terms remain.
 
 class _FakePurchaseService extends PurchaseService {
   _FakePurchaseService() : super.test();
@@ -140,9 +136,8 @@ void main() {
     debugDisablePaywallAnimations = false;
   });
 
-  testWidgets(
-      'Annual selected: footer reads "Day 7: \$59.99/year unless cancelled" '
-      'using the live storefront priceString from the package', (tester) async {
+  testWidgets('Annual selected: terms use the live storefront priceString',
+      (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -171,8 +166,7 @@ void main() {
     expect(
       find.textContaining('Free for 7 days, then \$59.99/year'),
       findsOneWidget,
-      reason:
-          'Annual default-selected: the billing line must surface the live '
+      reason: 'Annual default-selected: the billing line must surface the live '
           'priceString — \$59.99 — and the right period. "7 days" is DERIVED '
           'from this fixture package (P7D / periodNumberOfUnits 7), never from '
           'a Dart constant — change the fixture and the copy follows.',
@@ -194,8 +188,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'Weekly selected: footer flips to "Day 3: \$9.99/week unless cancelled"',
+  testWidgets('Weekly selected: terms follow the selected plan',
       (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
@@ -252,10 +245,8 @@ void main() {
     );
   });
 
-  testWidgets(
-      'No introductory offer on either package: footer is fully hidden — '
-      '_planHasTrial gates the entire footer so the paywall never promises '
-      'a trial StoreKit will not grant', (tester) async {
+  testWidgets('No introductory offer: Subscribe has no trial promise',
+      (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -281,22 +272,12 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Day 7:'),
-      findsNothing,
-      reason: 'No intro offer → no "Day 7" footer line.',
-    );
-    expect(
-      find.textContaining('Day 3:'),
-      findsNothing,
-      reason: 'No intro offer → no "Day 3" footer line either.',
-    );
+    expect(find.text('Subscribe'), findsOneWidget);
+    expect(find.textContaining('Free for '), findsNothing);
     expect(
       find.textContaining('unless cancelled'),
       findsNothing,
-      reason:
-          'No intro offer → the entire honest-billing footer block is gated '
-          'off.',
+      reason: 'W5 uses plain cancellation terms, not the old Day N footer.',
     );
   });
 }

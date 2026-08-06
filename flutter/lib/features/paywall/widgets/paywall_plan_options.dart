@@ -71,8 +71,7 @@ class PaywallPlanOptions extends StatelessWidget {
                     color: annualSelected
                         ? AppColors.primaryLight
                         : AppColors.surfaceLight,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.cardRadius),
+                    borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                     border: Border.all(
                       color: annualSelected
                           ? AppColors.primary
@@ -195,9 +194,8 @@ class PaywallPlanOptions extends StatelessWidget {
                 style: AppTypography.labelLarge.copyWith(
                   color: AppColors.textPrimaryLight,
                   fontSize: 15,
-                  fontWeight: annualSelected
-                      ? FontWeight.w400
-                      : FontWeight.w600,
+                  fontWeight:
+                      annualSelected ? FontWeight.w400 : FontWeight.w600,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),

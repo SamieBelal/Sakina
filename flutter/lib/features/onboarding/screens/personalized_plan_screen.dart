@@ -26,11 +26,11 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   /// Resolves a `starter_name_id` (catalog int) to its transliteration. Falls
   /// back to Ar-Rahman if the id is null or not present in the catalog.
   static String translitForCatalogId(int? id) {
-    if (id == null) return 'Ar-Rahman';
+    if (id == null) return AppStrings.personalizedPlanFallbackName;
     for (final n in allCollectibleNames) {
       if (n.id == id) return n.transliteration;
     }
-    return 'Ar-Rahman';
+    return AppStrings.personalizedPlanFallbackName;
   }
 
   @override
@@ -41,28 +41,32 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     // tile was dropped because its source field (`commonEmotions`) was
     // removed from OnboardingState in the trim. The remaining three tiles
     // are all populated from real user data captured in the trimmed flow.
-    final reminder = state.reminderTime ?? '08:00';
+    final reminder =
+        state.reminderTime ?? AppStrings.personalizedPlanDefaultReminder;
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
         ? state.signUpName!
-        : 'friend';
-    final intention = state.intention ?? 'growing closer to Allah';
+        : AppStrings.personalizedPlanDefaultName;
+    final intention =
+        state.intention ?? AppStrings.personalizedPlanDefaultIntention;
 
     final tiles = <Widget>[
       _PlanTile(
         icon: Icons.auto_awesome_rounded,
-        label: 'First Name in your collection',
+        label: AppStrings.personalizedPlanFirstNameLabel,
         value: translit,
         emphasize: true,
       ),
       _PlanTile(
         icon: Icons.schedule_rounded,
-        label: 'Your daily check-in',
-        value: '$minutes min  ·  $reminder',
+        label: AppStrings.personalizedPlanDailyCheckInLabel,
+        value: AppStrings.personalizedPlanMinutesTemplate
+            .replaceAll('{minutes}', '$minutes')
+            .replaceAll('{time}', reminder),
       ),
       _PlanTile(
         icon: Icons.spa_rounded,
-        label: "Why you're here",
+        label: AppStrings.personalizedPlanWhyHereLabel,
         value: intention,
       ),
     ];
@@ -101,7 +105,8 @@ class PersonalizedPlanScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Your plan, $name.',
+                AppStrings.personalizedPlanTitleTemplate
+                    .replaceAll('{name}', name),
                 style: AppTypography.displaySmall.copyWith(
                   color: AppColors.textPrimaryLight,
                   fontSize: 26,
@@ -111,7 +116,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Everything you need, one tap away.',
+                AppStrings.personalizedPlanSubtitle,
                 style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.textSecondaryLight,
                 ),
