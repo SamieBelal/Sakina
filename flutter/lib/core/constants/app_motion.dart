@@ -57,11 +57,29 @@ abstract final class AppMotion {
   /// span at 240ms.
   static const Duration stagger = Duration(milliseconds: 40);
 
+  /// Reduced motion: one frame, not zero.
+  ///
+  /// `flutter_animate` treats a zero-duration effect as a degenerate case in
+  /// places, and 1ms is already imperceptible — the value `beat_reveal_flow`
+  /// independently settled on for the canvas. Read through
+  /// `MotionContext.motion()` rather than used directly.
+  static const Duration collapsed = Duration(milliseconds: 1);
+
   // ── Curves ───────────────────────────────────────────────────────────────
-  /// Material 3 "emphasized" — far more front-loaded than Flutter's
-  /// easeOutCubic (whose second control point tops out at y=0.61 rather than
-  /// 1.0). The stronger curve is what allows shorter durations without the
-  /// motion feeling rushed.
+  /// Material 3 "emphasized" — more front-loaded than Flutter's `easeOutCubic`
+  /// (`Cubic(0.215, 0.61, 0.355, 1.0)`), whose FIRST control point sits at
+  /// y=0.61. (An earlier version of this comment said "second control point
+  /// tops at 0.61"; the second is at y=1.0. The direction of the argument
+  /// stands, the anatomy was wrong.) The stronger curve is what allows shorter
+  /// durations without the motion feeling rushed.
+  ///
+  /// **`beat_reveal_flow` deliberately does NOT use this**, and that is not
+  /// drift. Its 450ms `easeOutCubic` beat-advance is documented as canon in
+  /// `DESIGN.md §5` with its own rationale — *"small travel, soft landing — it
+  /// should feel like a page settling, not a slide deck"* — and it is the motion
+  /// a reader meets nine times a night. Swapping the app's signature transition
+  /// for consistency's sake is a taste decision, not a cleanup, and it has no
+  /// bug behind it. Leave it alone unless the founder asks.
   static const Curve enter = Cubic(0.2, 0.0, 0.0, 1.0);
 
   /// Exits accelerate away; entrances decelerate in.

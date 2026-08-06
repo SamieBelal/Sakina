@@ -256,6 +256,15 @@ to ~1ms (fade/slide effectively instant) while preserving the tap logic. **Any n
 canvas motion must honor a reduced-motion path** — never gate content behind an
 animation that can't be turned off.
 
+**Two systems, one deliberate divergence (2026-08-06).** `lib/core/constants/app_motion.dart`
+is the app's motion token set (M3 `emphasized` = `Cubic(0.2, 0, 0, 1.0)`, entrance 440ms,
+item 340ms, stagger 40ms). The journal tree now uses it; the beat-reveal canvas
+deliberately does **not**. Its 450ms `easeOutCubic` above is canon and stays: it is the
+transition a reader meets nine times a night, it has a stated rationale, and changing it
+would be a taste decision rather than a fix. Everything OUTSIDE the canvas should reach
+for `AppMotion` and for `MotionContext` (`context.motion` / `context.rise` /
+`context.stagger`) rather than hand-rolling a duration.
+
 **General principle:** motion is calm and short (200–500ms for chrome, ~1s for a
 sacred reveal moment). Use `easeOutCubic`/`easeOutBack` for arrivals; avoid bounce or
 overshoot outside the one sanctioned name-reveal moment.

@@ -4,6 +4,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/fade_through_route.dart';
+import 'package:sakina/core/constants/app_motion.dart';
+import 'package:sakina/core/constants/motion_context.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -296,14 +299,22 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                         style: AppTypography.displayLarge
                             .copyWith(color: AppColors.textPrimaryLight))
                     .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                    .fadeIn(duration: context.motion(AppMotion.entrance))
+                    .slideY(
+                      begin: 0.05,
+                      end: 0,
+                      duration: context.motion(AppMotion.entrance),
+                      curve: AppMotion.enter,
+                    ),
                 const SizedBox(height: 4),
                 Text(
                   total == 0 ? 'Your spiritual diary' : '$total entries',
                   style: AppTypography.bodyMedium
                       .copyWith(color: AppColors.textSecondaryLight),
-                ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                ).animate().fadeIn(
+                      duration: context.motion(AppMotion.entrance),
+                      delay: context.motion(AppMotion.beat),
+                    ),
               ],
             ),
           ),
@@ -345,7 +356,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         color: AppColors.textSecondaryLight,
         tooltip: 'Browse by month',
       ),
-    ).animate().fadeIn(duration: 500.ms, delay: 200.ms);
+    ).animate().fadeIn(
+          duration: context.motion(AppMotion.entrance),
+          delay: context.motion(AppMotion.beat),
+        );
   }
 
   void _onCalendarDay(
@@ -525,7 +539,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           ),
         )
         .animate()
-        .fadeIn(duration: 400.ms);
+        .fadeIn(duration: context.motion(AppMotion.layer));
   }
 
   Widget _statItem(IconData icon, String value, String label, Color color) {
@@ -1023,12 +1037,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                     ),
                   )
                       .animate()
-                      .fadeIn(delay: (i * 40).ms, duration: 300.ms)
+                      .fadeIn(
+                          delay: context.stagger(i),
+                          duration: context.motion(AppMotion.item))
                       .slideY(
                           begin: 0.04,
                           end: 0,
-                          delay: (i * 40).ms,
-                          duration: 300.ms);
+                          delay: context.stagger(i),
+                          duration: context.motion(AppMotion.item),
+                          curve: AppMotion.enter);
                 }),
               ];
             }),
@@ -1064,9 +1081,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     HapticFeedback.lightImpact();
     _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatStory);
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        settings: const RouteSettings(name: 'ReflectionStoryPage'),
-        builder: (_) => ReflectionStoryPage(reflection: r),
+      fadeThroughRoute(
+        context,
+        ReflectionStoryPage(reflection: r),
+        name: 'ReflectionStoryPage',
       ),
     );
   }
@@ -1075,8 +1093,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     HapticFeedback.lightImpact();
     _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatDetail);
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-          builder: (_) => ReflectionDetailPage(
+      fadeThroughRoute(
+          context,
+          ReflectionDetailPage(
                 reflection: r,
                 onRemove: () =>
                     ref.read(reflectProvider.notifier).deleteReflection(r.id),
@@ -1238,9 +1257,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              settings: const RouteSettings(name: 'DuaDetailPage'),
-              builder: (_) => DuaDetailPage.fromBuiltDua(
+          fadeThroughRoute(
+              context,
+              name: 'DuaDetailPage',
+              DuaDetailPage.fromBuiltDua(
                     d,
                     onRemove: () => ref
                         .read(duasProvider.notifier)
@@ -1324,9 +1344,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              settings: const RouteSettings(name: 'DuaDetailPage'),
-              builder: (_) => DuaDetailPage.fromRelatedDua(
+          fadeThroughRoute(
+              context,
+              name: 'DuaDetailPage',
+              DuaDetailPage.fromRelatedDua(
                     d,
                     onRemove: () => ref
                         .read(duasProvider.notifier)
@@ -1444,16 +1465,42 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
+    ).animate().fadeIn(duration: context.motion(AppMotion.layer)).slideY(
+          begin: 0.1,
+          end: 0,
+          duration: context.motion(AppMotion.layer),
+          curve: AppMotion.enter,
+        );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
+  /// Feed entrance for one card.
+  ///
+  /// The delay used to be a raw `index * 50` with **no ceiling**, applied from
+  /// three call sites with the list index. Item 20 waited 950ms, item 40 waited
+  /// 1,950ms, item 100 waited 4,950ms. Because these are `ListView.builder`s
+  /// the delay is keyed to the LIST index and not to when the item was built,
+  /// so scrolling quickly into a long journal showed blank cards that faded in
+  /// seconds later — worse the longer someone had been journaling, which is
+  /// exactly backwards. `AppMotion`'s own doc names the ceiling it broke: *"a
+  /// staggered reveal should settle inside ~800-900ms total."*
+  ///
+  /// `context.stagger` clamps at six steps (a seven-item span in 240ms) and
+  /// returns zero under reduced motion, where a stagger is delay with no
+  /// movement to justify it.
   Widget _animatedCard(int index, Widget child) {
+    final delay = context.stagger(index);
     return child
         .animate()
-        .fadeIn(delay: (index * 50).ms, duration: 300.ms)
-        .slideY(begin: 0.05, end: 0, delay: (index * 50).ms, duration: 300.ms);
+        .fadeIn(delay: delay, duration: context.motion(AppMotion.item))
+        .slideY(
+          begin: 0.05,
+          end: 0,
+          delay: delay,
+          duration: context.motion(AppMotion.item),
+          curve: AppMotion.enter,
+        );
   }
 
   /// A small text+icon control that lives inside a card without stealing the
