@@ -300,11 +300,11 @@ void main() {
     );
   });
 
-  // ───────────────── P2: late eligibility page shuffle ─────────────────
+  // ───────────────── P2: the page list moves under the user ─────────────────
 
   testWidgets(
-      'P2 — eligibility resolving late does not shove the user off '
-      'the plan page', (tester) async {
+      'P2 — the ceremony renders nothing sellable until eligibility resolves',
+      (tester) async {
     final gate = Completer<Map<String, IntroEligibilityStatus>>();
     purchaseService.eligibilityGate = gate;
 
@@ -353,6 +353,75 @@ void main() {
       1,
       reason: 'the first page view is counted once after the offer becomes '
           'available',
+    );
+  });
+
+  testWidgets(
+      'P2b — a page list that GROWS under the user leaves them on plan_select',
+      (tester) async {
+    // The list is derived from the SELECTED plan's trial, so choosing a plan
+    // can insert `trial_timeline` BEHIND a user who is already on
+    // `plan_select`. Index-based tracking would slide them backwards onto the
+    // page that just appeared; the screen tracks the page by IDENTITY
+    // (`pages.indexOf(_currentPage)`) precisely so it cannot.
+    //
+    // Annual ineligible + weekly eligible is the shape that produces it: the
+    // ceremony opens two pages long and becomes three the moment weekly is
+    // picked.
+    purchaseService.eligibility = const {
+      _annualId: IntroEligibilityStatus.introEligibilityStatusIneligible,
+      _weeklyId: IntroEligibilityStatus.introEligibilityStatusEligible,
+    };
+    await pumpGate(tester, placement: PaywallPlacement.onboarding);
+
+    expect(
+      tester.widget<PaywallStepDots>(find.byType(PaywallStepDots)).count,
+      2,
+      reason: 'no trial on the default (annual) plan → no timeline page',
+    );
+
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.paywallPlanSelectHeadline), findsOneWidget);
+
+    // `ensureVisible` first: the plan body scrolls under a pinned footer, and at
+    // this viewport the weekly tile's centre sits beneath it. A bare `tap`
+    // dispatches at those coordinates anyway and silently hits Restore — every
+    // assertion below would then be measuring the wrong interaction.
+    final weeklyTile = find.textContaining('Weekly —');
+    await tester.ensureVisible(weeklyTile);
+    await tester.pumpAndSettle();
+    await tester.tap(weeklyTile);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Start my'),
+      findsOneWidget,
+      reason: 'the tap has to actually select weekly — a CTA still reading '
+          '"Subscribe" means it landed somewhere else',
+    );
+    expect(
+      tester.widget<PaywallStepDots>(find.byType(PaywallStepDots)).count,
+      3,
+      reason: 'the timeline page joined the list',
+    );
+    expect(
+      find.text(AppStrings.paywallPlanSelectHeadline),
+      findsOneWidget,
+      reason: 'a page appearing behind them must not pull them backwards onto '
+          'it — they chose to advance past that point',
+    );
+    expect(
+      analytics
+          .all(AnalyticsEvents.paywallPageViewed)
+          .where((e) =>
+              e.props[AnalyticsEvents.propPageId] ==
+              AnalyticsEvents.paywallPagePlanSelect)
+          .length,
+      1,
+      reason: 'a page view counted twice corrupts the ceremony drop-off read',
     );
   });
 

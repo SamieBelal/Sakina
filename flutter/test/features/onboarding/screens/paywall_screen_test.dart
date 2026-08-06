@@ -168,14 +168,19 @@ void main() {
     await tester.tap(find.byType(PaywallCloseButton));
     await tester.pumpAndSettle();
 
-    // The condensed surface has live plan data, so the existing weekly
-    // downsell may appear before the always-free card. Declining it continues
-    // through the same dismissal path under test.
-    final decline = find.text(AppStrings.paywallExitOfferDecline);
-    if (decline.evaluate().isNotEmpty) {
-      await tester.tap(decline);
-      await tester.pumpAndSettle();
-    }
+    // The condensed surface shows the plans, annual is selected, the weekly
+    // package is loaded and nothing is in flight — every condition of
+    // `_eligibleForExitOffer` — so the downsell ALWAYS comes first here.
+    // Asserting that rather than tolerating its absence: an `if` here would
+    // keep this test green on the day the sheet silently stops firing, which
+    // is exactly the regression worth catching.
+    expect(
+      find.text(AppStrings.paywallExitOfferDecline),
+      findsOneWidget,
+      reason: 'the ✕ on a priced surface offers weekly before it lets go',
+    );
+    await tester.tap(find.text(AppStrings.paywallExitOfferDecline));
+    await tester.pumpAndSettle();
 
     expect(find.text(AppStrings.paywallAlwaysFreeCardBody), findsOneWidget);
     expect(completed, isFalse);
