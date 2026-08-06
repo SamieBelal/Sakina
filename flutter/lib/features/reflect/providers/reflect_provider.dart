@@ -1452,7 +1452,17 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     final previous = List<SavedReflection>.from(state.savedReflections);
     final updated = previous.where((r) => r.id != id).toList();
     state = state.copyWith(savedReflections: updated, clearError: true);
-    await _persistReflections(updated);
+    // The local write is a failure mode too, and it used to be the only one
+    // here that was silent — see [_tryPersistReflections]. A refused cache
+    // write is treated exactly like a refused server delete: roll the list
+    // back, say so, and leave the row alone on both sides.
+    if (!await _tryPersistReflections(updated)) {
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete the reflection. Please try again.",
+      );
+      return;
+    }
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
@@ -1469,11 +1479,10 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         throw Exception('deleteRow(user_reflections) returned false');
       }
     } catch (_) {
-      state = state.copyWith(
-        savedReflections: previous,
-        error: "Couldn't delete the reflection. Please try again.",
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete the reflection. Please try again.",
       );
-      await _persistReflections(previous);
     }
   }
 
@@ -1499,7 +1508,18 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     if (previous.isEmpty) return true;
 
     state = state.copyWith(savedReflections: const [], clearError: true);
-    await _persistReflections(const []);
+    // **This guard matters most here.** On a single delete an unreported cache
+    // failure loses one row; on delete-all it tells someone their entire
+    // journal is gone while every entry is still on disk and on the server,
+    // ready to reappear at the next launch. Refusing before the server call
+    // means nothing has been destroyed when the message says nothing was.
+    if (!await _tryPersistReflections(const [])) {
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete your journal. Please try again.",
+      );
+      return false;
+    }
 
     final userId = supabaseSyncService.currentUserId;
     // Signed out: the local cache IS the journal, so clearing it is the whole
@@ -1514,13 +1534,27 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       }
       return true;
     } catch (_) {
-      state = state.copyWith(
-        savedReflections: previous,
-        error: "Couldn't delete your journal. Please try again.",
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete your journal. Please try again.",
       );
-      await _persistReflections(previous);
       return false;
     }
+  }
+
+  /// Puts [previous] back on screen and on disk, and says why.
+  ///
+  /// Shared by both delete paths so the two cannot drift on what a failure
+  /// looks like. The re-persist is best-effort by design: the in-memory list is
+  /// what the user is looking at and it has already been restored, and on the
+  /// one path that reaches here because the CACHE refused, disk was never
+  /// changed — it still holds [previous], so a second refusal costs nothing.
+  Future<void> _rollBackDelete(
+    List<SavedReflection> previous,
+    String message,
+  ) async {
+    state = state.copyWith(savedReflections: previous, error: message);
+    await _tryPersistReflections(previous);
   }
 
   @visibleForTesting
@@ -1751,6 +1785,27 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         state = state.copyWith(savedReflections: list);
       }
     } catch (_) {}
+  }
+
+  /// [_persistReflections], with the throw turned into a `false`.
+  ///
+  /// `SharedPreferences.getInstance()` and `setString` can both fail — a
+  /// missing platform channel, a full or read-only disk, a decode error in the
+  /// plugin. Every OTHER failure on the delete paths was already handled
+  /// explicitly; this one was not, so a cache write that threw left the list
+  /// cleared in memory, unchanged on disk, and NO error anywhere. The user saw
+  /// their journal vanish, was told nothing, and found it all back at the next
+  /// launch.
+  ///
+  /// Returns true when the blob was written.
+  Future<bool> _tryPersistReflections(List<SavedReflection> reflections) async {
+    try {
+      await _persistReflections(reflections);
+      return true;
+    } catch (e) {
+      debugPrint('[reflect] reflection cache write failed: $e');
+      return false;
+    }
   }
 
   Future<void> _persistReflections(List<SavedReflection> reflections) async {
