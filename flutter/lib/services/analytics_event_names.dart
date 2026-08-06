@@ -989,6 +989,22 @@ abstract final class AnalyticsEvents {
   /// to answer. Never the text, before or after.
   static const String journalEntryEdited = 'journal_entry_edited';
 
+  /// The Journal's weekly recap was OPENED as a story (2026-08-06).
+  ///
+  /// The recap used to be a passive block and had nothing to measure; in the
+  /// archive it is now a one-line door onto four screens on the sacred canvas,
+  /// and whether anyone walks through it is the only question the change asks.
+  /// `journal_resurfacing_shown{weekly_recap: true}` is the denominator — the
+  /// same relationship [journalBrowseOpened] has with the calendar.
+  ///
+  /// Props: [propEntryCount] (entries in the window) and [propBeatCount] (how
+  /// many screens the recap actually built, since empty themes and an empty
+  /// one-line are skipped rather than rendered blank). **Both are structural.
+  /// Never the quoted line, never a theme, never a Name, never anything derived
+  /// from what the user wrote** — the door leads with the user's own words and
+  /// none of them may travel with the tap.
+  static const String journalRecapOpened = 'journal_recap_opened';
+
   /// The Month of Light calendar was opened as the Journal's browse control
   /// (D4). The denominator for `journal_entry_opened{origin: journal_calendar}`
   /// — without it, a calendar nobody converts from is indistinguishable from a
@@ -1028,8 +1044,20 @@ abstract final class AnalyticsEvents {
   static const String propEntryPoint = 'entry_point';
   static const String propFormat = 'format';
   static const String propOnThisNight = 'on_this_night';
+  /// On [journalResurfacingShown]. Since 2026-08-06 this is the CADENCE-GATED
+  /// answer — what the archive actually opened with, not what the rolling
+  /// seven-day window would have allowed. The Journal shows the recap at most
+  /// once per calendar week, so expect a step change at that release and read
+  /// no signal into it. [journalRecapOpened] is the numerator over this.
   static const String propWeeklyRecap = 'weekly_recap';
   static const String propAnsweredPrompt = 'answered_prompt';
+
+  /// On [journalRecapOpened]. The shape of the recap that was opened — how many
+  /// entries the window held, and how many screens that became. A recap whose
+  /// themes and one-line are both empty builds two beats, and the distribution
+  /// is how "the story is thin" gets noticed without reading anybody's week.
+  static const String propEntryCount = 'entry_count';
+  static const String propBeatCount = 'beat_count';
 
   /// On [journalSearched]. A count of matched entries — never the query.
   static const String propResultCount = 'result_count';

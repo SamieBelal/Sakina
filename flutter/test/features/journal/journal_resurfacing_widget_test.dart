@@ -25,7 +25,7 @@ import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
-import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -174,6 +174,11 @@ void main() {
   });
 
   group('E2 — the weekly recap', () {
+    // 2026-08-06: the recap stopped being a block in the archive and became a
+    // one-line door onto a story — see `weekly_recap_story_test.dart`, which
+    // owns the beats, the cadence gate and the dismissal. What this group still
+    // pins is the thing that did NOT change: whatever the recap looks like, it
+    // and the lifetime theme line share one slot and never stack.
     testWidgets('replaces the lifetime theme line, never stacks on it',
         (t) async {
       await pump(t, reflections: [
@@ -182,8 +187,8 @@ void main() {
         muhasabah(day: '2026-07-31', words: 'worried about money'),
       ]);
 
-      expect(find.byType(WeeklyRecapCard), findsOneWidget);
-      expect(find.text(JournalResurfacingCopy.recapHeader), findsOneWidget);
+      expect(find.byType(WeeklyRecapLine), findsOneWidget);
+      expect(find.text(JournalResurfacingCopy.recapLineTrail), findsOneWidget);
       expect(
         find.textContaining('You often turn to Allah with'),
         findsNothing,
@@ -200,7 +205,7 @@ void main() {
         muhasabah(day: '2026-01-04', words: 'worried'),
       ]);
 
-      expect(find.byType(WeeklyRecapCard), findsNothing);
+      expect(find.byType(WeeklyRecapLine), findsNothing);
       expect(find.textContaining('You often turn to Allah with'),
           findsOneWidget);
     });
@@ -308,7 +313,7 @@ void main() {
       await pump(t, reflections: [muhasabah(day: '2026-08-02')]);
       expect(find.byType(OnThisNightCard), findsNothing);
       expect(find.byType(AnsweredDuaCard), findsNothing);
-      expect(find.byType(WeeklyRecapCard), findsNothing);
+      expect(find.byType(WeeklyRecapLine), findsNothing);
       // And the entry is still there.
       expect(find.text('"I could not sleep."'), findsOneWidget);
     });

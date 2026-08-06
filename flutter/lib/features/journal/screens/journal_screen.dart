@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/constants/fade_through_route.dart';
 import 'package:sakina/core/constants/app_motion.dart';
 import 'package:sakina/core/constants/motion_context.dart';
@@ -22,7 +23,7 @@ import 'package:sakina/features/journal/journal_search.dart';
 import 'package:sakina/features/journal/journal_themes.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
-import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
@@ -33,10 +34,12 @@ import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/reflection_story_page.dart';
+import 'package:sakina/features/journal/screens/weekly_recap_story_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
@@ -87,6 +90,28 @@ final journalLocalDayProvider = FutureProvider.autoDispose<String?>((ref) async 
   } catch (_) {
     // Every Wave E surface treats a null day as "show nothing", so an
     // unresolvable timezone costs the cards and never the archive.
+    return null;
+  }
+});
+
+/// The week the Journal last gave the weekly recap its slot, or null.
+///
+/// Read once, at the start of a visit, and never invalidated: the write that
+/// follows a show would otherwise re-run this and re-evaluate the gate against
+/// the value just written. `autoDispose` so that LEAVING the Journal is what
+/// re-reads it — but the answer is latched in `_recapAllowedThisVisit` rather
+/// than read live, because this provider can also be disposed *mid-visit* (see
+/// that field, and the search-mode note on `_gatedWeeklyRecap`).
+///
+/// Failures are indistinguishable from "never shown", which is the direction
+/// the gate is safe in: a SharedPreferences that cannot be read shows the recap
+/// rather than silencing it forever.
+final journalRecapWeekProvider = FutureProvider.autoDispose<String?>((ref) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs
+        .getString(supabaseSyncService.scopedKey(weeklyRecapLastWeekPrefsKey));
+  } catch (_) {
     return null;
   }
 });
@@ -148,6 +173,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// tab-switch that rebuilds this screen re-arms it and a `setState` from the
   /// tab controller does not.
   bool _resurfacingFired = false;
+
+  /// The weekly recap's cadence gate, answered once per visit and then held.
+  /// Null until [_maybeEmitResurfacingShown] has both its async inputs. See
+  /// [_gatedWeeklyRecap] for why this is a latch and not a live read.
+  bool? _recapAllowedThisVisit;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
   int _lastTabIndex = 0;
 
@@ -763,13 +793,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
     final topTheme = _topTheme(reflections);
 
-    // E2. The recap wins the slot when the week has something in it; the
-    // lifetime line is the fallback. See [WeeklyRecapCard] for why they never
-    // render together.
-    final recap = resolveWeeklyRecap(
-      entries: reflections,
-      todayLocalDay: _todayLocalDay,
-    );
+    // E2. The recap wins the slot when the week has something in it AND the
+    // cadence gate lets it; the lifetime line is the fallback, exactly as it is
+    // when the window is empty. See [_gatedWeeklyRecap].
+    final recap = _gatedWeeklyRecap(reflections);
 
     return statsAsync
         .when(
@@ -831,7 +858,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                 // ── E2 weekly recap, else the lifetime theme line ──
                 if (recap != null) ...[
                   const SizedBox(height: 10),
-                  WeeklyRecapCard(recap: recap),
+                  WeeklyRecapLine(
+                    recap: recap,
+                    onOpen: () => _openWeeklyRecapStory(recap),
+                  ),
                 ] else if (topTheme != null) ...[
                   const SizedBox(height: 10),
                   Container(
@@ -960,6 +990,84 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   String? get _todayLocalDay =>
       ref.watch(journalLocalDayProvider).value;
 
+  /// The weekly recap the Journal may actually show, or null.
+  ///
+  /// Two conditions, and the second is the new one. `resolveWeeklyRecap` is a
+  /// WINDOW rule — two entries inside a rolling seven days — which for anyone
+  /// writing regularly is true every single day, with content that barely moves
+  /// between one day and the next. [weeklyRecapIsDue] turns that into a rhythm:
+  /// at most one per calendar week. See its doc comment for why a content
+  /// fingerprint was the worse of the two options.
+  ///
+  /// **The gate's answer is LATCHED for the visit** ([_recapAllowedThisVisit]),
+  /// not re-derived here, and that is load-bearing rather than an optimisation.
+  /// The marker is written the moment the recap is shown, so any later re-read
+  /// of it answers "already spent" — and `journalRecapWeekProvider` is
+  /// `autoDispose`, so anything that drops its last watcher for a frame makes it
+  /// re-read. Entering search does exactly that (`_buildInlineStats` is not
+  /// built in search mode), which without the latch would make the line vanish
+  /// when the user cancelled a search. It is the same class of bug the
+  /// `journalLocalDayProvider` note in [_buildScaffold] describes.
+  ///
+  /// Null until the latch is set — one frame of the lifetime theme line, which
+  /// is better than a flash of a recap the gate is about to suppress.
+  ///
+  /// **The muḥāsabah completion screen does not go through here.** Its recap is
+  /// already gated on having finished a night and on the time machine having
+  /// stayed quiet, and it is the night's own closing card — see
+  /// `muhasabah_screen.dart`.
+  WeeklyRecap? _gatedWeeklyRecap(List<SavedReflection> reflections) {
+    if (_recapAllowedThisVisit != true) return null;
+    return resolveWeeklyRecap(
+      entries: reflections,
+      todayLocalDay: _todayLocalDay,
+    );
+  }
+
+  /// Records that this week's recap has been spent.
+  ///
+  /// Fire-and-forget and latched to the visit: a failed write means the recap
+  /// shows again, which is the harmless direction. Called from
+  /// [_maybeEmitResurfacingShown] because that is the one place that already
+  /// runs exactly once per visit, after both async inputs the gate depends on
+  /// have resolved, and it is deciding the same boolean for the same reason.
+  Future<void> _recordRecapShownThisWeek(String? todayLocalDay) async {
+    final week = weeklyRecapWeekKey(todayLocalDay);
+    if (week == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        supabaseSyncService.scopedKey(weeklyRecapLastWeekPrefsKey),
+        week,
+      );
+    } catch (_) {
+      // See above: an unwritten marker costs a repeat, not a lost recap.
+    }
+  }
+
+  /// Opens the recap as a story on the sacred canvas.
+  ///
+  /// **The payload is structural only.** The line the user tapped is their own
+  /// writing and the beat count is a property of the recap's SHAPE; neither the
+  /// quote, nor a theme, nor a Name travels with the event.
+  void _openWeeklyRecapStory(WeeklyRecap recap) {
+    HapticFeedback.lightImpact();
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.journalRecapOpened,
+      properties: {
+        AnalyticsEvents.propEntryCount: recap.entryCount,
+        AnalyticsEvents.propBeatCount: buildWeeklyRecapScreens(recap).length,
+      },
+    );
+    Navigator.of(context, rootNavigator: true).push(
+      fadeThroughRoute(
+        context,
+        WeeklyRecapStoryPage(recap: recap),
+        name: 'WeeklyRecapStoryPage',
+      ),
+    );
+  }
+
   /// The strip above the All feed: at most two cards, often none.
   ///
   /// **Order is the product decision.** The answered-duʿā prompt sits above
@@ -1038,12 +1146,25 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     if (_resurfacingFired) return;
     final dayAsync = ref.watch(journalLocalDayProvider);
     if (dayAsync.isLoading) return;
+    // The cadence marker is the second async input the answer depends on. Its
+    // `weekly_recap` boolean must mean "the archive opened with it", not "the
+    // window would have allowed it" — otherwise the property counts something
+    // no user ever saw.
+    final weekAsync = ref.watch(journalRecapWeekProvider);
+    if (weekAsync.isLoading) return;
     _resurfacingFired = true;
 
     final day = dayAsync.value;
+    // The gate, decided ONCE for this visit — see [_gatedWeeklyRecap] for why
+    // it may not be re-derived after the marker below is written.
+    _recapAllowedThisVisit = weeklyRecapIsDue(
+      todayLocalDay: day,
+      lastShownWeek: weekAsync.value,
+    );
     final onThisNight =
         resolveOnThisNight(entries: reflections, todayLocalDay: day);
-    final recap = resolveWeeklyRecap(entries: reflections, todayLocalDay: day);
+    final recap = _gatedWeeklyRecap(reflections);
+    if (recap != null) unawaited(_recordRecapShownThisWeek(day));
     final prompt = selectAnsweredDuaPrompt(
       duas: duasState.savedBuiltDuas,
       now: DateTime.now(),
