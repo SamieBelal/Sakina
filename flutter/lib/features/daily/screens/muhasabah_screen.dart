@@ -6,6 +6,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/motion_context.dart';
+import 'package:sakina/core/constants/app_motion.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -1013,6 +1015,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       entries: ref.watch(reflectProvider).savedReflections,
       todayLocalDay: entry?.entryLocalDay,
     );
+    // ── The arrival ─────────────────────────────────────────────────────────
+    //
+    // This screen said "Tonight is written down." on a surface that did not
+    // move at all — the emotional peak of the night, arriving with less
+    // ceremony than a list row. Everywhere else in the app an arriving surface
+    // settles; this one cut.
+    //
+    // ONE settle, not a sequence. The copy already carries the moment; motion's
+    // only job is to let it land. Deliberately NOT a celebration: the research
+    // on this is unambiguous — *"if a user is tracking their mood, they do not
+    // need confetti explosions and celebratory chimes when they enter a
+    // negative emotion"* — and after "I keep sinning and going back" a
+    // congratulation would be tonally offensive. `AppMotion`'s own doc bans
+    // bounce on this path for the same reason.
+    //
+    // Non-blocking by construction: this is the screen's own entrance, not an
+    // overlay. There is nothing to dismiss and nothing gated behind it, which
+    // is the failure Finch is criticised by name for ("can't-skip celebration
+    // screens"). Under reduced motion it collapses to a near-instant fade with
+    // no travel.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
       child: Column(
@@ -1245,7 +1267,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           const SizedBox(height: 32),
         ],
       ),
-    );
+    )
+        .animate()
+        .fadeIn(duration: context.motion(AppMotion.entrance), curve: AppMotion.enter)
+        .slideY(
+          begin: 0.02,
+          end: 0,
+          duration: context.motion(AppMotion.entrance),
+          curve: AppMotion.enter,
+        );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

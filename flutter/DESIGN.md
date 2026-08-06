@@ -137,6 +137,15 @@ From `lib/core/theme/app_typography.dart`. Google Fonts, loaded at runtime.
 >   isn't bundled, these **silently fall back to the system font** (SF/Roboto), not Outfit
 >   — a real (minor) type-consistency bug in the coachmark, not just a comment.
 >
+> **Update 2026-08-06.** The `DM Sans` hardcodes in `coachmark_overlay.dart` are gone.
+> Outfit-everywhere is a **founder decision**, not drift — the two-font pairing is not
+> coming back, so do not "restore" it. One instance of the same bug class was still live
+> and is now fixed: `journal_screen.dart` used a raw `fontFamily: 'Amiri'` string, and
+> since the app bundles **no font assets at all** (every face is runtime `google_fonts`,
+> which registers Amiri as **`Amiri_regular`**), it matched nothing and fell back to the
+> system font. Every journal card rendered its Name in SF/Roboto. Rule: never write a
+> `fontFamily` string — go through `AppTypography`.
+>
 > This is exactly the drift this document exists to stop.
 
 ### 3.1 English — Outfit
@@ -278,6 +287,26 @@ When building anything on the **Sacred Canvas**:
 1. **Text is cream (`sacredInk`), never gold.** Gold fails 4.5:1 on emerald.
 2. **Gold is a non-text accent only** — progress fill, bars, ornament.
 3. **Opacity ramp for text:** 100% / 70% / 45% (`sacredInk` / `Soft` / `Faint`).
+   **Measured against the canvas gradient (2026-08-06):**
+
+   | on | 100% | 70% Soft | 45% Faint |
+   |---|---|---|---|
+   | `canvasTop #17553C` | 7.66 | 4.66 | **2.84** |
+   | `canvasBase #1B6B4A` | 5.66 | **3.63** | **2.38** |
+   | `canvasGlow #1F7A55` | 4.63 | **3.10** | **2.14** |
+
+   AA needs **4.5:1** for body text and **3.0:1** for large text. So:
+   **`Faint` (45%) fails both, everywhere** — it is legible as an accent, not as prose.
+   Use it for hairlines, borders and at most a short source line; **never a sentence**.
+   One violation was fixed on 2026-08-06 (`sealed_name_tease.dart` rendered a full
+   sentence at 45%). `Soft` (70%) only clears AA at the top of the gradient, so long
+   supporting copy low on the canvas should be `sacredInk`.
+
+   ⚠️ **Not yet resolved:** duʿā **source lines** (`dua_text_block.dart`) are `Faint` at
+   ~2.1–2.8:1. They carry real information (the citation), so they are an AA failure, but
+   raising them changes the look of every canvas duʿā — a founder call, not a cleanup.
+   Reflectly's 2★ reviews name this exact failure ("the font is small and faint") as the
+   reason they did not buy.
 4. **Chrome ink ≥ 80%**, hit area **≥ 44px**.
 5. **Geometric pattern at 8%** (`sacredPattern`) — decorative accent, never foreground.
 6. **Honor reduced motion.**

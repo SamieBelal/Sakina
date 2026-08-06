@@ -1187,8 +1187,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   children: [
                     Text(
                       r.nameArabic,
-                      style: const TextStyle(
-                        fontFamily: 'Amiri',
+                      // `AppTypography.quranArabic`, NOT a raw
+                      // `fontFamily: 'Amiri'` string. The app bundles no font
+                      // assets at all — every face is loaded at runtime by
+                      // `google_fonts`, which registers Amiri under the family
+                      // name **`Amiri_regular`**. A literal `'Amiri'` therefore
+                      // matched nothing and fell back to the system font, so
+                      // the Name on every journal card rendered in SF/Roboto
+                      // instead of Amiri. Same bug class DESIGN.md §3 recorded
+                      // for the hardcoded `'DM Sans'` in the coachmark.
+                      style: AppTypography.quranArabic.copyWith(
                         fontSize: 16,
                         color: AppColors.primary,
                         height: 1.2,
