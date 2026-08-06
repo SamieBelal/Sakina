@@ -1484,17 +1484,26 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final date = DateTime.parse(r.date);
     final canReadAsStory = ReflectionStoryPage.canRenderAsStory(r);
     return _ExpandableCard(
-      onTap: () => _openReflectionDetail(r, origin: origin),
-      // D2's entry point. Shown only when there is a story to read — an entry
-      // that saved nothing but the user's words would open on a cover card and
-      // end there, which is a worse read than the detail page.
-      leadingAction: !canReadAsStory
+      // **The story IS the entry (2026-08-06).** Tapping a card used to open the
+      // detail page, with the story behind a "Read as story" link on the card's
+      // footer — so the format the archive was rebuilt around was the one you
+      // had to opt into, and the two lines of grey text D2 was written to fix
+      // stayed the default. The tap now opens the story and the link is gone.
+      //
+      // An entry with no beats still opens the detail page: for it the story
+      // would be a cover card and nothing else, which is a worse read than the
+      // page. `canRenderAsStory` is the same check that used to gate the link.
+      onTap: () => canReadAsStory
+          ? _openReflectionStory(r, origin: origin)
+          : _openReflectionDetail(r, origin: origin),
+      // The detail page is not orphaned by that swap, and it must not be: it is
+      // the only home of share, delete and edit. The footer's "View full ›"
+      // hint — already on every card, so this adds no control — becomes its
+      // door. On an entry with no story it is inert, because the card's own tap
+      // already goes there.
+      onViewFull: !canReadAsStory
           ? null
-          : _cardTextAction(
-              icon: Icons.auto_stories_rounded,
-              label: 'Read as story',
-              onTap: () => _openReflectionStory(r, origin: origin),
-            ),
+          : () => _openReflectionDetail(r, origin: origin),
       // D1: the chip tells the two sources apart. A nightly accounting and an
       // ad-hoc Reflect save land in the same table and used to render with the
       // same word on them.
@@ -2242,6 +2251,7 @@ class _ExpandableCard extends StatefulWidget {
     required this.expanded,
     this.onTap,
     this.leadingAction,
+    this.onViewFull,
   });
 
   final Widget topLeft;
@@ -2255,12 +2265,67 @@ class _ExpandableCard extends StatefulWidget {
   /// footer row to put it on.
   final Widget? leadingAction;
 
+  /// Makes the footer's "View full ›" hint a real target, going somewhere other
+  /// than [onTap].
+  ///
+  /// Added when a reflection card's tap became the story: the hint was already
+  /// drawn on every card, so wiring it is the only way to keep the detail page
+  /// — share, delete and edit — reachable WITHOUT putting another control on
+  /// the card. Null leaves it what it has always been, a label describing where
+  /// the card's own tap goes.
+  final VoidCallback? onViewFull;
+
   @override
   State<_ExpandableCard> createState() => _ExpandableCardState();
 }
 
 class _ExpandableCardState extends State<_ExpandableCard> {
   bool _open = false;
+
+  /// The footer's "View full ›".
+  ///
+  /// Inert unless [_ExpandableCard.onViewFull] is set, and then wrapped the way
+  /// [_cardTextAction] wraps its own: an inner [GestureDetector] wins the arena
+  /// for its own bounds, so this opens the detail page while a tap anywhere
+  /// else on the card still opens the story.
+  Widget _viewFullHint() {
+    final hint = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'View full',
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textTertiaryLight,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 12,
+          color: AppColors.textTertiaryLight,
+        ),
+      ],
+    );
+    final onViewFull = widget.onViewFull;
+    if (onViewFull == null) return hint;
+    return Semantics(
+      button: true,
+      label: 'View full entry',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onViewFull();
+        },
+        // Padding, not a bigger font: the hint has to keep looking like a hint
+        // while being large enough to hit.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: hint,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2326,18 +2391,7 @@ class _ExpandableCardState extends State<_ExpandableCard> {
                               widget.leadingAction!,
                               const Spacer(),
                             ],
-                            Text(
-                              'View full',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textTertiaryLight,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 12,
-                              color: AppColors.textTertiaryLight,
-                            ),
+                            _viewFullHint(),
                           ],
                         )
                       else ...[

@@ -264,4 +264,140 @@ void main() {
       expect(ReflectionStoryPage.coverLabel(r), 'August 2, 2026');
     });
   });
+
+  // ── The dismissal (2026-08-06 regression) ─────────────────────────────────
+  //
+  // `BeatRevealFlow` wraps itself in `PopScope(canPop: false)` whose handler
+  // calls its own `_back()` — that is how the system back GESTURE steps back one
+  // beat instead of abandoning the night, and it is right for the live flow.
+  //
+  // The re-read dismissed itself with `maybePop`, which is precisely the call
+  // `PopScope` intercepts. So "Done" was refused its pop and handed to `_back()`
+  // instead: the reader tapped Done on the last beat and was sent back one
+  // screen. On a saved entry the beats end `… → verse → duʿā`, so that landed on
+  // the AYAH, with no way out but the system gesture — the flow was a trap.
+  //
+  // These pump the real page on a real Navigator. `BeatRevealFlow` on its own
+  // cannot reproduce it: the PopScope is in the widget, but the `maybePop` was
+  // in the host.
+  //
+  // MUTATION: put `maybePop` back in `_dismiss` → the first test fails, still
+  // showing the story.
+  group('ReflectionStoryPage — leaving it', () {
+    Future<void> pumpPushed(WidgetTester t, SavedReflection entry) async {
+      await t.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReflectionStoryPage(reflection: entry),
+                  ),
+                ),
+                child: const Text('OPEN'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('OPEN'));
+      await t.pumpAndSettle();
+    }
+
+    Future<void> tapThroughToLast(
+        WidgetTester t, SavedReflection entry) async {
+      final count = buildBeatScreensFromReflection(entry).length;
+      for (var i = 0; i < count - 1; i++) {
+        await t.tapAt(const Offset(700, 400));
+        await t.pumpAndSettle();
+      }
+    }
+
+    testWidgets('"Done" on the last beat leaves the story', (t) async {
+      final entry = legacyRow();
+      await pumpPushed(t, entry);
+      await tapThroughToLast(t, entry);
+
+      expect(find.text('Done'), findsOneWidget,
+          reason: 'the tap-through must actually have reached the last beat');
+
+      await t.tap(find.text('Done'));
+      await t.pumpAndSettle();
+
+      expect(find.text('OPEN'), findsOneWidget,
+          reason: 'the story route must be gone');
+      expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('it does NOT step back to the ayah — the exact symptom',
+        (t) async {
+      // A verse, so the beats end `… → verse → duʿā` exactly as a real entry's
+      // do. That ordering is why the reported landing screen was the ayah: it
+      // is what sits one step back from the last beat.
+      final entry = legacyRow().copyWith(verses: const [
+        ReflectVerse(
+          arabic: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا',
+          translation: 'Indeed, with hardship comes ease.',
+          reference: 'Quran 94:6',
+        ),
+      ]);
+      final screens = buildBeatScreensFromReflection(entry);
+      expect(screens[screens.length - 2].kind, BeatKind.verse,
+          reason: 'the fixture must reproduce the real beat order, or this '
+              'test is not about the reported bug');
+
+      await pumpPushed(t, entry);
+      await tapThroughToLast(t, entry);
+      await t.tap(find.text('Done'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Indeed, with hardship comes ease.'), findsNothing,
+          reason: 'landing on the ayah IS the bug');
+      expect(find.text('OPEN'), findsOneWidget);
+    });
+
+    testWidgets('a double-tap pops once — an unconditional pop would take the '
+        'Journal underneath it too', (t) async {
+      final entry = legacyRow();
+      await pumpPushed(t, entry);
+      await tapThroughToLast(t, entry);
+
+      // Two taps inside one frame, before any settle.
+      await t.tap(find.text('Done'));
+      await t.tap(find.text('Done'), warnIfMissed: false);
+      await t.pumpAndSettle();
+
+      expect(find.text('OPEN'), findsOneWidget,
+          reason: 'the host route must survive');
+    });
+
+    testWidgets('the back GESTURE still means "one beat back", not "leave"',
+        (t) async {
+      final entry = legacyRow();
+      await pumpPushed(t, entry);
+      // Advance one beat, then send a system back.
+      await t.tapAt(const Offset(700, 400));
+      await t.pumpAndSettle();
+
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+
+      expect(find.text('OPEN'), findsNothing,
+          reason: 'the PopScope is what makes back a beat control; a gesture '
+              'mid-flow must not abandon the story');
+    });
+
+    testWidgets('the back gesture on the FIRST beat does leave', (t) async {
+      final entry = legacyRow();
+      await pumpPushed(t, entry);
+
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+
+      expect(find.text('OPEN'), findsOneWidget,
+          reason: 'back on beat 0 routes through onReturnHome, which is the '
+              'same dismissal — it must not be swallowed either');
+    });
+  });
 }

@@ -216,36 +216,83 @@ void main() {
   });
 
   group('journal_entry_opened — one event, three doors', () {
-    testWidgets('the feed opens an entry as a detail page', (t) async {
-      final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
+    // 2026-08-06: the two doors SWAPPED. Tapping a card opens the STORY, and
+    // the footer's "View full" hint — which was always drawn there — is now the
+    // detail page's door. The format the archive was rebuilt around had been
+    // the one you must opt into, which left D2's own complaint (two lines of
+    // grey text) as the default the whole time.
+    testWidgets('the feed opens an entry as a STORY', (t) async {
+      final spy = await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01', withStory: true)],
+      );
 
       await t.tap(find.text('Al-Halim').first);
       await t.pumpAndSettle();
 
       expect(propsFor(spy, AnalyticsEvents.journalEntryOpened).single, {
         AnalyticsEvents.propOrigin: AnalyticsEvents.originJournalFeed,
-        AnalyticsEvents.propFormat: AnalyticsEvents.entryFormatDetail,
+        AnalyticsEvents.propFormat: AnalyticsEvents.entryFormatStory,
         AnalyticsEvents.propSource: AnalyticsEvents.journalSourceMuhasabah,
       });
     });
 
-    testWidgets('"Read as story" is the same event with a different format',
-        (t) async {
+    testWidgets('an entry with nothing to render still opens the detail page '
+        '— the story would be a cover card and nothing else', (t) async {
+      // No Name and no beats: `canRenderAsStory` builds an EMPTY screen list,
+      // which is the case the fallback exists for. (A Name alone is enough to
+      // pass that check — see the note in `reflection_story_page.dart`.)
+      final spy = await pump(t, reflections: [
+        const SavedReflection(
+          id: 'bare',
+          date: '2026-08-01T21:00:00.000',
+          userText: 'Just a hard day.',
+          name: '',
+          nameArabic: '',
+          reframePreview: 'preview',
+          source: reflectionSourceMuhasabah,
+          entryLocalDay: '2026-08-01',
+        ),
+      ]);
+
+      await t.tap(find.textContaining('Just a hard day').first);
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalEntryOpened)
+            .single![AnalyticsEvents.propFormat],
+        AnalyticsEvents.entryFormatDetail,
+      );
+    });
+
+    testWidgets('"View full" is the same event with a different format — the '
+        'detail page must stay reachable, it is the only home of share, '
+        'delete and edit', (t) async {
       final spy = await pump(
         t,
         reflections: [muhasabah(day: '2026-08-01', withStory: true)],
       );
 
-      await t.tap(find.text('Read as story'));
+      await t.tap(find.text('View full'));
       await t.pumpAndSettle();
 
       final opened = propsFor(spy, AnalyticsEvents.journalEntryOpened).single;
       expect(opened![AnalyticsEvents.propFormat],
-          AnalyticsEvents.entryFormatStory);
+          AnalyticsEvents.entryFormatDetail);
       expect(opened[AnalyticsEvents.propOrigin],
           AnalyticsEvents.originJournalFeed,
-          reason: 'the story door is a second FORMAT from the feed, not a '
+          reason: 'the second door is a second FORMAT from the feed, not a '
               'second origin — forking it would make "entries re-read" a union');
+    });
+
+    testWidgets('the "Read as story" link is gone — the story is what a tap '
+        'does, so a control for it is a control for nothing', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01', withStory: true)],
+      );
+
+      expect(find.text('Read as story'), findsNothing);
     });
 
     testWidgets('a Reflect save is separable from a night', (t) async {
