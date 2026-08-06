@@ -196,6 +196,8 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection(
                         'Duʿā Times preview', _buildDuaTimesPreviewButtons()),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildSection('Journal', _buildJournalButtons()),
                     if (kDebugMode) ...[
                       const SizedBox(height: AppSpacing.lg),
                       _buildSection('Duʿā notifications',
@@ -530,6 +532,28 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
   // Reveal Previews (Clash-Royale-style spike) — feel the choreography on-device
   // without needing a real gacha pull. Emerald = the "legendary" hero moment.
   // ─────────────────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Journal
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// The weekly recap fires at most once per calendar week and writes its
+  /// marker the moment it renders, so before this the only ways to see it twice
+  /// were to wait for Monday or reinstall. See [devResetWeeklyRecapCadence] —
+  /// it clears the marker and nothing else, so a week with fewer than two
+  /// entries in the window still correctly shows no recap.
+  Widget _buildJournalButtons() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _actionChip(
+          'Reset weekly recap',
+          () => _run(devResetWeeklyRecapCadence),
+        ),
+      ],
+    );
+  }
 
   Widget _buildRevealPreviewButtons() {
     return Wrap(spacing: 8, runSpacing: 8, children: [

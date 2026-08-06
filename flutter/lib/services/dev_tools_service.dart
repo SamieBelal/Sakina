@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
@@ -314,6 +315,32 @@ Future<void> devSoftResetAll() async {
   // is working correctly. Developer-only; see `devResetDailyUsageToday`.
   await devResetDailyUsageToday();
   await DailyQuestionAnalytics.resetDailyQuestionShownDay();
+  // A "soft reset all" that leaves the recap marker standing hands back an
+  // account that looks fresh everywhere except the one weekly surface, which
+  // then stays silent for up to six more days with no visible reason.
+  await devResetWeeklyRecapCadence();
+}
+
+// ---------------------------------------------------------------------------
+// Journal resurfacing
+// ---------------------------------------------------------------------------
+
+/// Forget that the weekly recap has already been shown this week.
+///
+/// The recap is gated to at most one per calendar week, and the marker is
+/// written the moment the line first renders — so the ONLY ways to see it a
+/// second time were to wait for Monday or to reinstall the app. That made the
+/// single highest-ceremony surface in the archive effectively untestable, which
+/// is how it reached a founder's device with nobody having seen it twice.
+///
+/// Clears the key only. It does not fabricate entries: a week with fewer than
+/// [weeklyRecapMinEntries] in the window still has no recap to show, and
+/// pretending otherwise would make this button lie about the gate it is not
+/// touching.
+Future<void> devResetWeeklyRecapCadence() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs
+      .remove(supabaseSyncService.scopedKey(weeklyRecapLastWeekPrefsKey));
 }
 
 // ---------------------------------------------------------------------------

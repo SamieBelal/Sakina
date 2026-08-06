@@ -841,32 +841,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               recap: recap,
               onOpen: () => _openWeeklyRecapStory(recap),
             )
-          : Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: BoxDecoration(
-                color: AppColors.secondaryLight,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_awesome,
-                      color: AppColors.secondary, size: 16),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      'You often turn to Allah with $topTheme',
-                      // `goldInk`, not `secondary`: the sand fill this sits on
-                      // takes C8985E to about 2.1:1, and this line is the whole
-                      // point of the pill.
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.goldInk,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+          // A caption, NOT a pill.
+          //
+          // This used to be a sand-filled rounded rect with the same ✦ mark the
+          // recap line wears — so the archive's one slot held two things that
+          // looked identical and behaved differently: the recap is a door onto
+          // a story, and this is a sentence. A founder tapping this and getting
+          // nothing is the whole reason it changed. Stripping the fill, the
+          // border and the icon leaves the affordance where the behaviour is:
+          // if it looks like a surface, it opens.
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'You often turn to Allah with $topTheme',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                  height: 1.4,
+                ),
               ),
             ),
     ).animate().fadeIn(duration: context.motion(AppMotion.layer));

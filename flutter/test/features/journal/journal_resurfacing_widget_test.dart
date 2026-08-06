@@ -218,6 +218,40 @@ void main() {
       expect(find.textContaining('You often turn to Allah with'),
           findsOneWidget);
     });
+
+    // 2026-08-06. The two occupants of this slot used to be near-identical sand
+    // pills wearing the same ✦ mark — but only one is a door. The founder tried
+    // to tap the wrong one, which is the bug: the affordance has to sit where
+    // the behaviour is.
+    testWidgets('the lifetime line is a caption, not a control', (t) async {
+      await pump(t, reflections: [
+        muhasabah(day: '2026-01-02', words: 'anxious'),
+        muhasabah(day: '2026-01-03', words: 'stressed'),
+        muhasabah(day: '2026-01-04', words: 'worried'),
+      ]);
+
+      final line = find.textContaining('You often turn to Allah with');
+      expect(line, findsOneWidget);
+      expect(
+        find.ancestor(of: line, matching: find.byType(GestureDetector)),
+        findsNothing,
+        reason: 'nothing about this line may suggest it opens something — '
+            'there is nowhere for it to go',
+      );
+      expect(
+        find.ancestor(of: line, matching: find.byType(Semantics)).evaluate().any(
+            (e) => (e.widget as Semantics).properties.button ?? false),
+        isFalse,
+        reason: 'and a screen reader must not announce it as a button either',
+      );
+      expect(
+        find.byIcon(Icons.auto_awesome),
+        findsNothing,
+        reason: 'the ✦ mark is the recap line\'s. The fallback wore an '
+            'identical one on an identical sand pill, which is what made the '
+            'door and the sentence impossible to tell apart',
+      );
+    });
   });
 
   group('E3 — the answered duʿā', () {
