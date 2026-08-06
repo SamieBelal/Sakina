@@ -16,9 +16,23 @@ import 'package:sakina/widgets/adjusted_arabic_display.dart';
 /// here it is missing from the row, which is exactly what the user should be
 /// told; rendering from state would show something the journal will not.
 class TonightEntrySummary extends StatelessWidget {
-  const TonightEntrySummary({required this.entry, super.key});
+  const TonightEntrySummary({
+    required this.entry,
+    this.isReplay = false,
+    super.key,
+  });
 
   final SavedReflection entry;
+
+  /// True when [entry] is a row the day ALREADY had rather than the one this
+  /// completion wrote — see [DailyLoopState.tonightEntryIsReplay].
+  ///
+  /// The entry is still shown, because it is real and it is the user's. What
+  /// changes is the one claim on this screen that is about TONIGHT rather than
+  /// about the row: [MuhasabahCompletionCopy.nameLabel] reads *"The Name you
+  /// met"*, and on a replay the Name in the row is not the Name the ceremony
+  /// just revealed. Defaults false, so every ordinary night is unchanged.
+  final bool isReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +57,9 @@ class TonightEntrySummary extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
         ],
         if (arabic.isNotEmpty || name.isNotEmpty) ...[
-          _label(MuhasabahCompletionCopy.nameLabel),
+          _label(isReplay
+              ? MuhasabahCompletionCopy.nameLabelReplay
+              : MuhasabahCompletionCopy.nameLabel),
           const SizedBox(height: AppSpacing.sm),
           // Arabic and Latin never share a `Text` — separate widgets, each with
           // its own direction (CLAUDE.md). `AdjustedArabicDisplay` carries the

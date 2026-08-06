@@ -232,6 +232,72 @@ void main() {
     expect(await cachedReflections(), hasLength(1));
   });
 
+  // ── The replay flag (2026-08-06) ──────────────────────────────────────────
+  //
+  // `_persistMuhasabahEntry` deliberately shows back "the entry that IS on the
+  // day" rather than the one it just built — right, because the journal's row
+  // is the artifact. But it DISCARDED the boolean `saveMuhasabahReflection`
+  // returns, so it could not tell a row it had just written from one the day
+  // already had. The completion screen then rendered another night's Name under
+  // the label "The Name you met", and a reader who had just been shown
+  // Al-Majeed was told they met Al-Wadud. Observed on a QA device.
+  //
+  // MUTATION: hard-code `tonightEntryIsReplay: false` → the second test fails.
+  test('a night that wrote its own row is NOT flagged as a replay', () async {
+    useZone('America/Los_Angeles');
+    final notifier = notifierWith(answeredNight);
+    await notifier.completeDeeper();
+
+    expect(notifier.state.tonightEntry, isNotNull);
+    expect(notifier.state.tonightEntryIsReplay, isFalse,
+        reason: 'the ordinary night must be untouched by this');
+  });
+
+  test('a refused write flags the row it fell back to, so the screen stops '
+      'calling another night\'s Name "the Name you met"', () async {
+    useZone('America/Los_Angeles');
+
+    final first = DailyLoopNotifier(skipInitForTests: true);
+    first.debugSetState(answeredNight);
+    await first.completeDeeper();
+    first.dispose();
+
+    // A second run of the same local day, revealing a DIFFERENT Name — exactly
+    // the shape of the bug.
+    final second = notifierWith(answeredNight.copyWith(
+      checkinName: 'Al-Majeed',
+      checkinNameArabic: 'الْمَجِيدُ',
+      checkinAnswers: const ['something else entirely'],
+    ));
+    await second.completeDeeper();
+
+    expect(second.state.tonightEntry, isNotNull,
+        reason: 'the day\'s row is still shown — it is real, and it is the '
+            'user\'s own words');
+    expect(second.state.tonightEntry!.name, isNot('Al-Majeed'),
+        reason: 'the fixture must reproduce the divergence, or this test is '
+            'not about the reported bug');
+    expect(second.state.tonightEntryIsReplay, isTrue);
+  });
+
+  test('a refused write with NO row to fall back on is not a replay — that is '
+      'the ordinary "nothing was saved" case the screen already handles',
+      () async {
+    useZone('America/Los_Angeles');
+    // Nothing revealed and nothing written: `_persistMuhasabahEntry` returns
+    // before it ever reaches the write, so the flag must stay false rather than
+    // make the screen apologise for an entry it is not showing.
+    final notifier = notifierWith(answeredNight.copyWith(
+      checkinName: '',
+      checkinNameArabic: '',
+      checkinAnswers: const [],
+    ));
+    await notifier.completeDeeper();
+
+    expect(notifier.state.tonightEntry, isNull);
+    expect(notifier.state.tonightEntryIsReplay, isFalse);
+  });
+
   test('the next local day gets its own entry', () async {
     useZone('America/Los_Angeles');
 

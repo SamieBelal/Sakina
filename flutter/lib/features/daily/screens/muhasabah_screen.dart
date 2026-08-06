@@ -1096,7 +1096,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   const Divider(color: AppColors.dividerLight, height: 1),
                   const SizedBox(height: AppSpacing.lg),
-                  TonightEntrySummary(entry: entry),
+                  // The day already had an entry and this one was refused, so
+                  // what follows is an EARLIER run of the night — a different
+                  // Name from the one just revealed. Saying so is the whole
+                  // point: the alternative is a screen that shows another
+                  // night's Name with no acknowledgement that it did.
+                  if (state.tonightEntryIsReplay) ...[
+                    Text(
+                      MuhasabahCompletionCopy.replayNotice,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  TonightEntrySummary(
+                    entry: entry,
+                    isReplay: state.tonightEntryIsReplay,
+                  ),
                   if (anchor != null) ...[
                     const SizedBox(height: AppSpacing.lg),
                     TimeMachineCard(

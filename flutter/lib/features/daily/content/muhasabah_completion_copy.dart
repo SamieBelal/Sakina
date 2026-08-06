@@ -34,6 +34,21 @@ abstract final class MuhasabahCompletionCopy {
   /// Section label above the Name.
   static const String nameLabel = 'The Name you met';
 
+  /// The same slot, when the entry on screen is one the day ALREADY had — see
+  /// [DailyLoopState.tonightEntryIsReplay].
+  ///
+  /// The row is real and it is the user's, so it is still shown; what changes
+  /// is the claim made about it. [nameLabel] says *you met this tonight*, and
+  /// on a replay that is simply false — the ceremony just handed over a
+  /// different Name. This label says only what is true: this is the Name
+  /// recorded on today's entry.
+  static const String nameLabelReplay = 'The Name on today’s entry';
+
+  /// Sits above the summary on a replay, so the screen is not silently showing
+  /// someone else's night with no explanation.
+  static const String replayNotice =
+      'Today already had an entry, so this is the one that was kept.';
+
   // ── Add to tonight (C1) ──
 
   /// The affordance, not a button that submits a form.
