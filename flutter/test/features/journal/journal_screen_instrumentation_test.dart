@@ -358,7 +358,7 @@ void main() {
               'would inflate every conversion built on this event');
 
       await t.tap(find.descendant(
-        of: find.byKey(const ValueKey('journal-compose-sheet')),
+        of: find.byKey(const ValueKey('journal-compose-menu')),
         matching: find.text(
             JournalComposeCopy.label(JournalComposeAction.startTonight)),
       ));

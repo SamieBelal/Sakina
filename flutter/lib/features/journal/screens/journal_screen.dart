@@ -16,7 +16,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 // `premiumStateProvider` — the compose sheet's cost line differs for a
-// subscriber. See [_ComposeSheet].
+// subscriber. See [showRadialComposeMenu].
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
@@ -26,6 +26,7 @@ import 'package:sakina/features/journal/journal_search.dart';
 import 'package:sakina/features/journal/journal_themes.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
+import 'package:sakina/features/journal/widgets/radial_compose_menu.dart';
 import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -1982,22 +1983,21 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       properties: {AnalyticsEvents.propOptionCount: options.length},
     );
 
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _ComposeSheet(
-        options: options,
-        // Resolved here rather than inside the sheet so the sheet stays a dumb
-        // widget. `valueOrNull ?? false` while the future is in flight: the
-        // free copy names a cost, and briefly over-stating a cost is a much
-        // smaller error than briefly hiding one.
-        isPremium:
-            ref.read(premiumStateProvider).valueOrNull?.isPremium ?? false,
-        onPick: (action) {
-          Navigator.of(sheetContext).pop();
-          _onCompose(action, entryPoint: AnalyticsEvents.composeEntryFab);
-        },
-      ),
+    showRadialComposeMenu(
+      context,
+      options: options,
+      // Resolved here rather than inside the menu so the menu stays a dumb
+      // widget. `valueOrNull ?? false` while the future is in flight: the free
+      // copy names a cost, and briefly over-stating a cost is a much smaller
+      // error than briefly hiding one.
+      isPremium: ref.read(premiumStateProvider).valueOrNull?.isPremium ?? false,
+      // Only fires on a CHOICE. A scrim tap, the ×, or the back gesture closes
+      // the menu and calls nothing — a dismissed chooser is not a compose, so
+      // it gets no event and no navigation.
+      onPick: (action) {
+        if (!mounted) return;
+        _onCompose(action, entryPoint: AnalyticsEvents.composeEntryFab);
+      },
     );
   }
 
@@ -2249,105 +2249,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       style: AppTypography.labelSmall.copyWith(
         color: AppColors.textTertiaryLight,
         letterSpacing: 0.2,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Compose sheet
-// ---------------------------------------------------------------------------
-
-/// The chooser behind the `+`.
-///
-/// Deliberately a plain list of rows rather than a menu of equal buttons: the
-/// first row is the one the day makes obvious (append while today's entry is
-/// open, the muḥāsabah while it is not) and the reflection sits under it. Each
-/// row carries its consequence, which is the whole reason this exists — the
-/// control it replaced said "Free write" and produced a paywall.
-class _ComposeSheet extends StatelessWidget {
-  const _ComposeSheet({
-    required this.options,
-    required this.isPremium,
-    required this.onPick,
-  });
-
-  final List<JournalComposeAction> options;
-  final bool isPremium;
-  final ValueChanged<JournalComposeAction> onPick;
-
-  IconData _iconFor(JournalComposeAction action) => switch (action) {
-        JournalComposeAction.startTonight => Icons.nightlight_round,
-        JournalComposeAction.addToTonight => Icons.add_comment_outlined,
-        JournalComposeAction.newReflection => Icons.auto_awesome_outlined,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        // Keyed: the All tab's empty state renders the SAME labels on its own
-        // CTA, so an unscoped `find.text('Begin Muhāsabah')` in a test matches
-        // the empty state as well as the sheet.
-        key: const ValueKey('journal-compose-sheet'),
-        margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < options.length; i++) ...[
-              if (i > 0)
-                const Divider(
-                    height: 1, indent: 64, color: AppColors.dividerLight),
-              _row(options[i]),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _row(JournalComposeAction action) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: () => onPick(action),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(_iconFor(action), size: 22, color: AppColors.primary),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      JournalComposeCopy.label(action),
-                      style: AppTypography.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimaryLight,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      JournalComposeCopy.subtitle(action,
-                          isPremium: isPremium),
-                      style: AppTypography.bodySmall
-                          .copyWith(color: AppColors.textSecondaryLight),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

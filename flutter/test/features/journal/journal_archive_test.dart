@@ -250,7 +250,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
       await t.pumpAndSettle();
       await t.tap(find.descendant(
-        of: find.byKey(const ValueKey('journal-compose-sheet')),
+        of: find.byKey(const ValueKey('journal-compose-menu')),
         matching: find.text(JournalComposeCopy.label(action)),
       ));
       await t.pumpAndSettle();

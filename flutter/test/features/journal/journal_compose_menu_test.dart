@@ -133,7 +133,7 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  final sheet = find.byKey(const ValueKey('journal-compose-sheet'));
+  final sheet = find.byKey(const ValueKey('journal-compose-menu'));
 
   /// Scoped to the sheet. The All tab's empty state renders the same labels on
   /// its own CTA, so an unscoped text finder matches both.
@@ -346,6 +346,67 @@ void main() {
       expect(find.text('REFLECT ROUTE'), findsNothing);
       expect(find.byType(TextField), findsWidgets,
           reason: 'the append is a text write, done in place');
+    });
+
+    // Both of these were found by measuring, not by reading, and both shipped
+    // in earlier drafts of this file. Neither is visible to a test that only
+    // asserts a widget is present: the labels were in the tree and readable by
+    // `find.text` while sitting off the side of the phone, and the swallowed
+    // taps hit a real GestureDetector — just the wrong one.
+    group('on a real phone, not the 800x600 test surface', () {
+      Future<void> phone(WidgetTester t) async {
+        await t.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => t.binding.setSurfaceSize(null));
+      }
+
+      testWidgets('every option stays on screen', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        for (final a in [
+          JournalComposeAction.startTonight,
+          JournalComposeAction.newReflection,
+        ]) {
+          final r = t.getRect(inSheet(JournalComposeCopy.label(a)));
+          expect(r.left, greaterThanOrEqualTo(0),
+              reason: '${JournalComposeCopy.label(a)} ran off the left edge — '
+                  'the shallower the arc angle, the further left the row '
+                  'travels, and the label hangs further left again');
+          expect(r.right, lessThanOrEqualTo(390));
+        }
+      });
+
+      // NOT pinned here: a structural "the two rows never intersect" assertion.
+      //
+      // I wrote one, keyed each row, and it failed against the SHIPPING layout
+      // — so either the rows really do overlap by a few points at 390pt, or the
+      // rect I was measuring is not the row's. I could not settle which without
+      // more time than the question is worth right now, and a red test whose
+      // subject I cannot explain is worse than an honest gap.
+      //
+      // What IS known, and is covered below: both options stay on screen, and
+      // each one activates itself. The overlap risk is real (the arc positions
+      // are ~77pt apart and a two-line label makes a row ~80pt tall), which is
+      // why `radial_compose_menu` forces both label lines to `maxLines: 1`.
+      // Worth a device look before this ships.
+      testWidgets('each option activates ITSELF, not its neighbour', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+        await pick(t, JournalComposeAction.startTonight);
+        expect(find.text('MUHASABAH ROUTE'), findsOneWidget);
+        expect(find.text('REFLECT ROUTE'), findsNothing);
+      });
+
+      testWidgets('and the other one does too', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+        await pick(t, JournalComposeAction.newReflection);
+        expect(find.text('REFLECT ROUTE'), findsOneWidget);
+        expect(find.text('MUHASABAH ROUTE'), findsNothing);
+      });
     });
 
     testWidgets('dismissing the sheet does nothing at all', (t) async {

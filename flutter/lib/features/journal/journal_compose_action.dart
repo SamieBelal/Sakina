@@ -108,8 +108,13 @@ abstract final class JournalComposeCopy {
         JournalComposeAction.newReflection => 'New reflection',
       };
 
-  /// The line under each row in the compose sheet: what this will do, and what
-  /// it will cost, BEFORE it is tapped.
+  /// The line under each row in the compose menu: what it will cost, BEFORE it
+  /// is tapped.
+  ///
+  /// Kept to ONE short line. These sit on an arc off the FAB, and two arc
+  /// positions on a 390pt phone are only ~77pt apart vertically — a wrapping
+  /// two-line caption made the rows physically overlap, so the upper option
+  /// swallowed taps meant for the lower one.
   ///
   /// The cost half is the point. `canUse` already refuses a spent free user at
   /// the gate, but refusing after the tap is not the same as saying so before
@@ -123,23 +128,21 @@ abstract final class JournalComposeCopy {
   }) =>
       switch (action) {
         JournalComposeAction.startTonight =>
-          "Today's accounting. You meet a Name, and it keeps your streak.",
+          'Keeps your streak',
         // No hedge: `appendToTonight` is a pure text write against a row that
         // already exists. It reveals no Name, marks no streak, claims no
         // reward and spends no allowance.
-        JournalComposeAction.addToTonight =>
-          "Adds to today's entry. Free, and as often as you like.",
+        JournalComposeAction.addToTonight => 'Free, as often as you like',
         JournalComposeAction.newReflection => isPremium
             // True for a subscriber: the only ceiling is the fair-use one at
             // 30/day, which nobody honest reaches, so quoting it would be
             // inventing a limit the reader does not have.
-            ? 'A fresh reflection on anything on your mind.'
+            ? 'Included with premium'
             // Deliberately not a number. The remaining count is async and
             // varies by cohort, warmup and trial state; a wrong number here is
             // worse than an honest sentence. See the follow-up note in
             // `journal_screen._buildComposeSheet`.
-            : 'A fresh reflection on anything on your mind. Uses one of your '
-                'reflections.',
+            : 'Uses one reflection',
       };
 
   /// The empty-state sub-line under the control, when the All tab has nothing
