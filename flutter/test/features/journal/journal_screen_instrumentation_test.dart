@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -342,7 +343,25 @@ void main() {
         (t) async {
       final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
 
-      await t.tap(find.byType(FloatingActionButton));
+      // 2026-08-07: the FAB opens a chooser, so pressing it is no longer an
+      // ACT. `journal_compose_opened` is the denominator; `..._tapped` still
+      // fires once per chosen action, with the same shape it always had, so
+      // the existing series is unbroken.
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+
+      expect(propsFor(spy, AnalyticsEvents.journalComposeOpened).single, {
+        AnalyticsEvents.propOptionCount: 2,
+      });
+      expect(propsFor(spy, AnalyticsEvents.journalComposeTapped), isEmpty,
+          reason: 'opening the chooser is not composing — counting it as one '
+              'would inflate every conversion built on this event');
+
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-sheet')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.startTonight)),
+      ));
       await t.pumpAndSettle();
 
       expect(propsFor(spy, AnalyticsEvents.journalComposeTapped).single, {

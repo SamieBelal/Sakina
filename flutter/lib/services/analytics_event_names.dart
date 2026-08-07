@@ -942,11 +942,24 @@ abstract final class AnalyticsEvents {
   /// The Journal's one primary control (D3), tapped. [propAction] is the
   /// meaning it had at the moment of the tap
   /// ([composeActionStartTonight] | [composeActionAddToTonight] |
-  /// [composeActionFreeWrite]) and [propEntryPoint] is which of its two
+  /// [composeActionNewReflection]) and [propEntryPoint] is which of its two
   /// renderings was used ([composeEntryFab] | [composeEntryEmptyState]) — the
   /// empty-state copy is aimed at a user with nothing in the archive yet, and
   /// its conversion is a different question from the FAB's.
   static const String journalComposeTapped = 'journal_compose_tapped';
+
+  /// The `+` was pressed and the chooser opened (2026-08-07).
+  ///
+  /// The denominator [journalComposeTapped] stopped being able to supply once a
+  /// sheet came between the control and the act: an abandoned chooser and a FAB
+  /// nobody pressed used to be the same non-event. Carries
+  /// [propOptionCount] — the number of rows the sheet offered — because "one
+  /// option" and "two options" are different products and the day decides which
+  /// the user gets.
+  static const String journalComposeOpened = 'journal_compose_opened';
+
+  /// How many rows the compose sheet showed. See [journalComposeOpened].
+  static const String propOptionCount = 'option_count';
 
   /// An archived entry was opened for re-reading (D2/D4/E1) — the whole point
   /// of Wave D, and unmeasurable before it.
@@ -1070,7 +1083,12 @@ abstract final class AnalyticsEvents {
 
   static const String composeActionStartTonight = 'start_tonight';
   static const String composeActionAddToTonight = 'add_to_tonight';
-  static const String composeActionFreeWrite = 'free_write';
+  /// The wire value stays `free_write` although the action is now
+  /// `newReflection` and the button reads "New reflection". Renaming it would
+  /// split `journal_compose_tapped` into two incomparable series at T0 for a
+  /// cosmetic gain — the same reasoning that made `source` a PROPERTY on
+  /// `journal_entry_created` rather than a second event.
+  static const String composeActionNewReflection = 'free_write';
   static const String composeEntryFab = 'fab';
   static const String composeEntryEmptyState = 'empty_state';
 

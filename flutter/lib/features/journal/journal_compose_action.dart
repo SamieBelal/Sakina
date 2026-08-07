@@ -1,50 +1,89 @@
 import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 
-/// What the Journal's ONE primary control does right now (Wave D, D3).
+/// What the Journal's compose control can do right now (Wave D D3; reshaped
+/// 2026-08-07).
 ///
-/// One control, three meanings, resolved from the day's state — not three
-/// buttons. The archive had no compose affordance at all: the screen listed
-/// entries and offered no way to make one, and the All-tab empty state had no
-/// CTA. Three buttons would have been the obvious fix and the wrong one, because
-/// at any moment exactly one of them is the right thing to do and the other two
-/// are either impossible (`add to tonight` before the night exists) or a
-/// duplicate of the daily loop's own CTA.
+/// D3 shipped ONE control with three meanings, resolved from the day. It was
+/// right about the problem — the archive had no compose affordance at all — and
+/// wrong about the shape, for a reason that only shows up in use: **the control
+/// changed identity underneath the user.** The same pixel read "Begin Muhāsabah"
+/// in the morning, "Add to today" after the ritual, and "Free write" once the
+/// thread filled. A primary control you cannot predict is one you stop reaching
+/// for.
+///
+/// Its third face also lied. "Free write" routed to Reflect, which is metered —
+/// so a free user who had spent the day's reflection tapped a button labelled
+/// *free* and met a paywall sheet.
+///
+/// It is now a permanent `+` that opens a sheet of whatever is genuinely
+/// available, each row stating its cost before it is tapped. The resolver below
+/// still exists and still means "the one thing to do first"; it is now the head
+/// of [journalComposeOptions] rather than a separate rule.
 enum JournalComposeAction {
-  /// Tonight has not been written. → the muḥāsabah.
+  /// Today has not been written. → the muḥāsabah.
   startTonight,
 
-  /// Tonight's entry exists and has room. → an append, which is a pure text
-  /// write against a row that already exists. **Never a second reveal.**
+  /// Today's entry exists and has room. → an append, which is a pure text
+  /// write against a row that already exists. **Never a second reveal**, and
+  /// the only compose action that spends nothing.
   addToTonight,
 
-  /// The night is done and closed (or full). → Reflect, the free-write surface,
-  /// which is unlimited now that Wave A removed the save cap.
-  freeWrite,
+  /// → Reflect. A second, third, fourth entry today is not a missing feature
+  /// and never was: `uniq_muhasabah_per_local_day` is a PARTIAL index and does
+  /// not touch `source = 'reflect'` rows, so these are unlimited per day at the
+  /// table. What limits them is the AI allowance, which is a different thing
+  /// and is now said out loud.
+  ///
+  /// Renamed from `freeWrite` — "free write" named neither the act nor its
+  /// price. The analytics wire value is deliberately unchanged; see
+  /// `AnalyticsEvents.composeActionNewReflection`.
+  newReflection,
 }
 
-/// Resolves the control's meaning from the day's state. Pure, so the rule can
-/// be pinned without standing up the daily loop.
+/// Everything the compose control may offer, most-primary first.
 ///
-/// [checkinDone] is what distinguishes "tonight hasn't happened" from "tonight
+/// [checkinDone] is what distinguishes "today hasn't happened" from "today
 /// happened but left no row" — an offline night, or one whose write the server
-/// refused. Offering *start tonight's muḥāsabah* in that second case would send
-/// the user at a loop that will tell them they already did it.
-JournalComposeAction resolveJournalComposeAction({
+/// refused. Offering *begin the muḥāsabah* in that second case would send the
+/// user at a loop that will tell them they already did it.
+///
+/// [JournalComposeAction.newReflection] is in every list this returns, because
+/// it is true on every day in every state. The contextual row is what varies.
+List<JournalComposeAction> journalComposeOptions({
   required SavedReflection? tonightEntry,
   required bool checkinDone,
   int maxThread = 20,
 }) {
-  if (tonightEntry == null) {
-    return checkinDone
-        ? JournalComposeAction.freeWrite
-        : JournalComposeAction.startTonight;
+  // The free action leads when it exists: appending to an open entry costs
+  // nothing, and a chooser whose first row is the metered one is a chooser that
+  // sells before it serves.
+  if (tonightEntry != null && tonightEntry.thread.length < maxThread) {
+    return const [
+      JournalComposeAction.addToTonight,
+      JournalComposeAction.newReflection,
+    ];
   }
-  if (tonightEntry.thread.length >= maxThread) {
-    return JournalComposeAction.freeWrite;
+  if (tonightEntry == null && !checkinDone) {
+    return const [
+      JournalComposeAction.startTonight,
+      JournalComposeAction.newReflection,
+    ];
   }
-  return JournalComposeAction.addToTonight;
+  return const [JournalComposeAction.newReflection];
 }
+
+/// The one thing to do first. Derived, so it cannot drift from the list.
+JournalComposeAction resolveJournalComposeAction({
+  required SavedReflection? tonightEntry,
+  required bool checkinDone,
+  int maxThread = 20,
+}) =>
+    journalComposeOptions(
+      tonightEntry: tonightEntry,
+      checkinDone: checkinDone,
+      maxThread: maxThread,
+    ).first;
 
 /// The control's copy. Verbatim-referenced by tests, like
 /// `MuhasabahCompletionCopy` — and for the same reason: it is the product
@@ -62,7 +101,45 @@ abstract final class JournalComposeCopy {
         // [MuhasabahCompletionCopy.addToCtaFor], so the two cannot drift.
         JournalComposeAction.addToTonight =>
           MuhasabahCompletionCopy.addToCtaFor(DateTime.now().hour),
-        JournalComposeAction.freeWrite => 'Free write',
+        // Was "Free write". It named neither the act nor its price, and the
+        // destination is metered — so on a spent day the button said *free* and
+        // produced a paywall sheet. "New reflection" names the act; the
+        // subtitle names the price.
+        JournalComposeAction.newReflection => 'New reflection',
+      };
+
+  /// The line under each row in the compose sheet: what this will do, and what
+  /// it will cost, BEFORE it is tapped.
+  ///
+  /// The cost half is the point. `canUse` already refuses a spent free user at
+  /// the gate, but refusing after the tap is not the same as saying so before
+  /// it — the first is a wall, the second is a choice.
+  ///
+  /// [isPremium] only changes the reflection line. Everything else costs the
+  /// same for everyone.
+  static String subtitle(
+    JournalComposeAction action, {
+    required bool isPremium,
+  }) =>
+      switch (action) {
+        JournalComposeAction.startTonight =>
+          "Today's accounting. You meet a Name, and it keeps your streak.",
+        // No hedge: `appendToTonight` is a pure text write against a row that
+        // already exists. It reveals no Name, marks no streak, claims no
+        // reward and spends no allowance.
+        JournalComposeAction.addToTonight =>
+          "Adds to today's entry. Free, and as often as you like.",
+        JournalComposeAction.newReflection => isPremium
+            // True for a subscriber: the only ceiling is the fair-use one at
+            // 30/day, which nobody honest reaches, so quoting it would be
+            // inventing a limit the reader does not have.
+            ? 'A fresh reflection on anything on your mind.'
+            // Deliberately not a number. The remaining count is async and
+            // varies by cohort, warmup and trial state; a wrong number here is
+            // worse than an honest sentence. See the follow-up note in
+            // `journal_screen._buildComposeSheet`.
+            : 'A fresh reflection on anything on your mind. Uses one of your '
+                'reflections.',
       };
 
   /// The empty-state sub-line under the control, when the All tab has nothing
@@ -74,7 +151,7 @@ abstract final class JournalComposeCopy {
               'Name you meet, and the duʿā.',
         JournalComposeAction.addToTonight =>
           "Tonight's entry is open. Anything else on your heart can still go in.",
-        JournalComposeAction.freeWrite =>
+        JournalComposeAction.newReflection =>
           'Reflections, duas you build, and duas you save will all appear here.',
       };
 }

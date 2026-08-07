@@ -240,18 +240,27 @@ void main() {
     });
   });
 
-  group('D3 — one compose control, three meanings', () {
+  // D3's control became a chooser on 2026-08-07 — a permanent `+` opening a
+  // sheet, instead of an extended FAB that changed its own label three times a
+  // day. `journal_compose_sheet_test.dart` owns the new rule and the copy; what
+  // stays here is what did NOT change: where each choice goes, and that the
+  // append still runs through the no-economy path.
+  group('D3 — the compose control, and where its choices go', () {
+    Future<void> composeVia(WidgetTester t, JournalComposeAction action) async {
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-sheet')),
+        matching: find.text(JournalComposeCopy.label(action)),
+      ));
+      await t.pumpAndSettle();
+    }
+
     testWidgets('nothing written yet → start tonight, and it routes',
         (t) async {
       await pump(t, reflections: [reflectSave()]);
 
-      expect(
-        find.text(JournalComposeCopy.label(JournalComposeAction.startTonight)),
-        findsOneWidget,
-      );
-
-      await t.tap(find.byType(FloatingActionButton));
-      await t.pumpAndSettle();
+      await composeVia(t, JournalComposeAction.startTonight);
       expect(find.text('MUHASABAH ROUTE'), findsOneWidget);
     });
 
@@ -267,13 +276,7 @@ void main() {
         ),
       );
 
-      expect(
-        find.text(JournalComposeCopy.label(JournalComposeAction.addToTonight)),
-        findsOneWidget,
-      );
-
-      await t.tap(find.byType(FloatingActionButton));
-      await t.pumpAndSettle();
+      await composeVia(t, JournalComposeAction.addToTonight);
 
       await t.enterText(find.byType(TextField).last, 'one more thing');
       await t.pump();
@@ -288,7 +291,7 @@ void main() {
       expect(loop.appendSurfaces, [AnalyticsEvents.surfaceJournal]);
     });
 
-    testWidgets('a full thread → free write, and it routes to Reflect',
+    testWidgets('a full thread offers a new reflection, and it routes to Reflect',
         (t) async {
       final full = muhasabah(
         thread: List.generate(
@@ -303,24 +306,22 @@ void main() {
             loaded: true, checkinDone: true, tonightEntry: full),
       );
 
-      expect(
-        find.text(JournalComposeCopy.label(JournalComposeAction.freeWrite)),
-        findsOneWidget,
-      );
-
-      await t.tap(find.byType(FloatingActionButton));
-      await t.pumpAndSettle();
+      await composeVia(t, JournalComposeAction.newReflection);
       expect(find.text('REFLECT ROUTE'), findsOneWidget);
     });
 
-    testWidgets('the empty All tab carries the same control', (t) async {
+    testWidgets('the empty All tab still carries a direct control', (t) async {
       await pump(t);
 
+      // The empty state keeps its LABELLED button rather than becoming a second
+      // `+`: on an archive with nothing in it there is exactly one sensible
+      // act, and making the user open a chooser to reach it would be ceremony
+      // for its own sake. The FAB beside it is the general-purpose control.
       expect(
         find.text(JournalComposeCopy.label(JournalComposeAction.startTonight)),
-        // Once on the FAB, once in the empty state.
-        findsNWidgets(2),
+        findsOneWidget,
       );
+      expect(find.byKey(const ValueKey('journal-compose-fab')), findsOneWidget);
     });
   });
 
@@ -684,7 +685,7 @@ void main() {
       // tells them they already did it.
       expect(
         resolveJournalComposeAction(tonightEntry: null, checkinDone: true),
-        JournalComposeAction.freeWrite,
+        JournalComposeAction.newReflection,
       );
       expect(
         resolveJournalComposeAction(
@@ -699,7 +700,7 @@ void main() {
           ),
           checkinDone: true,
         ),
-        JournalComposeAction.freeWrite,
+        JournalComposeAction.newReflection,
       );
     });
   });
