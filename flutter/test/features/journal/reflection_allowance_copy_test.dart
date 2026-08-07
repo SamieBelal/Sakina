@@ -43,8 +43,8 @@ void main() {
       }
     });
 
-    test('the arc subtitle inherits the same rule', () {
-      // The arc is where a free user meets this number first, so a wrong
+    test('the compose menu inherits the same rule', () {
+      // The menu is where a free user meets this number first, so a wrong
       // sentence here is the one they act on.
       final subtitle = JournalComposeCopy.subtitle(
         JournalComposeAction.newReflection,
@@ -61,7 +61,7 @@ void main() {
       expect(NewReflectionCopy.remainingShort(pool2), contains('week'));
     });
 
-    test('the arc subtitle names it too', () {
+    test('the compose menu names it too', () {
       expect(
         JournalComposeCopy.subtitle(
           JournalComposeAction.newReflection,

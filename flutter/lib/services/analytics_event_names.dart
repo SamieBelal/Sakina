@@ -946,7 +946,36 @@ abstract final class AnalyticsEvents {
   /// renderings was used ([composeEntryFab] | [composeEntryEmptyState]) — the
   /// empty-state copy is aimed at a user with nothing in the archive yet, and
   /// its conversion is a different question from the FAB's.
+  ///
+  /// Also carries [propAlreadyDidMuhasabah] — see there for the question it
+  /// exists to answer.
   static const String journalComposeTapped = 'journal_compose_tapped';
+
+  /// Whether today's muḥāsabah was already written when this compose action was
+  /// chosen (2026-08-07).
+  ///
+  /// **The one number that decides whether the Journal's two writing doors stay
+  /// two doors.** After the Reflect tab folded into the Journal, "Begin
+  /// Muḥāsabah" and "New reflection" run the same engine and differ in exactly
+  /// two ways: which direction the Name comes from (the queue picks it before
+  /// you write, vs the model picks it from what you wrote), and the price (free
+  /// and streak-bearing, vs metered). That is a real distinction — but only if
+  /// users actually hold it.
+  ///
+  /// Read as: of the taps whose [propAction] is [composeActionNewReflection],
+  /// what share have this `true`?
+  ///
+  ///  * **Mostly true** — people reach for the extra reflection *after* the
+  ///    day's ritual. The two doors are serving two real moments; leave them.
+  ///  * **Mostly false** — people are meeting the metered door first and
+  ///    paying for something the free one would have given them. That is an
+  ///    argument for one door whose kind the app resolves.
+  ///
+  /// Deliberately a BOOLEAN, not the entry's id or its thread length: the
+  /// question is about the user's state of mind, and anything narrower starts
+  /// describing the entry, which `answer text never leaves the device` already
+  /// forbids.
+  static const String propAlreadyDidMuhasabah = 'already_did_muhasabah';
 
   /// The `+` was pressed and the chooser opened (2026-08-07).
   ///

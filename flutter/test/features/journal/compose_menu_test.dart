@@ -363,6 +363,30 @@ void main() {
       expect(find.text('MUHASABAH ROUTE'), findsOneWidget);
     });
 
+    testWidgets('an EMPTY archive still gets the live count in the menu',
+        (t) async {
+      // Found by review, 2026-08-07, and it hit exactly the audience the
+      // feature is for. `readReflectionAllowance` is a `read`, safe only
+      // because the header's stats line `watch`es the same provider every
+      // build — but `_statsLines` returned early on an empty archive BEFORE
+      // reaching the watch. Nothing subscribed, the `autoDispose` provider
+      // stayed cold, and `ref.read` returned `AsyncLoading` forever: a
+      // brand-new user saw the number-free fallback permanently.
+      await pump(t); // no reflections seeded
+      await openSheet(t);
+
+      // Asserted as "NOT the fallback" rather than against a literal count:
+      // the number comes from a server dial with an offline default, so
+      // hardcoding it would pin the dial rather than the subscription.
+      final fallback = JournalComposeCopy.subtitle(
+        JournalComposeAction.newReflection,
+        allowance: null,
+      );
+      expect(inSheet(fallback), findsNothing,
+          reason: 'the fresh account fell back to "$fallback" — the provider '
+              'was never kept alive, so the read got AsyncLoading');
+    });
+
     testWidgets('the append opens the append sheet, not a route', (t) async {
       await pump(t, loop: DailyLoopState(loaded: true, tonightEntry: tonight()));
       await openSheet(t);
@@ -557,16 +581,25 @@ void main() {
           JournalComposeAction.startTonight,
           JournalComposeAction.newReflection,
         ]) {
-          final title = inSheet(JournalComposeCopy.label(a));
-          final cost = inSheet(JournalComposeCopy.subtitle(a));
+          // Found via the ROW key, not by matching the cost string. The cost
+          // depends on the live allowance — after the empty-archive fix this
+          // harness resolves a real count — so a string lookup here would be
+          // asserting the dial rather than the alignment.
+          final texts = find.descendant(
+            of: find.byKey(ValueKey('journal-compose-row-${a.name}')),
+            matching: find.byType(Text),
+          );
+          expect(texts, findsNWidgets(2),
+              reason: 'each card carries exactly a title and a cost');
 
-          for (final f in [title, cost]) {
-            expect(t.widget<Text>(f).textAlign, TextAlign.left,
-                reason: '"${t.widget<Text>(f).data}" is not left-aligned');
+          for (final w in t.widgetList<Text>(texts)) {
+            expect(w.textAlign, TextAlign.left,
+                reason: '"${w.data}" is not left-aligned');
           }
 
           final column = t.widget<Column>(
-              find.ancestor(of: title, matching: find.byType(Column)).first);
+              find.ancestor(of: texts.first, matching: find.byType(Column))
+                  .first);
           expect(column.crossAxisAlignment, CrossAxisAlignment.start,
               reason: '${JournalComposeCopy.label(a)}: the card column still '
                   'pushes its lines to the right edge');

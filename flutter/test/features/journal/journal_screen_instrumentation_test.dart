@@ -114,6 +114,11 @@ void main() {
         reframePreview: 'You are not carrying the outcome.',
       );
 
+  /// A muḥāsabah row for TODAY — what `tonightEntry` holds once the day's
+  /// ritual has been written, and the whole subject of
+  /// [AnalyticsEvents.propAlreadyDidMuhasabah].
+  SavedReflection tonight() => muhasabah(day: '2026-08-07');
+
   Future<_Spy> pump(
     WidgetTester t, {
     List<SavedReflection> reflections = const [],
@@ -373,7 +378,89 @@ void main() {
       expect(propsFor(spy, AnalyticsEvents.journalComposeTapped).single, {
         AnalyticsEvents.propAction: AnalyticsEvents.composeActionStartTonight,
         AnalyticsEvents.propEntryPoint: AnalyticsEvents.composeEntryFab,
+        // Nothing written today — which is why "Begin Muḥāsabah" was offered
+        // at all.
+        AnalyticsEvents.propAlreadyDidMuhasabah: false,
       });
+    });
+
+    // ── Was the day's ritual already done? ────────────────────────────────
+    //
+    // The one measurement that decides whether the Journal's two writing doors
+    // stay two doors. Since the Reflect tab folded in, "Begin Muḥāsabah" and
+    // "New reflection" run the same engine and differ only in where the Name
+    // comes from and what it costs. That is a real distinction — but only if
+    // users hold it. See [AnalyticsEvents.propAlreadyDidMuhasabah].
+
+    testWidgets('a new reflection AFTER the ritual reports true', (t) async {
+      final spy = await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01')],
+        loop: DailyLoopState(loaded: true, tonightEntry: tonight()),
+      );
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalComposeTapped)
+            .single![AnalyticsEvents.propAlreadyDidMuhasabah],
+        isTrue,
+        reason: 'this is the healthy reading — the metered door is the SECOND '
+            'thing the user reached for, so the two doors are serving two '
+            'moments',
+      );
+    });
+
+    testWidgets('a new reflection BEFORE the ritual reports false', (t) async {
+      // The reading that would argue for one door: the user met the metered
+      // surface first and paid for something the free one would have given
+      // them.
+      final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalComposeTapped)
+            .single![AnalyticsEvents.propAlreadyDidMuhasabah],
+        isFalse,
+      );
+    });
+
+    testWidgets('the property carries no words from the entry', (t) async {
+      // A boolean, never the entry's id or text. `answer text never leaves the
+      // device` is analytics-scoped, and this event is analytics.
+      final spy = await pump(
+        t,
+        loop: DailyLoopState(loaded: true, tonightEntry: tonight()),
+      );
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      final value = propsFor(spy, AnalyticsEvents.journalComposeTapped)
+          .single![AnalyticsEvents.propAlreadyDidMuhasabah];
+      expect(value, isA<bool>(),
+          reason: 'anything richer than a boolean starts describing the entry');
     });
 
     testWidgets('the empty state is a different entry point, same event',

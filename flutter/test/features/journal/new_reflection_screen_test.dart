@@ -24,6 +24,7 @@ import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
@@ -39,6 +40,23 @@ class _StubQuests extends QuestsNotifier {
 
   @override
   Future<void> onReflectCompleted() async => reflectCompletions++;
+}
+
+/// A gate that always refuses, so the screen meets the exact state
+/// `submit()` produces on a block: `gateResult` set, `screenState` untouched.
+class _BlockingGate extends GatingService {
+  _BlockingGate() : super.test();
+
+  @override
+  Future<GateResult> canUse(GatedFeature feature, {bool? isPremiumHint}) async =>
+      const GateResult(allowed: false, reason: GateReason.weeklyPool);
+
+  @override
+  Future<AllowanceSnapshot> describeAllowance(
+    GatedFeature feature, {
+    bool? isPremiumHint,
+  }) async =>
+      const AllowanceSnapshot(AllowanceKind.weeklyPool, remaining: 0);
 }
 
 ai.ReflectResponse _response() => const ai.ReflectResponse(
@@ -355,6 +373,176 @@ void main() {
       // The headline is long; on the right it must still stop short of the ×'s
       // column, or the two collide at large Dynamic Type.
       expect(close.overlaps(header), isFalse);
+    });
+  });
+
+  group('a leftover result from a previous visit is not mine', () {
+    testWidgets('the composer opens on the composer, not last time\'s reveal',
+        (t) async {
+      // `reflectProvider` is app-scoped and `_close()` — the only reset — is
+      // wired to Ameen / Return-home. A system back gesture out of the beat
+      // flow skips both, leaving `screenState: result`. `initState`'s reset is
+      // a post-frame callback, so the FIRST build saw that stale result and
+      // painted the previous reflection's reveal for a frame, while scheduling
+      // `checkAchievements` + `onReflectCompleted` for a reflection nobody
+      // wrote. Found in review, 2026-08-07.
+      final quests = _StubQuests();
+      late ReflectNotifier notifier;
+      final router = GoRouter(
+        initialLocation: newReflectionRoutePath,
+        routes: [
+          GoRoute(
+            path: newReflectionRoutePath,
+            builder: (_, __) => const NewReflectionScreen(),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [
+            questsProvider.overrideWith((_) => quests),
+            duasProvider.overrideWith((_) => DuasNotifier(loadOnInit: false)),
+            reflectProvider.overrideWith((_) {
+              notifier = ReflectNotifier(loadOnInit: false);
+              // The state a back-gesture leaves behind.
+              notifier.debugSetResultForTest(_response());
+              return notifier;
+            }),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      // The very FIRST frame — before any post-frame callback has run.
+      await t.pump();
+
+      expect(find.byType(TextField), findsOneWidget,
+          reason: "the composer painted last visit's reveal on frame one");
+      expect(find.text(NewReflectionCopy.header), findsOneWidget);
+
+      await t.pumpAndSettle();
+      expect(quests.reflectCompletions, 0,
+          reason: 'a reflection nobody wrote credited the reflect quest');
+    });
+  });
+
+  group('entered by a quest deep-link, not a push', () {
+    // Found by review, 2026-08-07. `quests_screen.dart` opens quest routes with
+    // `GoRouter.go`, which REPLACES the match list — and this route is declared
+    // on the ROOT navigator, so the stack ends up one page deep. A `pop` then
+    // empties go_router's `RouteMatchList`: "You have popped the last page off
+    // of the stack, there are no pages left to show".
+    //
+    // A new user tapping "write your first reflection" would have met it on
+    // the **Ameen** at the end of their first ever entry.
+
+    Future<void> pumpViaGo(WidgetTester t) async {
+      final router = GoRouter(
+        initialLocation: '/journal',
+        routes: [
+          GoRoute(
+            path: '/journal',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('JOURNAL'))),
+          ),
+          GoRoute(
+            path: newReflectionRoutePath,
+            builder: (_, __) => const NewReflectionScreen(),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [
+            questsProvider.overrideWith((_) => _StubQuests()),
+            duasProvider.overrideWith((_) => DuasNotifier(loadOnInit: false)),
+            reflectProvider
+                .overrideWith((_) => ReflectNotifier(loadOnInit: false)),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      // `go`, exactly as the quest card does — NOT `push`.
+      router.go(newReflectionRoutePath);
+      await t.pumpAndSettle();
+      expect(find.byType(NewReflectionScreen), findsOneWidget);
+    }
+
+    testWidgets('the × lands on the Journal instead of emptying the stack',
+        (t) async {
+      await pumpViaGo(t);
+
+      await t.tap(find.byKey(const ValueKey('new-reflection-close')));
+      await t.pumpAndSettle();
+
+      expect(find.text('JOURNAL'), findsOneWidget,
+          reason: 'a one-page stack cannot be popped — the exit has to `go`');
+      expect(find.byType(NewReflectionScreen), findsNothing);
+      expect(t.takeException(), isNull);
+    });
+  });
+
+  group('a blocked gate must not strand the screen', () {
+    // Found by review, 2026-08-07. `submit()` on a blocked gate sets
+    // `gateResult` and returns WITHOUT touching `screenState` — it stays
+    // `input`. The screen's only `_committing` release was the input EDGE,
+    // which therefore never fired. Field disabled, chips inert, × inert: the
+    // only way out was the system back gesture.
+    //
+    // The worst version: the cap sheet's own Upgrade CTA → paywall → purchase
+    // → pop back to a composer that is still dead.
+    //
+    // Blocked through the REAL gate rather than by forcing state, because the
+    // defect is precisely that this path never passes through `loading` — a
+    // test that set `gateResult` on an already-finished flow would be testing
+    // a state the app cannot reach.
+
+    setUp(() => GatingService.debugSetOverride(_BlockingGate()));
+    tearDown(GatingService.debugClearOverride);
+
+    Future<void> blockedSubmit(WidgetTester t) async {
+      await t.enterText(find.byType(TextField), 'blocked');
+      await t.pump();
+      await t.tap(find.byKey(DailyQuestionField.sendButtonKey));
+      // Enough pumps for `canUse` to resolve and the listener to run. NOT
+      // `pumpAndSettle` — the cap sheet's own async prerequisites reach real
+      // services this harness does not stand up.
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(milliseconds: 20));
+      }
+    }
+
+    testWidgets('the field comes back alive', (t) async {
+      await pump(t);
+      await blockedSubmit(t);
+
+      expect(find.byType(TextField), findsWidgets,
+          reason: 'a blocked submit never leaves the composer');
+      expect(t.widget<TextField>(find.byType(TextField).first).enabled, isTrue,
+          reason: 'the field stayed disabled after the gate refused');
+    });
+
+    testWidgets('the × comes back alive', (t) async {
+      await pump(t);
+      await blockedSubmit(t);
+
+      final close = t.widget<IconButton>(
+          find.byKey(const ValueKey('new-reflection-close')));
+      expect(close.onPressed, isNotNull,
+          reason: 'a user who is refused must still be able to leave');
+    });
+
+    testWidgets('nothing was sent to the model', (t) async {
+      final sent = <String>[];
+      await pump(t, sent: sent);
+      await blockedSubmit(t);
+
+      expect(sent, isEmpty,
+          reason: 'the gate refused before the AI call — that half always '
+              'worked and must keep working');
     });
   });
 

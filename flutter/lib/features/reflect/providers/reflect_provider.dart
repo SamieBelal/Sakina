@@ -1646,6 +1646,37 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     );
   }
 
+  /// Test seams for the two states a submit can land in WITHOUT ever touching
+  /// [ReflectScreenState] — a blocked gate and a refused bypass.
+  ///
+  /// Both matter because a screen that watches only `screenState` cannot see
+  /// either of them, which is exactly the defect
+  /// `new_reflection_screen_test.dart` pins: the composer latched a
+  /// "submit in flight" flag on send and released it only on the transition
+  /// back to `input`, a transition these two paths never make.
+  ///
+  /// Driving the state directly rather than stubbing `GatingService` keeps the
+  /// test about the SCREEN's reaction, which is where the bug was.
+  @visibleForTesting
+  void debugSetGateResultForTest(GateResult gate) {
+    state = state.copyWith(gateResult: gate);
+  }
+
+  @visibleForTesting
+  void debugSetErrorForTest(String message) {
+    state = state.copyWith(error: message);
+  }
+
+  /// The state a back-gesture out of the beat flow leaves behind: a finished
+  /// result on an app-scoped provider that no screen owns any more.
+  @visibleForTesting
+  void debugSetResultForTest(ai.ReflectResponse response) {
+    state = state.copyWith(
+      screenState: ReflectScreenState.result,
+      result: response,
+    );
+  }
+
   /// Reset to input state (preserves saved reflections).
   void reset() {
     _consumeFreeUsageOnSuccess = false;

@@ -15,8 +15,6 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
-// `premiumStateProvider` — the compose sheet's cost line differs for a
-// subscriber. See [showComposeMenu].
 import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/content/new_reflection_copy.dart';
@@ -851,6 +849,24 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     List<SavedReflection> reflections,
     int duasCount,
   ) {
+    // **Watched BEFORE the empty-archive early return, and that is the fix for
+    // a real bug** (review, 2026-08-07).
+    //
+    // `readReflectionAllowance` documents its own precondition: it is safe as a
+    // `read` only because this line already `watch`es the provider on every
+    // build, keeping the `autoDispose` alive. That was false for exactly the
+    // audience the feature exists for — a brand-new account with an empty
+    // archive returned below without ever reaching the watch, so nothing
+    // subscribed, and the compose menu's `ref.read` on a cold provider got
+    // `AsyncLoading` → the number-free fallback, permanently, until the user
+    // had at least one entry. A premium user with an empty archive likewise
+    // saw "Uses one reflection" instead of "Included with premium".
+    //
+    // Hoisting the watch above the return costs one subscription on a screen
+    // that has nothing to show, and buys the count for the only people who
+    // have never seen it.
+    final allowance = watchReflectionAllowance(ref);
+
     if (total == 0) {
       return const [(lead: 'Your spiritual diary', accent: null, spaced: false)];
     }
@@ -892,7 +908,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     //
     // The LONG form, unlike the compose menu's: this line has the width to say
     // the noun, and "9 free to try" on its own under a title is a fragment.
-    final allowance = watchReflectionAllowance(ref);
     if (allowance != null && allowance.hasCount) {
       lines.add((
         lead: NewReflectionCopy.remainingLine(allowance),
@@ -2084,14 +2099,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ),
       );
 
-  /// A permanent `+`.
-  ///
-  /// It used to be an extended FAB whose label and icon were resolved from the
-  /// day — "Begin Muhāsabah", then "Add to today", then "Free write" — so the
-  /// screen's one primary control changed identity three times a day without
-  /// moving. This does one thing: it opens the chooser. What the chooser holds
-  /// is allowed to vary; the control is not.
-  ///
   /// Handle for MEASURING the FAB, on a wrapper rather than on the button.
   ///
   /// `KeyedSubtree` is a proxy — it adds no render object of its own, so its
@@ -2103,6 +2110,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// once during a route transition cannot collide on one GlobalKey.
   final GlobalKey _composeFabKey = GlobalKey(debugLabel: 'journal-compose-fab');
 
+  /// A permanent `+`.
+  ///
+  /// It used to be an extended FAB whose label and icon were resolved from the
+  /// day — "Begin Muhāsabah", then "Add to today", then "Free write" — so the
+  /// screen's one primary control changed identity three times a day without
+  /// moving. This does one thing: it opens the chooser. What the chooser holds
+  /// is allowed to vary; the control is not.
   Widget _buildComposeButton() {
     return KeyedSubtree(
       key: _composeFabKey,
@@ -2194,6 +2208,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             AnalyticsEvents.composeActionNewReflection,
         },
         AnalyticsEvents.propEntryPoint: entryPoint,
+        // Read from the SAME state that produced the options list, so the
+        // property describes the day the user was actually looking at rather
+        // than the day as of a re-read a frame later.
+        //
+        // `tonightEntry != null` and not `checkinDone`: the question is "is
+        // there an entry for today", and an offline night that completed the
+        // loop without leaving a row is a day with nothing written in it.
+        // See [AnalyticsEvents.propAlreadyDidMuhasabah].
+        AnalyticsEvents.propAlreadyDidMuhasabah:
+            ref.read(dailyLoopProvider).tonightEntry != null,
       },
     );
     switch (action) {

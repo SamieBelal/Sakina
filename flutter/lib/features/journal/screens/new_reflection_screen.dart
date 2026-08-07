@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_motion.dart';
@@ -85,6 +86,24 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
 
   bool _achievementChecked = false;
 
+  /// Whether the result currently on the provider was produced by THIS visit.
+  ///
+  /// `reflectProvider` is app-scoped, and `_close()` — the only thing that
+  /// resets it — is wired to Ameen and Return-home. A system back gesture out
+  /// of the beat flow pops the route without either, leaving the provider at
+  /// `screenState: result`.
+  ///
+  /// [initState]'s reset runs in a post-frame callback, which is one frame too
+  /// late to stop the FIRST build seeing that stale result. Without this flag
+  /// that build both painted the previous reflection's reveal for a frame and
+  /// scheduled `checkAchievements` + `onReflectCompleted` for a reflection
+  /// nobody had written. The quest is id-guarded per local day, so within a day
+  /// that was a no-op — but the id embeds the date, so an app alive past
+  /// midnight credited the next day's reflect quest for nothing.
+  ///
+  /// Found in review, 2026-08-07.
+  bool _ownsResult = false;
+
   /// Guards the two sheet listeners against re-entry inside a single frame.
   bool _sheetShowing = false;
 
@@ -117,13 +136,43 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
     final notifier = ref.read(reflectProvider.notifier);
 
     ref.listen<ReflectState>(reflectProvider, (prev, next) {
-      // Back to input means the submit failed. Release the latch so the user
-      // can retry — see [_committing].
-      if (next.screenState == ReflectScreenState.input &&
-          prev?.screenState != ReflectScreenState.input) {
+      // ── Releasing the "submit in flight" latch ──
+      //
+      // THREE edges, not one, and the two that were missing stranded the
+      // screen completely (found in review, 2026-08-07).
+      //
+      // The latch disables the field, the chips and the ×, so whatever sets it
+      // must be certain something will clear it. The original rule was "we
+      // came back to `input`" — which silently assumed every failed submit
+      // passes through `loading` first. Two do not:
+      //
+      //  * A BLOCKED GATE. `submit()` sets `gateResult` and returns without
+      //    ever touching `screenState` (`reflect_provider.dart`, the
+      //    `!gate.allowed` branch). `prev.screenState` is already `input`, so
+      //    the edge never fires.
+      //  * A REFUSED BYPASS. `submitWithBypass()` sets `error` on a null
+      //    reservation and returns, same shape.
+      //
+      // In both cases the user met a sheet, dismissed it, and found a dead
+      // screen whose only exit was the system back gesture — including after
+      // upgrading through the cap sheet's own paywall.
+      //
+      // Expressed as "did anything arrive that means the submit did not
+      // proceed", so a fourth path of the same shape is covered by default.
+      final returnedToInput = next.screenState == ReflectScreenState.input &&
+          prev?.screenState != ReflectScreenState.input;
+      final refused = next.gateResult != null && prev?.gateResult == null;
+      final failedBeforeLoading =
+          next.error != null && prev?.error == null;
+      if (returnedToInput || refused || failedBeforeLoading) {
         setState(() {
           _committing = false;
           _selectedChipKey = null;
+          // Reset with the latch, not separately: the old Reflect tab cleared
+          // this on exactly this edge and the port dropped it. It only matters
+          // on `BeatRevealFlow`'s empty-screens retry, but a half-restored
+          // screen is how the next bug of this shape gets in.
+          if (returnedToInput) _achievementChecked = false;
         });
       }
       if (next.gateResult != null && prev?.gateResult == null) {
@@ -134,7 +183,11 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
       }
     });
 
-    if (state.screenState == ReflectScreenState.result && !_achievementChecked) {
+    // `_ownsResult` is the guard: a result this visit did not produce is a
+    // leftover, and neither the reveal nor the completion belongs to it.
+    if (_ownsResult &&
+        state.screenState == ReflectScreenState.result &&
+        !_achievementChecked) {
       _achievementChecked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -143,7 +196,7 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
       });
     }
 
-    final inFlow = state.screenState != ReflectScreenState.input;
+    final inFlow = _ownsResult && state.screenState != ReflectScreenState.input;
 
     // **The gradient wraps the Scaffold rather than being its body**, for the
     // reason spelled out in `daily_question_prompt.dart`: with the keyboard up,
@@ -324,7 +377,7 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
             // Disabled mid-flight for the same reason the field is: the submit
             // is already in the air, and leaving now would land a saved
             // reflection on a screen the user has left.
-            onPressed: _committing ? null : () => Navigator.of(context).pop(),
+            onPressed: _committing ? null : _leave,
             icon: const Icon(Icons.close_rounded),
             color: AppColors.sacredInkSoft,
             tooltip: NewReflectionCopy.closeLabel,
@@ -382,6 +435,7 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
   }
 
   void _send(String text) {
+    _ownsResult = true;
     final notifier = ref.read(reflectProvider.notifier);
     notifier.setUserText(text);
     notifier.submit();
@@ -440,10 +494,18 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
   void _backToComposer() {
     ref.read(reflectProvider.notifier).reset();
     _controller.clear();
+    // The retry re-enters through `_send`, which re-arms this. Clearing it
+    // here keeps "a result is mine" true only while one actually is.
+    _ownsResult = false;
+    // The spend already happened if the flow got as far as a result, so the
+    // cached count is now one too high. The Journal invalidates on the way
+    // back; a retry never leaves this screen, so it has to invalidate itself.
+    ref.invalidate(reflectionAllowanceProvider);
     if (mounted) {
       setState(() {
         _committing = false;
         _selectedChipKey = null;
+        _achievementChecked = false;
       });
     }
   }
@@ -451,11 +513,41 @@ class _NewReflectionScreenState extends ConsumerState<NewReflectionScreen> {
   /// Leaves the composer and returns to the Journal.
   ///
   /// The reset is what makes the next visit a blank page — see [initState] for
-  /// the belt-and-braces on the way in. It runs BEFORE the pop so the Journal
+  /// the belt-and-braces on the way in. It runs BEFORE the exit so the Journal
   /// never rebuilds against a state still holding this reflection's result.
   void _close() {
     ref.read(reflectProvider.notifier).reset();
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) _leave();
+  }
+
+  /// The one way out, and it does NOT assume there is something beneath us.
+  ///
+  /// This route is declared with `parentNavigatorKey: rootNavigatorKey`, so how
+  /// it was entered decides whether a `pop` is even legal:
+  ///
+  ///  * The Journal's `+` uses `context.push` — a page is added, `pop` is
+  ///    correct, and the user lands back on the archive they came from.
+  ///  * The First Steps quest card uses `GoRouter.go` (`quests_screen.dart`),
+  ///    which REPLACES the whole match list. The root Navigator then holds
+  ///    exactly one page, and popping it empties go_router's `RouteMatchList` —
+  ///    *"You have popped the last page off of the stack, there are no pages
+  ///    left to show"* in debug, a zero-page Navigator in release.
+  ///
+  /// Found in review, 2026-08-07: the quest deep-link shipped broken, and a
+  /// new user tapping "write your first reflection" would have hit it on the
+  /// **Ameen** at the end of their very first entry.
+  ///
+  /// `MuhasabahScreen` has the same route shape and solves it the other way —
+  /// it only ever `context.go('/')`, never pops. Handling both here is
+  /// deliberately more robust than fixing the one call site: the next deep
+  /// link into this screen inherits the fix instead of re-finding the bug.
+  void _leave() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    context.go('/journal');
   }
 
   Future<void> _share(ReflectState state) async {
