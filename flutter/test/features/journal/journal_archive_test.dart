@@ -599,6 +599,55 @@ void main() {
     });
   });
 
+  // 2026-08-07 — the filter said "Nightly" for a thing that is not night-gated.
+  //
+  // The muḥāsabah is keyed on `entry_local_day` with a one-per-local-day unique
+  // index, and nothing in the daily loop consults the clock to decide whether it
+  // may be done. `MuhasabahCompletionCopy` already knows this — it swaps its own
+  // header to "Today is written down" before 17:00 — so a 9am accounting was
+  // being filed under a word that contradicted the screen that wrote it.
+  group('the reflection filters are named after what they select', () {
+    testWidgets('a filter and the chip it selects use one word', (t) async {
+      await pump(t, reflections: [muhasabah(), reflectSave()]);
+      await openTab(t, 1);
+
+      // The chip is the same string, uppercased by `_typeChip`. Pinned as a
+      // pair so a rename of either has to move both — the spelling differs by
+      // one diacritic between "Muhāsabah" and "Muḥāsabah", which is invisible
+      // in review and would silently split the two labels apart.
+      expect(find.text('Muhāsabah'), findsOneWidget);
+      expect(find.text('MUHĀSABAH'), findsOneWidget);
+      expect(find.text('Reflection'), findsOneWidget);
+      expect(find.text('REFLECTION'), findsOneWidget);
+    });
+
+    testWidgets('"Nightly" is gone, and "Reflect" with it', (t) async {
+      await pump(t, reflections: [muhasabah(), reflectSave()]);
+      await openTab(t, 1);
+
+      expect(find.text('Nightly'), findsNothing,
+          reason: 'the muḥāsabah is not night-gated — see '
+              'MuhasabahCompletionCopy.eveningStartsAtHour, which exists '
+              'precisely because a morning muḥāsabah is ordinary');
+      expect(find.text('Reflect'), findsNothing,
+          reason: '"Reflect" is the name of the screen an entry is made on, '
+              'not of the entry');
+    });
+
+    testWidgets('renaming them did not break what they filter', (t) async {
+      await pump(t, reflections: [muhasabah(), reflectSave()]);
+      await openTab(t, 1);
+
+      await filter(t, 'reflection', 1);
+      expect(find.text('MUHĀSABAH'), findsOneWidget);
+      expect(find.text('REFLECTION'), findsNothing);
+
+      await filter(t, 'reflection', 2);
+      expect(find.text('MUHĀSABAH'), findsNothing);
+      expect(find.text('REFLECTION'), findsOneWidget);
+    });
+  });
+
   group('D6 — undated saved duʿās stop pinning themselves to the top', () {
     testWidgets('a 2024 reflection still outranks an undated saved duʿā',
         (t) async {

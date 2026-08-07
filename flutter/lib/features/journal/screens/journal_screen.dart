@@ -1246,11 +1246,28 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                     (i) => setState(() => _reflectionFilter = i),
                     group: 'reflection'),
                 const SizedBox(width: 8),
-                _filterChip('Nightly', 1, _reflectionFilter,
+                // *"Muḥāsabah"*, not *"Nightly"* (2026-08-07).
+                //
+                // The muḥāsabah is NOT night-gated and never has been. It is
+                // keyed on `entry_local_day` with a one-per-local-day unique
+                // index, and nothing in the daily loop consults the clock to
+                // decide whether it may be done — `MuhasabahCompletionCopy`
+                // carries the whole note, and swaps its own header to *"Today
+                // is written down"* before 17:00 for exactly this reason. A
+                // filter labelled "Nightly" told a morning journaller their
+                // 9am accounting was filed under the wrong word.
+                //
+                // It also now matches the chip on the cards it filters to,
+                // which reads MUHĀSABAH. A filter and the thing it selects
+                // should use one name.
+                _filterChip('Muhāsabah', 1, _reflectionFilter,
                     (i) => setState(() => _reflectionFilter = i),
                     group: 'reflection'),
                 const SizedBox(width: 8),
-                _filterChip('Reflect', 2, _reflectionFilter,
+                // Matches its chip too — the cards read REFLECTION, and this
+                // said "Reflect", which is the name of the SCREEN they are made
+                // on rather than of the entry.
+                _filterChip('Reflection', 2, _reflectionFilter,
                     (i) => setState(() => _reflectionFilter = i),
                     group: 'reflection'),
               ],
