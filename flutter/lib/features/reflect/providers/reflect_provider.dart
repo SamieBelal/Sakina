@@ -943,6 +943,74 @@ Future<SavedReflection?> appendToMuhasabahThread({
   );
 }
 
+/// Keeps the words a SECOND muḥāsabah wrote on a day that already had one
+/// (2026-08-07).
+///
+/// The completion screen's own "Seek Another Name" calls `resetToday()`, which
+/// clears `checkinDone` and re-runs the whole ceremony: a new question, a new
+/// typed answer, a new Name, "Ameen". [saveMuhasabahReflection] then refuses the
+/// row — correctly, one muḥāsabah per local day — and everything the reader just
+/// typed was dropped. It survived only in `checkinAnswers` and the per-day blob,
+/// which is never read again once the day rolls over.
+///
+/// **One row per day was never supposed to mean one set of WORDS per day.** The
+/// thread is the mechanism this app already has for more writing on today's
+/// entry, so the refused answer becomes an append rather than a loss. Everything
+/// the unique index protects is untouched: no second row, no overwrite of the
+/// answer the night was written with, and the time machine still joins on
+/// exactly one entry per day.
+///
+/// Returns the updated entry when the words were folded in, or **null** when
+/// there was nothing to fold — a blank answer, no entry on the day, the same
+/// words already on the row, a full thread, or a server refusal. Callers must
+/// treat null as ordinary: the fold is bookkeeping that runs after the night is
+/// already committed, and it may never cost the completion.
+///
+/// Deliberately NOT [appendToMuhasabahThread] with a flag. That function is the
+/// reader tapping "Something else for today" and has no business knowing about
+/// replays; this one owns the rule that only applies here — do not echo back
+/// words the entry already holds.
+Future<SavedReflection?> foldRefusedMuhasabahIntoThread({
+  required String entryLocalDay,
+  required String text,
+  DateTime Function()? now,
+}) async {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  final entry = await readMuhasabahEntryForDay(entryLocalDay);
+  if (entry == null) return null;
+
+  // Compare the value that WOULD be stored against the values that already are.
+  // `_userTextMaxChars` and `_threadTextMaxChars` are both 2048, so the answer
+  // and the append clamp identically and the two sides are commensurable.
+  //
+  // The duplicate case is not exotic: a reader who writes the same sentence
+  // twice, or a replay of an answer that is already the night's. Echoing it
+  // under "Added today" reads as the app duplicating their entry, which is the
+  // same class of bug as losing it.
+  final candidate = _clampText(trimmed, _threadTextMaxChars);
+  if (candidate == _clampText(entry.userText.trim(), _threadTextMaxChars)) {
+    return null;
+  }
+  //
+  // Exact comparison, which is airtight everywhere except one corner: an append
+  // that [fitThreadAppend] had to TRUNCATE to fit the 40KB byte budget is no
+  // longer equal to the words it came from, so refolding those same words would
+  // append a second (also truncated) copy. That needs a thread already near the
+  // budget, and the duplicate is itself clamped, so it is left alone rather than
+  // paid for with a speculative fit-and-compare.
+  for (final existing in entry.thread) {
+    if (existing.text.trim() == candidate) return null;
+  }
+
+  return appendToMuhasabahThread(
+    entryLocalDay: entryLocalDay,
+    text: candidate,
+    now: now,
+  );
+}
+
 /// Sets the night's one line of forward resolve (C4).
 ///
 /// Returns the updated entry, the unchanged entry when the text is already what

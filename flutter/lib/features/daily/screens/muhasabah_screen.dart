@@ -1112,9 +1112,18 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   // Name from the one just revealed. Saying so is the whole
                   // point: the alternative is a screen that shows another
                   // night's Name with no acknowledgement that it did.
+                  //
+                  // Which of the two notices depends on whether this run's WORDS
+                  // survived, and that is `tonightAnswerFolded` — never the
+                  // replay flag. A replay folds nothing on four ordinary paths
+                  // (blank answer, duplicate words, full thread, refused write),
+                  // and promising an append on any of them would be the same
+                  // lie as the one this fix removes, pointing the other way.
                   if (state.tonightEntryIsReplay) ...[
                     Text(
-                      MuhasabahCompletionCopy.replayNotice,
+                      state.tonightAnswerFolded
+                          ? MuhasabahCompletionCopy.replayNoticeFolded
+                          : MuhasabahCompletionCopy.replayNotice,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textSecondaryLight,
                       ),

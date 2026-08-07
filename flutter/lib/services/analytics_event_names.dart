@@ -923,9 +923,10 @@ abstract final class AnalyticsEvents {
   ///
   /// Props: [propSurface] ([surfaceMuhasabah] = the completion screen,
   /// [surfaceJournal] = D3's compose sheet — the one number that says whether
-  /// the Journal's compose control earns its place), [propThreadLength] (the
-  /// count AFTER the append, so "appended once" is separable from "kept going"
-  /// without a session aggregate).
+  /// the Journal's compose control earns its place, [surfaceSecondMuhasabah] =
+  /// the fold, which no reader asked for by tapping anything),
+  /// [propThreadLength] (the count AFTER the append, so "appended once" is
+  /// separable from "kept going" without a session aggregate).
   static const String muhasabahThreadAppended = 'muhasabah_thread_appended';
 
   /// The night's forward resolve was written or changed (C4).
@@ -1071,6 +1072,17 @@ abstract final class AnalyticsEvents {
   /// [surfaceMuhasabah]'s sibling for the Journal — which of the two surfaces
   /// an append came from.
   static const String surfaceJournal = 'journal';
+
+  /// The third append surface, and the only one no reader ever chose: a SECOND
+  /// muḥāsabah on a day that already had one, whose answer was folded into the
+  /// day's existing entry rather than dropped (2026-08-07).
+  ///
+  /// Deliberately NOT [surfaceMuhasabah], which means *the reader tapped
+  /// "Something else for today" on the completion screen*. Sharing that value
+  /// would bury the entire behaviour inside a number that already exists — and
+  /// this one answers a question of its own: how often does anyone run the night
+  /// twice? That is the demand for a second reveal, measured for the first time.
+  static const String surfaceSecondMuhasabah = 'second_muhasabah';
 
   static const String propHasEntry = 'has_entry';
   static const String propHasTimeMachine = 'has_time_machine';

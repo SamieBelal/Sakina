@@ -269,13 +269,31 @@ class DailyLoopState {
   /// just been shown Al-Majeed was told they met Al-Wadud. Observed on
   /// 2026-08-06.
   ///
-  /// Reachable in production whenever the server refuses the insert on
-  /// `uniq_muhasabah_per_local_day`: a second device, or a completion whose
-  /// sync lands after another device has already claimed the day. The
-  /// `!checkinDone` gate blocks the same-device replay, so this is rare — but
-  /// `saveMuhasabahReflection` has always returned the boolean that detects it,
-  /// and it was simply dropped on the floor.
+  /// **Not rare, and not second-device-only** — this dartdoc said both until
+  /// 2026-08-07, and the claim sent one QA triage down the wrong path. The
+  /// `!checkinDone` gate does not block the same-device replay, because the
+  /// completion screen's own primary CTA ("Seek Another Name") calls
+  /// [resetToday], which wipes state to `const DailyLoopState()` and clears
+  /// `checkinDone` before re-running the whole ceremony. A second muḥāsabah on
+  /// one device is a supported, PAID path — 25 tokens at the cap sheet for a
+  /// free reader, 30/day fair-use for premium — and every one of them lands
+  /// here, deterministically, at the local cache check in
+  /// [saveMuhasabahReflection] before the server is even asked.
+  ///
+  /// What the second run wrote is no longer lost; see [tonightAnswerFolded].
   final bool tonightEntryIsReplay;
+
+  /// True when this completion's own answer was folded into [tonightEntry]'s
+  /// thread because the day's one muḥāsabah row was already taken.
+  ///
+  /// Always false unless [tonightEntryIsReplay] is true — a night that wrote its
+  /// own row has nothing to fold. The converse does NOT hold: a replay folds
+  /// nothing when the answer was blank, when it duplicates words the entry
+  /// already carries, when the twenty-append budget is spent, or when the server
+  /// refuses. **The completion screen must switch its notice on THIS, never on
+  /// the replay flag**, or it promises an append that did not happen — which is
+  /// the same lie as the one the fold exists to end, pointing the other way.
+  final bool tonightAnswerFolded;
 
   /// The user's own entry from 30 / 90 / 365 nights ago — nearest available,
   /// at most one (C3).
@@ -339,6 +357,7 @@ class DailyLoopState {
     this.warmupJustExhausted,
     this.tonightEntry,
     this.tonightEntryIsReplay = false,
+    this.tonightAnswerFolded = false,
     this.timeMachineEntry,
     this.lastNightAzm,
     this.error,
@@ -416,6 +435,7 @@ class DailyLoopState {
     bool clearWarmupJustExhausted = false,
     SavedReflection? tonightEntry,
     bool? tonightEntryIsReplay,
+    bool? tonightAnswerFolded,
     SavedReflection? timeMachineEntry,
     String? lastNightAzm,
     String? error,
@@ -513,6 +533,7 @@ class DailyLoopState {
       tonightEntry: tonightEntry ?? this.tonightEntry,
       tonightEntryIsReplay:
           tonightEntryIsReplay ?? this.tonightEntryIsReplay,
+      tonightAnswerFolded: tonightAnswerFolded ?? this.tonightAnswerFolded,
       timeMachineEntry: timeMachineEntry ?? this.timeMachineEntry,
       lastNightAzm: lastNightAzm ?? this.lastNightAzm,
       error: clearError ? null : (error ?? this.error),
@@ -2654,6 +2675,34 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // cheapest guarantee of that is for the state never to carry it until the
       // night is done.
       final day = localDay.dateString;
+      // The day was already taken, so the row this run built is gone — but the
+      // WORDS in it are the reader's and were about to be dropped on the floor.
+      // Fold them into the day's entry as an append instead (2026-08-07); see
+      // [foldRefusedMuhasabahIntoThread] for why this is not a second row.
+      //
+      // Null on every ordinary path: a night that wrote its own row never gets
+      // here, and a refused one still folds nothing when the answer is blank,
+      // duplicates what the entry holds, overflows the twenty-append budget or
+      // is refused by the server.
+      //
+      // **Its OWN catch, and not the method's.** This runs before the state
+      // write, so a throw caught out there would take the whole tail with it —
+      // no `tonightEntry`, no replay flag, no anchor — and leave the reader on a
+      // completion screen with nothing on it at all. That is strictly worse than
+      // the notice they get today, produced by the code that exists to stop
+      // losing things. The fold is bookkeeping; the artifact outranks it.
+      SavedReflection? folded;
+      if (!wrote) {
+        try {
+          folded = await foldRefusedMuhasabahIntoThread(
+            entryLocalDay: day,
+            text: userText,
+            now: debugDailyLoopClock,
+          );
+        } catch (e) {
+          debugPrint('[daily_loop] second-run answer not folded in: $e');
+        }
+      }
       // ⚠️ Both reads resolve BEFORE the assignment, and the `state` the
       // `copyWith` is applied to is read AFTER them. Dart evaluates a method's
       // receiver before its arguments, so `state = state.copyWith(x: await …)`
@@ -2661,7 +2710,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // every state change that landed while the awaits were in flight. That is
       // not theoretical: it broke four daily-loop suites the first time this was
       // written this way.
-      final tonight = await readMuhasabahEntryForDay(day);
+      //
+      // `folded` is the same row the read would return — the append commits to
+      // the cache before it hands the entry back, so the two agree, and a
+      // mutation swapping this for a plain read leaves every test green. It is
+      // preferred only because holding the row we were just given cannot drift
+      // from it, and because the read is a prefs hop we have already paid for.
+      final tonight = folded ?? await readMuhasabahEntryForDay(day);
       final anchor = await findMuhasabahTimeMachineAnchor(day);
       // A write to a disposed StateNotifier throws. Unlike `_initialize`, this
       // catch does not re-write state, so the throw is swallowed rather than
@@ -2676,10 +2731,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // saved" case the completion screen already handles, and flagging it
         // would make the screen apologise for an entry it is not showing.
         tonightEntryIsReplay: !wrote && tonight != null,
+        tonightAnswerFolded: folded != null,
         timeMachineEntry: anchor,
       );
+      // AFTER the commit and only on a committed one, exactly like
+      // [appendToTonight] — and from here rather than inside the fold for the
+      // same reason `saveMuhasabahReflection` owns its own emit: this is the
+      // only line that knows an append actually landed.
+      if (folded != null) _emitFoldedAppend(folded);
     } catch (e) {
       debugPrint('[daily_loop] muhasabah journal entry not written: $e');
+    }
+  }
+
+  /// The fold, counted as what it is: an append, never a second journal entry.
+  ///
+  /// `journal_entry_created` would be wrong here — the row count is still one,
+  /// and counting the fold would inflate the journal's own denominator with
+  /// entries that do not exist. [AnalyticsEvents.surfaceSecondMuhasabah]
+  /// separates it from the two appends a reader chose to make.
+  ///
+  /// `thread.length` and never the text, like every other emit on this path.
+  void _emitFoldedAppend(SavedReflection folded) {
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.muhasabahThreadAppended, {
+        AnalyticsEvents.propSurface: AnalyticsEvents.surfaceSecondMuhasabah,
+        AnalyticsEvents.propThreadLength: folded.thread.length,
+      });
+    } catch (_) {
+      // Telemetry never costs the append.
     }
   }
 
