@@ -87,6 +87,52 @@ class GateResult {
   });
 }
 
+/// Which rule currently governs a feature's free allowance — the display-side
+/// counterpart to [GateReason], produced by [GatingService.describeAllowance].
+///
+/// [GateReason] answers *"why were you stopped"* and only exists at the moment
+/// of a block. This answers *"what does your budget look like right now"*, for a
+/// user who has not been stopped and may never be.
+enum AllowanceKind {
+  /// Premium. There is no number to show, and the fair-use ceiling of 30/day is
+  /// not one — quoting it would invent a limit the subscriber does not have.
+  unlimited,
+
+  /// The lifetime per-feature warm-up grant. Refills never, so the copy must
+  /// not promise a reset.
+  warmup,
+
+  /// `reel_v1`'s Reflect + Build-a-Duʿā pool. Refills Monday, and is SHARED —
+  /// copy that names only one of the two features is copy that will surprise
+  /// someone who spent theirs on the other.
+  weeklyPool,
+
+  /// A real allowance with no honest remainder to render: the legacy per-day
+  /// cap, or `discoverName` past warmup. Callers render nothing.
+  unmetered,
+}
+
+/// A read-only view of one feature's free allowance. See
+/// [GatingService.describeAllowance] for why this is not a [GateResult].
+class AllowanceSnapshot {
+  final AllowanceKind kind;
+
+  /// Uses left under [kind], or null when [kind] carries no countable
+  /// remainder. **Never render this without checking [kind] first** — a
+  /// premium subscriber and a spent free user both have "no number", and
+  /// showing the second one's zero to the first is the exact bug the cap
+  /// sheet's `describesNewTier` veto exists to prevent.
+  final int? remaining;
+
+  const AllowanceSnapshot(this.kind, {this.remaining});
+
+  /// Whether there is a number worth putting in front of the user.
+  bool get hasCount =>
+      (kind == AllowanceKind.warmup || kind == AllowanceKind.weeklyPool) &&
+      remaining != null &&
+      remaining! > 0;
+}
+
 /// Successful response from [GatingService.reserveBypass]. Caller must hold
 /// [reservationId] for the lifetime of the AI call and pass it to either
 /// [GatingService.commitBypass] (on success) or [GatingService.cancelBypass]
@@ -495,6 +541,67 @@ class GatingService {
   static const String _weeklyPoolUsedBaseKey = 'weekly_pool_used';
   static const String _weeklyPoolWeekStartBaseKey = 'weekly_pool_week_start';
   static const String _weeklyPoolProbeDayBaseKey = 'weekly_pool_probe_day';
+
+  // ---- read-only description (display) ------------------------------------
+
+  /// What [feature]'s allowance currently looks like, for **display only**.
+  ///
+  /// **This exists because [canUse] cannot be used to render a label.** `canUse`
+  /// is a decision, and a blocking decision calls [_emitCapHit] — so asking it
+  /// "how many are left" every time a screen builds would post a
+  /// `daily_cap_hit` per build and quietly destroy the cap-hit→upgrade funnel's
+  /// numerator. This function answers the same question over the same rules and
+  /// emits nothing, spends nothing and writes nothing.
+  ///
+  /// It deliberately re-states the ladder rather than delegating, because the
+  /// two must be allowed to differ in one respect: `canUse` may only ever
+  /// *block*, whereas this may return a number for a state `canUse` would let
+  /// through silently. Keep the branch ORDER identical to [canUse] — premium,
+  /// then trial, then warmup, then the post-warmup tier — and the two cannot
+  /// disagree about which rule applies.
+  ///
+  /// A wrong number here is worse than no number: every caller must render
+  /// nothing at all for [AllowanceKind.unlimited] and
+  /// [AllowanceKind.unmetered], never "0 left".
+  Future<AllowanceSnapshot> describeAllowance(
+    GatedFeature feature, {
+    bool? isPremiumHint,
+  }) async {
+    final isPremium = isPremiumHint ?? await PurchaseService().isPremium();
+    if (isPremium) return const AllowanceSnapshot(AllowanceKind.unlimited);
+
+    final newCohort = await isNewCohort();
+    final hadTrial = await _readHadTrial();
+
+    // Warmup is skipped for a lapsed trialist by `canUse`, so it is skipped
+    // here — otherwise the label would promise a grant the gate will not honour.
+    if (!hadTrial) {
+      final warmup = await _readWarmupRemaining(feature);
+      if (warmup > 0) {
+        return AllowanceSnapshot(AllowanceKind.warmup, remaining: warmup);
+      }
+    }
+
+    if (!newCohort) {
+      // Legacy is a per-day cap of one. It technically has a remaining count,
+      // but a line that says "1 left today" and then "0 left today" for the
+      // rest of the evening is a countdown to a wall — the opposite of the
+      // reassurance this is for. Legacy users get no line.
+      return const AllowanceSnapshot(AllowanceKind.unmetered);
+    }
+
+    // `discoverName` is exempt from the pool: past warmup its re-rolls are
+    // premium-only, and the day's own Name consults no gate at all. Neither is
+    // a countable remainder.
+    if (feature == GatedFeature.discoverName) {
+      return const AllowanceSnapshot(AllowanceKind.unmetered);
+    }
+
+    return AllowanceSnapshot(
+      AllowanceKind.weeklyPool,
+      remaining: await weeklyPoolRemaining(),
+    );
+  }
 
   /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
   /// when premium status was already resolved upstream. Pair with

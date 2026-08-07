@@ -20,6 +20,7 @@ import '../../../services/card_collection_service.dart';
 import '../../../services/onboarding_gate_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/supabase_sync_service.dart';
+import '../../../widgets/sakina_loader.dart';
 import '../../paywall/paywall_offer_view.dart';
 import '../../paywall/paywall_placement.dart';
 import '../../paywall/trial_offer.dart';
@@ -139,18 +140,22 @@ bool get debugDisablePaywallAnimations => debugDisablePaywallGateMotion;
 set debugDisablePaywallAnimations(bool value) =>
     debugDisablePaywallGateMotion = value;
 
-class _PaywallScreenState extends ConsumerState<PaywallScreen> {
-  static const _offeringsErrorMessage =
-      'Unable to load subscription options right now. Please try again.';
-  static const _purchaseFailedMessage =
-      'We couldn\'t complete your purchase. Please try again.';
-  static const _restoreFailedMessage =
-      'We couldn\'t restore your purchase. Please try again.';
-  static const _missingPremiumMessage =
-      'Premium access is not active yet. Please try restoring your purchase.';
-  static const _missingRestoreEntitlementMessage =
-      'No active premium subscription was found to restore.';
+/// How long the gate waits for RevenueCat, TOTAL, before declaring the offer
+/// unavailable — the two store calls share this one budget rather than getting
+/// it each. Matches the app's other network budgets (the launch overlay and the
+/// gift card both use 10s).
+///
+/// **This bound is what keeps the hard gate escapable.** The gate renders no
+/// ✕, no Restore, no safety valve and blocks the back gesture for as long as
+/// it is loading, and both store calls are made exactly once from `initState`
+/// with no retry — so an unbounded await is not a slow paywall, it is a
+/// permanently bricked one. Expiry routes into the same failure paths as a
+/// thrown call: the offerings timeout surfaces the unavailable state (which
+/// carries Restore and, on the hard gate, the valve), and the eligibility
+/// timeout degrades to truthful no-trial copy at the live price.
+const Duration _offerLoadTimeout = Duration(seconds: 10);
 
+class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   PaywallPlanType _selectedPlan = PaywallPlanType.annual;
   bool _purchasing = false;
   bool _restoring = false;
@@ -166,6 +171,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// hard-gate "Continue" safety valve so a load failure can't brick the user.
   bool _offeringsLoadFailed = false;
 
+  /// True from the moment an exit is chosen until this screen is gone.
+  ///
+  /// Leaving the paywall is not instant — `_doClose` writes two prefs and
+  /// `onComplete` runs an analytics flush plus a Supabase write before the
+  /// router moves. All of that used to happen with the paywall still fully
+  /// rendered and the ✕ still live, so the tap produced no feedback and the
+  /// spinner the user eventually saw belonged to the screen they landed on.
+  /// Set SYNCHRONOUSLY on every exit route, which also makes it the re-entry
+  /// guard the close path never had.
+  bool _closing = false;
+
   /// The page on screen, tracked by IDENTITY rather than by index.
   ///
   /// The page LIST is derived per build from trial eligibility, which resolves
@@ -176,7 +192,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// A page that is no longer in the list falls forward to the last one, never
   /// backwards past the decision.
   _GatePage _currentPage = _GatePage.valueDepth;
-  String? _lastTrackedPageId;
+
+  /// Page ids already counted on THIS screen instance.
+  ///
+  /// A set rather than "the last page id" because the ceremony can now be
+  /// walked backwards. Comparing against only the previous page counts a page
+  /// again every time the user steps back onto it, which would inflate
+  /// `paywall_page_viewed` — the denominator the ceremony's drop-off read is
+  /// built on — by however many times they browsed.
+  final Set<String> _viewedPageIds = <String>{};
 
   /// The exit offer is shown at most once per session. If the user declines
   /// weekly and taps ✕ again, the gate closes — no second nag.
@@ -227,36 +251,50 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     return eligibility == TrialEligibility.eligible ? offer : null;
   }
 
-  /// Live storefront price for [pkg], falling back to the shipped USD constant
-  /// only when offerings have not loaded (test stubs, cold-cache misses).
-  String _priceString(Package? pkg, String fallback) =>
-      pkg?.storeProduct.priceString ?? fallback;
+  /// A package is sellable only when RevenueCat supplied a complete localized
+  /// price. There is deliberately no static fallback: showing a fabricated
+  /// price turns a storefront outage into a misleading purchase surface.
+  bool _isValidSellablePackage(Package? pkg) {
+    final product = pkg?.storeProduct;
+    if (product == null) return false;
+    return product.identifier.trim().isNotEmpty &&
+        product.price.isFinite &&
+        product.price > 0 &&
+        product.priceString.trim().isNotEmpty &&
+        product.currencyCode.trim().isNotEmpty;
+  }
+
+  String _priceString(Package pkg) => pkg.storeProduct.priceString;
 
   /// The annual plan's per-week equivalent in the user's own currency —
-  /// `price / 52`, formatted locally. Falls back to the shipped `$0.96`.
-  String get _annualPerWeekString {
+  /// `price / 52`, formatted locally. A formatting failure invalidates the
+  /// offer instead of falling back to a stale USD value.
+  String? get _annualPerWeekString {
     final pkg = _annualPackage;
     final price = pkg?.storeProduct.price;
     final code = pkg?.storeProduct.currencyCode;
-    if (price == null || price <= 0 || code == null || code.isEmpty) {
-      return AppStrings.paywallAnnualPerWeek;
+    if (price == null ||
+        !price.isFinite ||
+        price <= 0 ||
+        code == null ||
+        code.trim().isEmpty) {
+      return null;
     }
     try {
       final locale = PlatformDispatcher.instance.locale.toLanguageTag();
       final fmt = NumberFormat.simpleCurrency(locale: locale, name: code);
       return fmt.format(price / 52);
     } catch (_) {
-      return AppStrings.paywallAnnualPerWeek;
+      return null;
     }
   }
 
   /// The annual saving against 52× the weekly SKU, or `null` when it cannot be
   /// proved from the live packages.
   ///
-  /// Deliberately mirrors [_annualPerWeekString]'s shape but NOT its fallback:
-  /// a per-week figure that is stale is merely imprecise, whereas a saving that
-  /// is stale is a false claim printed directly above the two numbers it is
-  /// derived from. So every failure path returns null and the sticker vanishes.
+  /// Every failure path returns null and the sticker vanishes. A saving claim
+  /// printed directly above the two prices it is derived from must never be
+  /// based on a fallback or a different storefront.
   ///
   /// Floors rather than rounds. 80.7% renders as "80%", which both preserves
   /// the shipped US string exactly and guarantees the error only ever runs in
@@ -274,7 +312,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     final annualPrice = annual.price;
     final weeklyPrice = weekly.price;
-    if (annualPrice <= 0 || weeklyPrice <= 0) return null;
+    if (!annualPrice.isFinite ||
+        !weeklyPrice.isFinite ||
+        annualPrice <= 0 ||
+        weeklyPrice <= 0) {
+      return null;
+    }
 
     // `toInt`/`floor` THROW on a non-finite double, and this getter runs inside
     // `build()` — an exception here white-screens the gate rather than dropping
@@ -293,11 +336,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         .replaceAll('{percent}', '$percent');
   }
 
-  PaywallOfferView _buildOffer() {
-    final annualPrice =
-        _priceString(_annualPackage, AppStrings.paywallAnnualPrice);
-    final weeklyPrice =
-        _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice);
+  PaywallOfferView? _buildOffer() {
+    // Offerings and eligibility are both required before any sellable copy can
+    // be rendered. This keeps the first frame non-sellable and prevents a late
+    // eligibility response from retracting a trial promise under the user's
+    // finger.
+    if (_offerings == null ||
+        _offeringsLoadFailed ||
+        _introEligibility == null) {
+      return null;
+    }
+
+    final annualPackage = _annualPackage;
+    final weeklyPackage = _weeklyPackage;
+    if (!_isValidSellablePackage(annualPackage) ||
+        !_isValidSellablePackage(weeklyPackage)) {
+      return null;
+    }
+
+    final annualPrice = _priceString(annualPackage!);
+    final weeklyPrice = _priceString(weeklyPackage!);
+    final annualPerWeek = _annualPerWeekString;
+    if (annualPerWeek == null) return null;
     final selectedTrial = _trialFor(_selectedPlan);
 
     // The terms line follows the SELECTION — it is the only billing statement
@@ -309,7 +369,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     return PaywallOfferView(
       annualPriceLine: AppStrings.paywallPlanAnnualPriceTemplate
           .replaceAll('{price}', annualPrice)
-          .replaceAll('{perWeek}', _annualPerWeekString),
+          .replaceAll('{perWeek}', annualPerWeek),
       annualSavingsLabel: _annualSavingsLabel,
       // The weekly tile names its price and nothing else. It used to append
       // "· {trial} free first", which repeated the CTA directly beneath it and
@@ -400,41 +460,69 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _loadOfferings() async {
+    // ONE budget across BOTH store calls, not one each. They run in sequence,
+    // so a per-call timeout would let two slow-but-not-dead responses hold the
+    // gate for double [_offerLoadTimeout] — and the whole reason this bound
+    // exists is the promise that the wall becomes escapable within it.
+    final deadline = DateTime.now().add(_offerLoadTimeout);
+    Duration remaining() {
+      final left = deadline.difference(DateTime.now());
+      return left.isNegative ? Duration.zero : left;
+    }
+
     List<Package> offerings;
     try {
-      offerings = await PurchaseService().getOfferings();
+      offerings = await PurchaseService().getOfferings().timeout(remaining());
     } catch (_) {
       if (mounted) {
         setState(() {
-          _errorMessage = _offeringsErrorMessage;
+          _offerings = const [];
+          _introEligibility = const {};
+          _errorMessage = AppStrings.paywallOffersUnavailable;
           _markOfferingsFailed();
         });
       }
       return;
     }
     if (!mounted) return;
+
+    var valid = true;
     setState(() {
       _offerings = offerings;
-      // An empty list means the current offering is misconfigured or the cold
-      // cache returned nothing. Surface the error up front so the user doesn't
-      // tap a CTA that looks priced only to see an error afterwards.
-      if (offerings.isEmpty) {
-        _errorMessage = _offeringsErrorMessage;
+      valid = _isValidSellablePackage(_annualPackage) &&
+          _isValidSellablePackage(_weeklyPackage);
+      if (!valid) {
+        // An empty, incomplete, or price-less offering is unavailable. Do not
+        // leave eligibility in its loading state, because the user needs a
+        // clear error and the hard-gate valve immediately.
+        _introEligibility = const {};
+        _errorMessage = AppStrings.paywallOffersUnavailable;
         _markOfferingsFailed();
       }
     });
+    if (!valid) return;
 
     // Per-USER eligibility, second: it needs the product ids, and it is the
     // difference between "this product has a trial" and "you get one".
-    final productIds = offerings
+    final productIds = [_annualPackage!, _weeklyPackage!]
         .map((p) => p.storeProduct.identifier)
-        .where((id) => id.isNotEmpty)
         .toList(growable: false);
-    if (productIds.isEmpty) {
-      if (mounted) setState(() => _introEligibility = const {});
-      return;
+    Map<String, IntroEligibilityStatus> statuses;
+    try {
+      statuses = await PurchaseService()
+          .getIntroEligibility(productIds)
+          .timeout(remaining());
+    } catch (_) {
+      // Eligibility lookup failure is truthful no-trial copy, not a reason to
+      // fabricate a trial. The offer remains sellable at its live price.
+      //
+      // This catch is also the ONLY thing that ends the loading state when the
+      // eligibility call hangs: `getIntroEligibility` swallows its own errors
+      // and returns `const {}`, so it can never throw — but it can hang
+      // forever, and `_introEligibility == null` alone holds the gate in its
+      // non-dismissable loading state (see [_offerLoadTimeout]).
+      statuses = const {};
     }
-    final statuses = await PurchaseService().getIntroEligibility(productIds);
     if (!mounted) return;
     setState(() => _introEligibility = statuses);
   }
@@ -446,15 +534,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     if (_offeringsLoadFailed) return;
     _offeringsLoadFailed = true;
     if (widget.hardGate) {
-      ref
-          .read(analyticsProvider)
-          .track(AnalyticsEvents.paywallOfferingsLoadFailed);
+      try {
+        ref
+            .read(analyticsProvider)
+            .track(AnalyticsEvents.paywallOfferingsLoadFailed);
+      } catch (_) {}
     }
   }
 
   void _trackPageViewed(_GatePage page) {
-    if (_lastTrackedPageId == page.pageId) return;
-    _lastTrackedPageId = page.pageId;
+    if (!_viewedPageIds.add(page.pageId)) return;
     try {
       ref.read(analyticsProvider).track(
         AnalyticsEvents.paywallPageViewed,
@@ -469,6 +558,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// Hard-gate offerings-fail safety valve: grant a SESSION-ONLY bypass (no
   /// durable latch) so a StoreKit/Apple outage can't brick a brand-new user.
   void _continueViaValve() {
+    if (_closing) return;
+    setState(() => _closing = true);
     try {
       ref.read(analyticsProvider).track(
         AnalyticsEvents.paywallSafetyValveUsed,
@@ -478,6 +569,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       );
     } catch (_) {}
     ref.read(appSessionProvider).bypassGateForSession();
+    widget.onComplete();
+  }
+
+  /// The always-free card's Continue. Same hand-off as the valve — `onComplete`
+  /// runs a Supabase write before the router moves — so it takes the same
+  /// synchronous flag rather than calling `onComplete` bare.
+  void _completeFromAlwaysFreeCard() {
+    if (_closing) return;
+    setState(() => _closing = true);
     widget.onComplete();
   }
 
@@ -553,25 +653,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     _trackExitOffer(AnalyticsEvents.paywallExitOfferShown);
 
     final outcome = await showModalBottomSheet<PaywallExitOfferOutcome>(
-      context: context,
-      isScrollControlled: false,
-      backgroundColor: AppColors.surfaceLight,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => PaywallExitOfferSheet(
-        weeklyPrice: _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice),
-        // `labelAdjective`, not `label` — this sheet's two strings pre-date the
-        // approved draft and have ADJECTIVE slots ("Start {trial} free trial"),
-        // where the noun form renders "Start 3 days free trial". Every approved
-        // string has a noun slot and correctly uses `label`.
-        trialLabel: _trialFor(PaywallPlanType.weekly)?.labelAdjective,
-      ),
-      // A scrim tap and a back gesture both pop with no value. Mapping that to
-      // `dismissed` here — rather than letting it fall through as null — is what
-      // guarantees every route out of the sheet emits a decline. A decline path
-      // that misses an exit understates declines and flatters the mechanic.
-    ) ??
+          context: context,
+          isScrollControlled: false,
+          backgroundColor: AppColors.surfaceLight,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (_) => PaywallExitOfferSheet(
+            weeklyPrice: _priceString(_weeklyPackage!),
+            // `labelAdjective`, not `label` — this sheet's two strings pre-date
+            // the approved draft and have ADJECTIVE slots ("Start {trial} free
+            // trial"), so the noun form would render "Start 3 days free trial"
+            // where the adjective renders "Start 3-day free trial". Every
+            // approved string has a noun slot and correctly uses `label`.
+            // (Those literals illustrate the grammar; the duration itself
+            // always comes from the store.)
+            trialLabel: _trialFor(PaywallPlanType.weekly)?.labelAdjective,
+          ),
+          // A scrim tap and a back gesture both pop with no value. Mapping that to
+          // `dismissed` here — rather than letting it fall through as null — is what
+          // guarantees every route out of the sheet emits a decline. A decline path
+          // that misses an exit understates declines and flatters the mechanic.
+        ) ??
         PaywallExitOfferOutcome.dismissed;
 
     if (!mounted) return;
@@ -617,6 +720,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _doClose() async {
+    // Synchronous, before the first await: this is both the user's feedback
+    // that the tap landed and the guard that stops a second tap re-running the
+    // whole chain (which would double-count the dismiss).
+    if (_closing) return;
+    setState(() => _closing = true);
+
     // Wrapped like every other emission on this path. `_doClose` is reached
     // from an UNAWAITED tap handler, so a throw anywhere in it aborts the
     // dismissal silently — the same shape as the `scopedKey` bug below, and
@@ -692,7 +801,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       widget.onComplete();
       return;
     }
-    setState(() => _showAlwaysFreeCard = true);
+    // The card is a destination, not a hand-off: clear `_closing` so it renders
+    // instead of the exit spinner. Its own Continue sets the flag again.
+    setState(() {
+      _showAlwaysFreeCard = true;
+      _closing = false;
+    });
   }
 
   // ───────────────────────── purchase ─────────────────────────
@@ -753,7 +867,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     try {
       final offerings = _offerings;
       if (offerings == null || offerings.isEmpty) {
-        if (mounted) setState(() => _errorMessage = _offeringsErrorMessage);
+        if (mounted) {
+          setState(() => _errorMessage = AppStrings.paywallOffersUnavailable);
+        }
         return;
       }
 
@@ -774,7 +890,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           purchasedPlan == PaywallPlanType.annual ? 'annual' : 'weekly';
       final purchasedGrantedTrial = _trialFor(purchasedPlan) != null;
       if (selectedPackage == null) {
-        if (mounted) setState(() => _errorMessage = _offeringsErrorMessage);
+        if (mounted) {
+          setState(() => _errorMessage = AppStrings.paywallOffersUnavailable);
+        }
         return;
       }
 
@@ -805,7 +923,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             },
           );
         } catch (_) {}
-        if (mounted) setState(() => _errorMessage = _missingPremiumMessage);
+        if (mounted) {
+          setState(() => _errorMessage = AppStrings.paywallPremiumNotActive);
+        }
         return;
       }
 
@@ -855,7 +975,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             },
           );
         } catch (_) {}
-        if (mounted) setState(() => _errorMessage = _purchaseFailedMessage);
+        if (mounted) {
+          setState(() => _errorMessage = AppStrings.paywallPurchaseFailed);
+        }
       }
     } catch (e) {
       try {
@@ -869,7 +991,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           },
         );
       } catch (_) {}
-      if (mounted) setState(() => _errorMessage = _purchaseFailedMessage);
+      if (mounted) {
+        setState(() => _errorMessage = AppStrings.paywallPurchaseFailed);
+      }
     } finally {
       // The origin belongs to ONE attempt. Leaving it latched would credit the
       // exit offer with the next purchase the user starts from the gate's own
@@ -908,7 +1032,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       } catch (_) {}
       if (!premiumActive) {
         if (mounted) {
-          setState(() => _errorMessage = _missingRestoreEntitlementMessage);
+          setState(() => _errorMessage = AppStrings.paywallRestoreNotFound);
         }
         return;
       }
@@ -924,7 +1048,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           },
         );
       } catch (_) {}
-      if (mounted) setState(() => _errorMessage = _restoreFailedMessage);
+      if (mounted) {
+        setState(() => _errorMessage = AppStrings.paywallRestoreFailed);
+      }
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -937,7 +1063,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           duration: kSnackBarDuration,
-          content: Text('Could not open the page. Try again.'),
+          content: Text(AppStrings.paywallLegalPageUnavailable),
         ),
       );
     }
@@ -948,7 +1074,100 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final offer = _buildOffer();
-    final pages = _pagesFor(offer);
+    final busy = _purchasing || _restoring;
+
+    // FIRST, ahead of every other state: the user has chosen to leave and the
+    // hand-off is in flight. Feedback has to be immediate, so this cannot wait
+    // for the destination screen to build its own loader.
+    if (_closing) {
+      _plansAreVisible = false;
+      return const PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          body: Center(child: SakinaLoader()),
+        ),
+      );
+    }
+
+    // Keep loading and unavailable states non-sellable. In particular, do not
+    // let a static price or a stale page render while RevenueCat is resolving.
+    if (_showAlwaysFreeCard) {
+      _plansAreVisible = false;
+      return PopScope(
+        canPop: !widget.hardGate,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          body: PaywallAlwaysFreeCard(
+            onContinue: _completeFromAlwaysFreeCard,
+          ),
+        ),
+      );
+    }
+
+    if (offer == null) {
+      _plansAreVisible = false;
+      final loading = !_offeringsLoadFailed &&
+          (_offerings == null || _introEligibility == null);
+      final showSafetyValve = widget.hardGate && !loading;
+      return PopScope(
+        canPop: !widget.hardGate,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          body: PaywallGatePage(
+            stepCount: 0,
+            onClose: widget.hardGate || busy || loading ? null : _handleClose,
+            body: PaywallOfferState(
+              loading: loading,
+              // The body copy states why there is nothing to buy and must not
+              // change while this surface is up. `_errorMessage` is a shared
+              // slot five handlers write to, so it goes in the secondary line —
+              // a failed Restore adds a fact here, it does not replace one.
+              message: AppStrings.paywallOffersUnavailable,
+              transientError: _errorMessage,
+            ),
+            // RESTORE SURVIVES AN OFFERINGS OUTAGE. `restorePurchases()` asks
+            // StoreKit about this Apple ID's receipts and never reads the
+            // offerings, so the two failures are independent — but on the hard
+            // gate this screen is the only surface an existing subscriber can
+            // reach (no ✕, Settings still behind the wall), and the safety
+            // valve grants a session-only bypass, never the entitlement. Drop
+            // Restore here and a reinstalling subscriber has no route back to
+            // what they already paid for.
+            //
+            // Terms and Privacy stay OFF this surface deliberately: they
+            // annotate a charge, and there is no priced offer to annotate.
+            footer: loading
+                ? const SizedBox.shrink()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PaywallLegalLink(
+                        label: _restoring
+                            ? AppStrings.paywallRestoring
+                            : AppStrings.paywallRestore,
+                        onPressed: busy ? null : _handleRestore,
+                      ),
+                      if (showSafetyValve)
+                        TextButton(
+                          onPressed: busy ? null : _continueViaValve,
+                          child: const Text(
+                            AppStrings.paywallGateContinue,
+                            style: TextStyle(
+                              color: AppColors.textSecondaryLight,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ),
+      );
+    }
+
+    final validOffer = offer;
+    final pages = _pagesFor(validOffer);
     // Eligibility resolving late can lengthen OR shorten the list under the
     // user's feet; resolve by identity so neither moves them.
     final found = pages.indexOf(_currentPage);
@@ -958,7 +1177,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (mounted && !_showAlwaysFreeCard) _trackPageViewed(page);
     });
 
-    final busy = _purchasing || _restoring;
     final isLastPage = index == pages.length - 1;
     // The plan chooser and the purchase footer live on the same (last) page,
     // so this is also "the user can see a price right now" — the condition the
@@ -972,68 +1190,74 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       canPop: !widget.hardGate,
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
-        body: _showAlwaysFreeCard
-            ? PaywallAlwaysFreeCard(onContinue: widget.onComplete)
-            : PaywallGatePage(
-                stepCount: pages.length > 1 ? pages.length : 0,
-                stepIndex: index,
-                onClose: widget.hardGate || busy ? null : _handleClose,
-                body: switch (page) {
-                  _GatePage.valueDepth => PaywallValueDepthPage(
-                      nameTransliteration: _revealedCard?.transliteration,
-                      isSignContract: _isSignContract,
-                      card: _revealedCard,
-                    ),
-                  _GatePage.trialTimeline => PaywallTrialTimelinePage(
-                      trialLabel: offer.trialLabel!,
-                      trialDays: offer.trialDays!,
-                    ),
-                  _GatePage.planSelect => PaywallPlanSelectPage(
-                      offer: offer,
-                      selectedPlan: _selectedPlan,
-                      onSelectPlan: _selectPlan,
-                    ),
-                  _GatePage.condensed => PaywallCondensedPage(
-                      offer: offer,
-                      selectedPlan: _selectedPlan,
-                      onSelectPlan: _selectPlan,
-                      valueLine: widget.softValueLine,
-                    ),
-                },
-                footer: isLastPage
-                    ? PaywallPurchaseFooter(
-                        ctaLabel: offer.ctaLabel,
-                        termsLine: offer.termsLine,
-                        onPurchase: _handlePurchase,
-                        onRestore: busy ? null : _handleRestore,
-                        onOpenTerms: () =>
-                            _openLegalUrl(AppStrings.termsOfServiceUrl),
-                        onOpenPrivacy: () =>
-                            _openLegalUrl(AppStrings.privacyPolicyUrl),
-                        busy: busy,
-                        restoring: _restoring,
-                        errorMessage: _errorMessage,
-                        extra: widget.hardGate && _offeringsLoadFailed
-                            ? TextButton(
-                                onPressed: busy ? null : _continueViaValve,
-                                child: const Text(
-                                  AppStrings.paywallGateContinue,
-                                  style: TextStyle(
-                                    color: AppColors.textSecondaryLight,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      )
-                    : _CeremonyFooter(
-                        footnote: page == _GatePage.trialTimeline
-                            ? AppStrings.paywallTrialTimelineFootnote
-                            : null,
-                        onContinue: () =>
-                            setState(() => _currentPage = pages[index + 1]),
-                      ),
+        // `_showAlwaysFreeCard` is not re-tested here — the early return at the
+        // top of `build` already owns that state.
+        body: PaywallGatePage(
+          stepCount: pages.length > 1 ? pages.length : 0,
+          stepIndex: index,
+          onClose: widget.hardGate || busy ? null : _handleClose,
+          // Disabled while a purchase or restore is in flight, for the same
+          // reason the ✕ is: navigating out from under an open StoreKit sheet
+          // leaves the result with nowhere to land.
+          onBack: index > 0 && !busy
+              ? () => setState(() => _currentPage = pages[index - 1])
+              : null,
+          body: switch (page) {
+            _GatePage.valueDepth => PaywallValueDepthPage(
+                nameTransliteration: _revealedCard?.transliteration,
+                isSignContract: _isSignContract,
+                card: _revealedCard,
               ),
+            _GatePage.trialTimeline => PaywallTrialTimelinePage(
+                trialLabel: validOffer.trialLabel!,
+                trialDays: validOffer.trialDays!,
+              ),
+            _GatePage.planSelect => PaywallPlanSelectPage(
+                offer: validOffer,
+                selectedPlan: _selectedPlan,
+                onSelectPlan: _selectPlan,
+              ),
+            _GatePage.condensed => PaywallCondensedPage(
+                offer: validOffer,
+                selectedPlan: _selectedPlan,
+                onSelectPlan: _selectPlan,
+                valueLine: widget.softValueLine,
+              ),
+          },
+          footer: isLastPage
+              ? PaywallPurchaseFooter(
+                  ctaLabel: validOffer.ctaLabel,
+                  termsLine: validOffer.termsLine,
+                  onPurchase: _handlePurchase,
+                  onRestore: busy ? null : _handleRestore,
+                  onOpenTerms: () =>
+                      _openLegalUrl(AppStrings.termsOfServiceUrl),
+                  onOpenPrivacy: () =>
+                      _openLegalUrl(AppStrings.privacyPolicyUrl),
+                  busy: busy,
+                  restoring: _restoring,
+                  errorMessage: _errorMessage,
+                  extra: widget.hardGate && _offeringsLoadFailed
+                      ? TextButton(
+                          onPressed: busy ? null : _continueViaValve,
+                          child: const Text(
+                            AppStrings.paywallGateContinue,
+                            style: TextStyle(
+                              color: AppColors.textSecondaryLight,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        )
+                      : null,
+                )
+              : _CeremonyFooter(
+                  footnote: page == _GatePage.trialTimeline
+                      ? AppStrings.paywallTrialTimelineFootnote
+                      : null,
+                  onContinue: () =>
+                      setState(() => _currentPage = pages[index + 1]),
+                ),
+        ),
       ),
     );
   }

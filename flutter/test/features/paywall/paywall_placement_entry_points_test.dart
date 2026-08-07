@@ -100,7 +100,11 @@ void main() {
         'lib/features/collection/screens/collection_screen.dart',
         'lib/features/progress/screens/progress_screen.dart',
         'lib/features/duas/screens/duas_screen.dart',
-        'lib/features/reflect/screens/reflect_screen.dart',
+        // Was `lib/features/reflect/screens/reflect_screen.dart` until
+        // 2026-08-07. The Reflect tab became the Journal's composer; the gating
+        // sheets moved with it unchanged, so this entry point did not go away —
+        // it changed address.
+        'lib/features/journal/screens/new_reflection_screen.dart',
         'lib/features/daily/screens/muhasabah_screen.dart',
         'lib/widgets/iap_to_sub_upsell_banner.dart',
       ];

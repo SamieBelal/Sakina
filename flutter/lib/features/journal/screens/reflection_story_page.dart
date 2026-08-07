@@ -18,7 +18,7 @@ import 'package:sakina/widgets/beat_reveal/beat_reveal_models.dart';
 /// Renders nothing when the entry has no beats at all (an empty row, or one
 /// whose only content was the user's own words): [canRenderAsStory] is the
 /// caller's check, and the Journal only offers the affordance when it passes.
-class ReflectionStoryPage extends StatelessWidget {
+class ReflectionStoryPage extends StatefulWidget {
   const ReflectionStoryPage({
     required this.reflection,
     this.completionLabel = 'Done',
@@ -27,6 +27,9 @@ class ReflectionStoryPage extends StatelessWidget {
 
   final SavedReflection reflection;
   final String completionLabel;
+
+  @override
+  State<ReflectionStoryPage> createState() => _ReflectionStoryPageState();
 
   /// Whether [reflection] has enough content for the story format to be worth
   /// offering. False for an entry that is only the user's own words — the flow
@@ -61,12 +64,44 @@ class ReflectionStoryPage extends StatelessWidget {
     ];
     return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
+}
+
+class _ReflectionStoryPageState extends State<ReflectionStoryPage> {
+  /// One dismissal per page.
+  ///
+  /// [_dismiss] pops UNCONDITIONALLY (see below), so without this a double-tap
+  /// on "Done" inside one frame would pop twice — this route and the Journal
+  /// underneath it. The live flow is protected from that by its ceremony latch
+  /// (`_completing`), which a re-read deliberately does not set: it has no
+  /// ceremony to latch during.
+  bool _dismissed = false;
+
+  /// Leaves the story.
+  ///
+  /// **`pop`, never `maybePop` — this is the fix for a real bug.**
+  /// [BeatRevealFlow] wraps itself in `PopScope(canPop: false)` whose handler
+  /// calls its own `_back()`, which is how the system back GESTURE steps back
+  /// one beat instead of abandoning the night. `maybePop` is precisely the call
+  /// that `PopScope` intercepts, so the "Done" pill — which ran through
+  /// `maybePop` — was refused the pop and handed to `_back()` instead. The
+  /// reader tapped Done on the last beat and got sent back one screen: on a
+  /// saved entry the beats end `… → verse → duʿā`, so that landed on the ayah,
+  /// with no way out but the system gesture.
+  ///
+  /// An imperative `pop` does not consult `PopScope`, which is exactly the
+  /// distinction wanted here: the GESTURE still means "back one beat", and the
+  /// BUTTON means "I am done".
+  void _dismiss() {
+    if (_dismissed) return;
+    _dismissed = true;
+    Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
     final screens = buildBeatScreensFromReflection(
-      reflection,
-      coverLabel: coverLabel(reflection),
+      widget.reflection,
+      coverLabel: ReflectionStoryPage.coverLabel(widget.reflection),
     );
     return BeatRevealFlow(
       status: BeatFlowStatus.ready,
@@ -74,12 +109,12 @@ class ReflectionStoryPage extends StatelessWidget {
       // as a deck's beats are on the reveal path.
       response: null,
       screens: screens,
-      completionLabel: completionLabel,
+      completionLabel: widget.completionLabel,
       showCompletionCeremony: false,
-      onAmeen: () => Navigator.of(context).maybePop(),
+      onAmeen: _dismiss,
       // Back on the first beat leaves the canvas, matching the live flow's
       // gesture rather than trapping the reader on the cover.
-      onReturnHome: () => Navigator.of(context).maybePop(),
+      onReturnHome: _dismiss,
     );
   }
 }

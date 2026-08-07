@@ -22,7 +22,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -111,6 +114,11 @@ void main() {
         reframePreview: 'You are not carrying the outcome.',
       );
 
+  /// A muḥāsabah row for TODAY — what `tonightEntry` holds once the day's
+  /// ritual has been written, and the whole subject of
+  /// [AnalyticsEvents.propAlreadyDidMuhasabah].
+  SavedReflection tonight() => muhasabah(day: '2026-08-07');
+
   Future<_Spy> pump(
     WidgetTester t, {
     List<SavedReflection> reflections = const [],
@@ -136,9 +144,13 @@ void main() {
         GoRoute(
             path: '/muhasabah',
             builder: (_, __) => const Scaffold(body: Text('MUHASABAH ROUTE'))),
+        // The Journal's `+` pushes the composer here. Was `/reflect` until
+        // 2026-08-07; that route no longer exists, and a stub for a route the
+        // screen can no longer reach is a harness lying about the app.
         GoRoute(
-            path: '/reflect',
-            builder: (_, __) => const Scaffold(body: Text('REFLECT ROUTE'))),
+            path: newReflectionRoutePath,
+            builder: (_, __) =>
+                const Scaffold(body: Text('NEW REFLECTION ROUTE'))),
       ],
     );
     addTearDown(router.dispose);
@@ -216,36 +228,83 @@ void main() {
   });
 
   group('journal_entry_opened — one event, three doors', () {
-    testWidgets('the feed opens an entry as a detail page', (t) async {
-      final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
+    // 2026-08-06: the two doors SWAPPED. Tapping a card opens the STORY, and
+    // the footer's "View full" hint — which was always drawn there — is now the
+    // detail page's door. The format the archive was rebuilt around had been
+    // the one you must opt into, which left D2's own complaint (two lines of
+    // grey text) as the default the whole time.
+    testWidgets('the feed opens an entry as a STORY', (t) async {
+      final spy = await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01', withStory: true)],
+      );
 
       await t.tap(find.text('Al-Halim').first);
       await t.pumpAndSettle();
 
       expect(propsFor(spy, AnalyticsEvents.journalEntryOpened).single, {
         AnalyticsEvents.propOrigin: AnalyticsEvents.originJournalFeed,
-        AnalyticsEvents.propFormat: AnalyticsEvents.entryFormatDetail,
+        AnalyticsEvents.propFormat: AnalyticsEvents.entryFormatStory,
         AnalyticsEvents.propSource: AnalyticsEvents.journalSourceMuhasabah,
       });
     });
 
-    testWidgets('"Read as story" is the same event with a different format',
-        (t) async {
+    testWidgets('an entry with nothing to render still opens the detail page '
+        '— the story would be a cover card and nothing else', (t) async {
+      // No Name and no beats: `canRenderAsStory` builds an EMPTY screen list,
+      // which is the case the fallback exists for. (A Name alone is enough to
+      // pass that check — see the note in `reflection_story_page.dart`.)
+      final spy = await pump(t, reflections: [
+        const SavedReflection(
+          id: 'bare',
+          date: '2026-08-01T21:00:00.000',
+          userText: 'Just a hard day.',
+          name: '',
+          nameArabic: '',
+          reframePreview: 'preview',
+          source: reflectionSourceMuhasabah,
+          entryLocalDay: '2026-08-01',
+        ),
+      ]);
+
+      await t.tap(find.textContaining('Just a hard day').first);
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalEntryOpened)
+            .single![AnalyticsEvents.propFormat],
+        AnalyticsEvents.entryFormatDetail,
+      );
+    });
+
+    testWidgets('"View full" is the same event with a different format — the '
+        'detail page must stay reachable, it is the only home of share, '
+        'delete and edit', (t) async {
       final spy = await pump(
         t,
         reflections: [muhasabah(day: '2026-08-01', withStory: true)],
       );
 
-      await t.tap(find.text('Read as story'));
+      await t.tap(find.text('View full'));
       await t.pumpAndSettle();
 
       final opened = propsFor(spy, AnalyticsEvents.journalEntryOpened).single;
       expect(opened![AnalyticsEvents.propFormat],
-          AnalyticsEvents.entryFormatStory);
+          AnalyticsEvents.entryFormatDetail);
       expect(opened[AnalyticsEvents.propOrigin],
           AnalyticsEvents.originJournalFeed,
-          reason: 'the story door is a second FORMAT from the feed, not a '
+          reason: 'the second door is a second FORMAT from the feed, not a '
               'second origin — forking it would make "entries re-read" a union');
+    });
+
+    testWidgets('the "Read as story" link is gone — the story is what a tap '
+        'does, so a control for it is a control for nothing', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01', withStory: true)],
+      );
+
+      expect(find.text('Read as story'), findsNothing);
     });
 
     testWidgets('a Reflect save is separable from a night', (t) async {
@@ -295,13 +354,113 @@ void main() {
         (t) async {
       final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
 
-      await t.tap(find.byType(FloatingActionButton));
+      // 2026-08-07: the FAB opens a chooser, so pressing it is no longer an
+      // ACT. `journal_compose_opened` is the denominator; `..._tapped` still
+      // fires once per chosen action, with the same shape it always had, so
+      // the existing series is unbroken.
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+
+      expect(propsFor(spy, AnalyticsEvents.journalComposeOpened).single, {
+        AnalyticsEvents.propOptionCount: 2,
+      });
+      expect(propsFor(spy, AnalyticsEvents.journalComposeTapped), isEmpty,
+          reason: 'opening the chooser is not composing — counting it as one '
+              'would inflate every conversion built on this event');
+
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.startTonight)),
+      ));
       await t.pumpAndSettle();
 
       expect(propsFor(spy, AnalyticsEvents.journalComposeTapped).single, {
         AnalyticsEvents.propAction: AnalyticsEvents.composeActionStartTonight,
         AnalyticsEvents.propEntryPoint: AnalyticsEvents.composeEntryFab,
+        // Nothing written today — which is why "Begin Muḥāsabah" was offered
+        // at all.
+        AnalyticsEvents.propAlreadyDidMuhasabah: false,
       });
+    });
+
+    // ── Was the day's ritual already done? ────────────────────────────────
+    //
+    // The one measurement that decides whether the Journal's two writing doors
+    // stay two doors. Since the Reflect tab folded in, "Begin Muḥāsabah" and
+    // "New reflection" run the same engine and differ only in where the Name
+    // comes from and what it costs. That is a real distinction — but only if
+    // users hold it. See [AnalyticsEvents.propAlreadyDidMuhasabah].
+
+    testWidgets('a new reflection AFTER the ritual reports true', (t) async {
+      final spy = await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-01')],
+        loop: DailyLoopState(loaded: true, tonightEntry: tonight()),
+      );
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalComposeTapped)
+            .single![AnalyticsEvents.propAlreadyDidMuhasabah],
+        isTrue,
+        reason: 'this is the healthy reading — the metered door is the SECOND '
+            'thing the user reached for, so the two doors are serving two '
+            'moments',
+      );
+    });
+
+    testWidgets('a new reflection BEFORE the ritual reports false', (t) async {
+      // The reading that would argue for one door: the user met the metered
+      // surface first and paid for something the free one would have given
+      // them.
+      final spy = await pump(t, reflections: [muhasabah(day: '2026-08-01')]);
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      expect(
+        propsFor(spy, AnalyticsEvents.journalComposeTapped)
+            .single![AnalyticsEvents.propAlreadyDidMuhasabah],
+        isFalse,
+      );
+    });
+
+    testWidgets('the property carries no words from the entry', (t) async {
+      // A boolean, never the entry's id or text. `answer text never leaves the
+      // device` is analytics-scoped, and this event is analytics.
+      final spy = await pump(
+        t,
+        loop: DailyLoopState(loaded: true, tonightEntry: tonight()),
+      );
+
+      await t.tap(find.byKey(const ValueKey('journal-compose-fab')));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(
+        of: find.byKey(const ValueKey('journal-compose-menu')),
+        matching: find.text(
+            JournalComposeCopy.label(JournalComposeAction.newReflection)),
+      ));
+      await t.pumpAndSettle();
+
+      final value = propsFor(spy, AnalyticsEvents.journalComposeTapped)
+          .single![AnalyticsEvents.propAlreadyDidMuhasabah];
+      expect(value, isA<bool>(),
+          reason: 'anything richer than a boolean starts describing the entry');
     });
 
     testWidgets('the empty state is a different entry point, same event',

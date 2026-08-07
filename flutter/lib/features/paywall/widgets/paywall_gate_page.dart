@@ -3,6 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// Test seam shared by every gate surface: when `true`, entry motion is a
 /// no-op wrapper so `pumpAndSettle` returns.
@@ -41,6 +43,7 @@ class PaywallGatePage extends StatelessWidget {
     this.stepCount = 0,
     this.stepIndex = 0,
     this.onClose,
+    this.onBack,
     super.key,
   });
 
@@ -57,6 +60,17 @@ class PaywallGatePage extends StatelessWidget {
   /// reveal delay it replaced was a dark pattern and is deleted.
   final VoidCallback? onClose;
 
+  /// Steps BACK one page in the ceremony. `null` on the first page (there is
+  /// nowhere to go) and on any single-page surface.
+  ///
+  /// Deliberately NOT gated on the hard-wall contract, because moving between
+  /// ceremony pages is not an escape — the ✕ is the exit; this is not. (Today
+  /// the two cannot meet: `PaywallScreen` asserts `!(hardGate &&
+  /// inOnboardingFlow)` and only the onboarding placement runs a ceremony. The
+  /// independence is kept so that stays true by construction if a future
+  /// surface pairs them.)
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -67,6 +81,14 @@ class PaywallGatePage extends StatelessWidget {
             height: 44,
             child: Stack(
               children: [
+                if (onBack != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.sm),
+                      child: PaywallBackButton(onPressed: onBack!),
+                    ),
+                  ),
                 if (stepCount > 0)
                   Center(
                     child: PaywallStepDots(
@@ -85,6 +107,15 @@ class PaywallGatePage extends StatelessWidget {
               ],
             ),
           ),
+          // Breathing room under the chrome row. Owned by the FRAME, not by the
+          // pages: every page opens on a large display headline that would
+          // otherwise start hard against the back button and the ✕, and putting
+          // the gap here is what keeps all three pages of the ceremony aligned
+          // on the same top edge.
+          //
+          // Matched to [AppSpacing.pagePadding] so the headline's inset from the
+          // chrome equals its inset from the sides.
+          const SizedBox(height: AppSpacing.lg),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) => SingleChildScrollView(
@@ -108,6 +139,119 @@ class PaywallGatePage extends StatelessWidget {
             child: footer,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Non-sellable state shown until both required live packages and eligibility
+/// data are available. It intentionally has no plan cards, prices, billing
+/// terms, or purchase CTA.
+class PaywallOfferState extends StatelessWidget {
+  const PaywallOfferState({
+    required this.loading,
+    this.message,
+    this.transientError,
+    super.key,
+  });
+
+  final bool loading;
+
+  /// The body copy: why there is nothing to buy. Invariant for as long as this
+  /// surface is showing.
+  final String? message;
+
+  /// A one-off failure from an action taken ON this surface — a failed Restore,
+  /// say. Rendered as a SECOND line below [message] rather than replacing it.
+  ///
+  /// Separate slots on purpose. Restore lives on this surface, and the state it
+  /// writes ("No active premium subscription was found to restore.") answers a
+  /// different question from the one the body copy answers. Feeding it into
+  /// [message] let one tap erase the only explanation for why the screen is
+  /// empty, with nothing to put it back.
+  final String? transientError;
+
+  @override
+  Widget build(BuildContext context) {
+    // A transient error that has merely echoed the body copy is not a second
+    // fact — dropping it keeps the same sentence from rendering twice.
+    final body = message ?? AppStrings.paywallOffersUnavailable;
+    final secondary = transientError == body ? null : transientError;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Spacer(),
+        Center(
+          child: loading
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.primary,
+                  ),
+                )
+              : const Icon(
+                  Icons.cloud_off_outlined,
+                  size: 30,
+                  color: AppColors.textTertiaryLight,
+                ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          loading ? AppStrings.paywallOffersLoading : body,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodyLarge.copyWith(
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
+        if (!loading && secondary != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            secondary,
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+        const Spacer(),
+      ],
+    );
+  }
+}
+
+/// The ceremony's back chevron. Deliberately the ✕'s twin — same 44×44 hit
+/// area, same circle, same weight — because the two sit in one row and a back
+/// affordance that reads heavier than the exit invites the wrong tap.
+class PaywallBackButton extends StatelessWidget {
+  const PaywallBackButton({required this.onPressed, super.key});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        icon: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: AppColors.textSecondaryLight,
+          size: 18,
+        ),
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.surfaceLight,
+          shape: const CircleBorder(
+            side: BorderSide(color: AppColors.borderLight),
+          ),
+        ),
       ),
     );
   }

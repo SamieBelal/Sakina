@@ -157,6 +157,70 @@ WeeklyRecap? resolveWeeklyRecap({
   );
 }
 
+// ── The Journal's cadence gate ─────────────────────────────────────────────
+//
+// [resolveWeeklyRecap] is a WINDOW rule, not a rhythm: it fires whenever two
+// entries fall inside a ROLLING seven days, which for anyone writing regularly
+// is *every single day*, with content that barely moves between one day and the
+// next. That is the exact failure this library opens by naming — "a resurfacing
+// feature that fires every day is a feed" — and the recap was the one resolver
+// that had no rule keeping it quiet.
+//
+// The muḥāsabah completion screen does not need this. There the recap is
+// already gated behind "the time machine did not answer" and behind having
+// finished a night, so it is at most one a day and it is the reward for work
+// just done. The **Journal** is a place people open to look for something, and
+// a summary that is waiting there every time is wallpaper.
+
+/// The SharedPreferences key holding the week the Journal last showed the
+/// recap. Scope it with `supabaseSyncService.scopedKey` at the call site — two
+/// accounts on one device do not share a cadence.
+const String weeklyRecapLastWeekPrefsKey = 'journal_weekly_recap_last_week';
+
+/// **At most one recap per calendar week**, and the alternative was considered.
+///
+/// The other candidate was a content fingerprint — show it again only when the
+/// window's themes / Names / line actually changed. That is more expressive and
+/// it is the wrong rule here, because for the user this is aimed at the content
+/// changes *daily*: one new night shifts the count, usually adds a Name, and can
+/// replace the quoted line. A fingerprint gate would therefore fire almost as
+/// often as no gate at all, while being much harder to reason about — and it
+/// would fire LEAST for the dormant user, who is the one person for whom a
+/// resurfaced week is worth anything.
+///
+/// A calendar week is a rhythm the user can feel without being told about it: it
+/// arrives, it is gone for a few days, it comes back. It also cannot get stuck.
+/// The key is derived from today, never from stored state, so an unreadable,
+/// corrupt or future-dated marker simply fails to match and the recap shows —
+/// every failure mode is fail-OPEN.
+///
+/// Weeks start on Monday, arbitrarily but consistently: what matters is that the
+/// boundary is fixed and the same one every week.
+String? weeklyRecapWeekKey(String? localDay) {
+  if (localDay == null) return null;
+  final day = parseLocalDayString(localDay);
+  if (day == null) return null;
+  // `weekday` is 1 (Monday) … 7 (Sunday), and [parseLocalDayString] returns a
+  // UTC midnight, so this subtraction cannot land at 23:00 the day before.
+  return formatLocalDay(day.subtract(Duration(days: day.weekday - 1)));
+}
+
+/// Whether the Journal may give the recap its slot today.
+///
+/// [lastShownWeek] is whatever [weeklyRecapLastWeekPrefsKey] held — including
+/// null (never shown) and garbage (a partial write, a schema that moved). All of
+/// those are "not this week", so all of them show it.
+bool weeklyRecapIsDue({
+  required String? todayLocalDay,
+  required String? lastShownWeek,
+}) {
+  final thisWeek = weeklyRecapWeekKey(todayLocalDay);
+  // No resolvable day means no recap at all (every resolver above agrees), so
+  // there is nothing to be due.
+  if (thisWeek == null) return false;
+  return lastShownWeek != thisWeek;
+}
+
 /// The day an entry belongs to: `entry_local_day` when it has one, the calendar
 /// date of `saved_at` otherwise.
 ///
@@ -323,6 +387,36 @@ abstract final class JournalResurfacingCopy {
   static const String recapOneLineLead = 'You wrote:';
 
   static const String recapNamesLead = 'Names you met:';
+
+  // ── E2 as a story (2026-08-06) ──
+  //
+  // In the Journal the recap is no longer a block; it is a one-line door and
+  // four screens behind it. The strings below are the story's, and the trailing
+  // half of the door.
+
+  /// What the line says AFTER the user's own words, and the order is the whole
+  /// point: the quote earns the tap, *"your last seven nights"* is a filing
+  /// category. Lower-case because it continues the sentence the quote started.
+  static const String recapLineTrail = '— your last seven nights';
+
+  /// The story's opening beat. Nights, not entries, is what a person counts a
+  /// week in — and the count of ENTRIES is what the recap has, which is the same
+  /// number until somebody writes twice in one day. [weeklyRecapWindowDays] and
+  /// above collapses to *"every one of them"* rather than claim a number the
+  /// window cannot hold.
+  static String recapOpener(int entries) {
+    if (entries <= 1) return 'Seven nights. You wrote on one of them.';
+    if (entries >= weeklyRecapWindowDays) {
+      return 'Seven nights. You wrote on every one of them.';
+    }
+    return 'Seven nights. You wrote on ${_numberWord(entries)} of them.';
+  }
+
+  /// The three body beats' small-caps labels. Statements of what the screen
+  /// holds, in the second person, and none of them grades anything.
+  static const String recapThemesLabel = 'What you carried';
+  static const String recapNamesLabel = 'Names you met';
+  static const String recapWordsLabel = 'In your words';
 
   // ── E3 ──
 

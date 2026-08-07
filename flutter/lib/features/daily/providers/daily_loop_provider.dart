@@ -257,6 +257,26 @@ class DailyLoopState {
   /// to, and the affordance does not render.
   final SavedReflection? tonightEntry;
 
+  /// True when [tonightEntry] is a row that was ALREADY on the day before this
+  /// completion ran — i.e. `saveMuhasabahReflection` refused the write because
+  /// the day's one muḥāsabah slot was taken.
+  ///
+  /// **The completion screen makes a claim about tonight, and this is what
+  /// keeps it true.** `_persistMuhasabahEntry` deliberately shows "the entry
+  /// that IS on the day" rather than the one it just built, which is right: the
+  /// journal's row is the artifact. But that entry carries ANOTHER night's
+  /// Name, and the screen labels it *"The Name you met"* — so a reader who had
+  /// just been shown Al-Majeed was told they met Al-Wadud. Observed on
+  /// 2026-08-06.
+  ///
+  /// Reachable in production whenever the server refuses the insert on
+  /// `uniq_muhasabah_per_local_day`: a second device, or a completion whose
+  /// sync lands after another device has already claimed the day. The
+  /// `!checkinDone` gate blocks the same-device replay, so this is rare — but
+  /// `saveMuhasabahReflection` has always returned the boolean that detects it,
+  /// and it was simply dropped on the floor.
+  final bool tonightEntryIsReplay;
+
   /// The user's own entry from 30 / 90 / 365 nights ago — nearest available,
   /// at most one (C3).
   ///
@@ -318,6 +338,7 @@ class DailyLoopState {
     this.lapsePreLapseStreak = 0,
     this.warmupJustExhausted,
     this.tonightEntry,
+    this.tonightEntryIsReplay = false,
     this.timeMachineEntry,
     this.lastNightAzm,
     this.error,
@@ -394,6 +415,7 @@ class DailyLoopState {
     /// sheet on the next rising edge the screen observes.
     bool clearWarmupJustExhausted = false,
     SavedReflection? tonightEntry,
+    bool? tonightEntryIsReplay,
     SavedReflection? timeMachineEntry,
     String? lastNightAzm,
     String? error,
@@ -489,6 +511,8 @@ class DailyLoopState {
           ? null
           : (warmupJustExhausted ?? this.warmupJustExhausted),
       tonightEntry: tonightEntry ?? this.tonightEntry,
+      tonightEntryIsReplay:
+          tonightEntryIsReplay ?? this.tonightEntryIsReplay,
       timeMachineEntry: timeMachineEntry ?? this.timeMachineEntry,
       lastNightAzm: lastNightAzm ?? this.lastNightAzm,
       error: clearError ? null : (error ?? this.error),
@@ -2595,13 +2619,23 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       if (name.isEmpty && userText.isEmpty) return;
 
       final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
-      await saveMuhasabahReflection(
+      // The return value is load-bearing and used to be discarded. False means
+      // the day's one muḥāsabah slot was already taken, so whatever comes back
+      // from `readMuhasabahEntryForDay` below belongs to a DIFFERENT run of the
+      // night — see [DailyLoopState.tonightEntryIsReplay].
+      final wrote = await saveMuhasabahReflection(
         buildSavedReflection(
           userText: userText,
           // Null on the deck path, which has no AI response at all — the
           // pre-authored beats ARE the content. The night still deserves its
           // entry: the user's words, the Name and the day.
           response: state.reflectResult,
+          // …and on that path THIS is the content. Passing it was the whole of
+          // the 2026-08-07 fix: `revealDeck` was already on state at this line,
+          // holding the beats, verses and duʿā the reader had just been shown,
+          // and none of it reached the row. The archive rendered a cover and a
+          // Name because that is all the row had.
+          deck: state.revealDeck,
           date: debugDailyLoopClock().toIso8601String(),
           name: name.isEmpty ? null : name,
           nameArabic: nameArabic.isEmpty ? null : nameArabic,
@@ -2637,11 +2671,38 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       if (!mounted) return;
       state = state.copyWith(
         tonightEntry: tonight,
+        // Only a row we did NOT write is a replay. A refused write with no row
+        // to fall back on (`tonight == null`) is the ordinary "nothing was
+        // saved" case the completion screen already handles, and flagging it
+        // would make the screen apologise for an entry it is not showing.
+        tonightEntryIsReplay: !wrote && tonight != null,
         timeMachineEntry: anchor,
       );
     } catch (e) {
       debugPrint('[daily_loop] muhasabah journal entry not written: $e');
     }
+  }
+
+  /// Adopts an entry that was edited SOMEWHERE ELSE — the Journal's edit sheet,
+  /// which writes through `editReflectionText` and has no view of this notifier.
+  ///
+  /// Two copies of a muḥāsabah row can be on screen at once: this notifier's
+  /// `tonightEntry` (the completion screen, and the source of the compose
+  /// control's meaning) and `timeMachineEntry` (the "On This Night" anchor).
+  /// Without this, editing tonight's words from the Journal and returning to the
+  /// completion screen would show the pre-edit text until the next launch.
+  ///
+  /// Matches on id and touches nothing else, so an edit to an unrelated entry is
+  /// a no-op rather than a state write.
+  void adoptEditedEntry(SavedReflection updated) {
+    if (!mounted) return;
+    final isTonight = state.tonightEntry?.id == updated.id;
+    final isAnchor = state.timeMachineEntry?.id == updated.id;
+    if (!isTonight && !isAnchor) return;
+    state = state.copyWith(
+      tonightEntry: isTonight ? updated : state.tonightEntry,
+      timeMachineEntry: isAnchor ? updated : state.timeMachineEntry,
+    );
   }
 
   /// **"Add to tonight" (Wave C, C1) — a pure text write, and nothing else.**

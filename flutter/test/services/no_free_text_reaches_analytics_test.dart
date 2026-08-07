@@ -127,6 +127,11 @@ void main() {
       // the obvious thing to hand an emit.
       'onThisNight',
       'anchor',
+      // The same trap one level up: `WeeklyRecap` CONTAINS `oneLine`, and since
+      // 2026-08-06 the Journal hands the whole object to a route and emits
+      // alongside it. `entry_count` and `beat_count` are read off it explicitly
+      // and are fine; the object itself never is.
+      'recap',
     ];
     final offenders = <String>[];
 

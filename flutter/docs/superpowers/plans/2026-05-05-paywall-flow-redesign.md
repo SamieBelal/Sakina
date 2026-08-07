@@ -1,5 +1,10 @@
 # Paywall Flow Redesign Implementation Plan
 
+> **Superseded (2026-08-03):** This historical plan predates the W5 paywall copy
+> reconciliation. Its literal prices, trial wording, and `AppStrings` snippets are
+> archival context only. Use the live RevenueCat package data and the current W5
+> content spec when changing the shipped paywall.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restructure the onboarding paywall from a single screen into a 4-screen "paywall flow" (Generating loader → Personalized Plan → Your Journey → price screen) to lift trial-start conversion. Net +1 page (25 → 26).

@@ -84,8 +84,8 @@ class PaywallExitOfferSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               trial == null
-                  ? 'Not ready for a year? Try the weekly plan — '
-                      '$weeklyPrice/week, cancel anytime.'
+                  ? AppStrings.paywallExitOfferNoTrialBodyTemplate
+                      .replaceAll('{price}', weeklyPrice)
                   : AppStrings.paywallExitOfferBodyTemplate
                       .replaceAll('{trial}', trial),
               textAlign: TextAlign.center,
@@ -96,7 +96,8 @@ class PaywallExitOfferSheet extends StatelessWidget {
             if (trial != null) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '$weeklyPrice / week after trial',
+                AppStrings.paywallExitOfferAfterTrialTemplate
+                    .replaceAll('{price}', weeklyPrice),
                 textAlign: TextAlign.center,
                 style: AppTypography.bodySmall.copyWith(
                   // Billing terms never go below `textSecondaryLight`.
@@ -108,8 +109,8 @@ class PaywallExitOfferSheet extends StatelessWidget {
             SizedBox(
               height: 52,
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context)
-                    .pop(PaywallExitOfferOutcome.accepted),
+                onPressed: () =>
+                    Navigator.of(context).pop(PaywallExitOfferOutcome.accepted),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.textOnPrimary,
@@ -133,7 +134,7 @@ class PaywallExitOfferSheet extends StatelessWidget {
                 ),
                 child: Text(
                   trial == null
-                      ? 'Try weekly'
+                      ? AppStrings.paywallExitOfferTryWeekly
                       : AppStrings.paywallExitOfferAcceptTemplate
                           .replaceAll('{trial}', trial),
                   style: AppTypography.labelLarge.copyWith(

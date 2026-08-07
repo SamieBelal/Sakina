@@ -19,7 +19,7 @@ class PaywallOfferView {
     this.trialDays,
   });
 
-  /// `"$49.99/year · $0.96 a week"`.
+  /// A localized annual price and its live per-week equivalent.
   final String annualPriceLine;
 
   /// `"Save 80% vs weekly"` — the sticker on the annual card, computed from
@@ -32,8 +32,9 @@ class PaywallOfferView {
   /// it did not just compute.
   final String? annualSavingsLabel;
 
-  /// `"Weekly — $4.99/week · 7 days free first"`, or without the trial clause
-  /// when this user gets no trial.
+  /// `"Weekly — $4.99/week"`. The weekly row is price-only; trial duration
+  /// belongs in the CTA and billing terms where Apple purchase disclosure
+  /// requires it.
   final String weeklyRowLabel;
 
   /// The plain terms under the CTA. Always states the post-trial charge, the

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +44,7 @@ class FakePurchaseService extends PurchaseService {
   FakePurchaseService() : super.test();
 
   List<Package> offerings = <Package>[];
+  Completer<List<Package>>? offeringsGate;
   Object? offeringsError;
   CustomerInfo? purchaseResult;
   Object? purchaseError;
@@ -51,6 +54,8 @@ class FakePurchaseService extends PurchaseService {
 
   @override
   Future<List<Package>> getOfferings() async {
+    final gate = offeringsGate;
+    if (gate != null) return gate.future;
     if (offeringsError != null) throw offeringsError!;
     return offerings;
   }
@@ -133,38 +138,31 @@ CustomerInfo buildCustomerInfo({
   );
 }
 
-StoreProduct buildStoreProduct(
-  String productId, {
-  bool withTrial = true,
-}) {
-  return StoreProduct(
-    productId,
-    'Test description',
-    'Test title',
-    4.99,
-    '\$4.99',
-    'USD',
-    introductoryPrice: withTrial
-        ? const IntroductoryPrice(
-            0,
-            'Free',
-            'P3D',
-            1,
-            PeriodUnit.day,
-            3,
-          )
-        : null,
-  );
-}
-
 Package buildPackage({
   required PackageType type,
   required String productId,
+  double price = 4.99,
+  String? priceString,
 }) {
   return Package(
     type.name,
     type,
-    buildStoreProduct(productId),
+    StoreProduct(
+      productId,
+      'Test description',
+      'Test title',
+      price,
+      priceString ?? '\$4.99',
+      'USD',
+      introductoryPrice: const IntroductoryPrice(
+        0,
+        'Free',
+        'P3D',
+        1,
+        PeriodUnit.day,
+        3,
+      ),
+    ),
     const PresentedOfferingContext('default', null, null),
   );
 }
@@ -211,7 +209,7 @@ void main() {
 
   // The CTA's duration is DERIVED from the fixture package's introductory
   // offer (P3D above), so the label follows the store rather than a constant.
-  // Change `buildStoreProduct`'s IntroductoryPrice and this string must change
+  // Change `buildPackage`'s IntroductoryPrice and this string must change
   // with it — that is the property Wave B.4 exists to guarantee.
   const ctaTrial = 'Start my 3 days free';
 
@@ -435,20 +433,12 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    // CTA text varies (trial vs Subscribe) based on whether this USER gets an
-    // introductory offer. Offerings failed to load here, so there is no trial
-    // and the CTA reads "Subscribe". Tap by widget type to stay decoupled from
-    // copy.
-    await tapVisible(tester, find.byType(ElevatedButton));
-    await tester.pumpAndSettle();
-
     expect(completed, isFalse);
-    expect(
-      find.text(
-        'Unable to load subscription options right now. Please try again.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text(AppStrings.paywallOffersUnavailable), findsOneWidget);
+    expect(find.byType(ElevatedButton), findsNothing,
+        reason: 'an offerings failure must never expose a purchase CTA');
+    expect(find.text(AppStrings.paywallTerms), findsNothing,
+        reason: 'an unavailable offer must not expose billing terms');
   });
 
   testWidgets(
@@ -461,12 +451,84 @@ void main() {
 
     // The user must see the error BEFORE tapping the CTA; that's the point
     // of B6. We don't tap anything in this test.
-    expect(
-      find.text(
-        'Unable to load subscription options right now. Please try again.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text(AppStrings.paywallOffersUnavailable), findsOneWidget);
+    expect(find.byType(ElevatedButton), findsNothing);
+    expect(find.text(AppStrings.paywallTerms), findsNothing);
     expect(completed, isFalse);
   });
+
+  testWidgets('offerings loading never renders a sellable surface',
+      (tester) async {
+    final gate = Completer<List<Package>>();
+    purchaseService.offeringsGate = gate;
+
+    await tester.pumpWidget(buildSubject());
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text(AppStrings.paywallOffersLoading), findsOneWidget);
+    expect(find.byType(ElevatedButton), findsNothing);
+    expect(find.text(AppStrings.paywallTerms), findsNothing);
+    expect(find.textContaining('\$'), findsNothing);
+
+    gate.complete(purchaseService.offerings);
+    await tester.pumpAndSettle();
+    expect(find.text(ctaTrial), findsOneWidget);
+  });
+
+  final unavailableOfferCases = <({
+    String name,
+    void Function(FakePurchaseService service) configure,
+  })>[
+    (
+      name: 'thrown offerings',
+      configure: (service) => service.offeringsError = StateError('boom'),
+    ),
+    (
+      name: 'empty offerings',
+      configure: (service) => service.offerings = <Package>[],
+    ),
+    (
+      name: 'incomplete offerings',
+      configure: (service) => service.offerings = [
+            buildPackage(
+              type: PackageType.annual,
+              productId: 'sakina_sub_annual',
+            ),
+          ],
+    ),
+    (
+      name: 'price-less offerings',
+      configure: (service) => service.offerings = [
+            buildPackage(
+              type: PackageType.annual,
+              productId: 'sakina_sub_annual',
+              price: 0,
+              priceString: '',
+            ),
+            buildPackage(
+              type: PackageType.weekly,
+              productId: 'sakina_sub_weekly',
+              price: 0,
+              priceString: '',
+            ),
+          ],
+    ),
+  ];
+
+  for (final testCase in unavailableOfferCases) {
+    testWidgets('${testCase.name} has no fabricated purchase UI',
+        (tester) async {
+      testCase.configure(purchaseService);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.paywallOffersUnavailable), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text(AppStrings.paywallTerms), findsNothing);
+      expect(find.textContaining('\$'), findsNothing);
+      expect(completed, isFalse);
+    });
+  }
 }

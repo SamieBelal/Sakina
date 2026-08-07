@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +44,24 @@ class _StubAuthService extends AuthService {
   }) async {
     callCount += 1;
     return _result;
+  }
+}
+
+/// Holds the sign-up open so the in-flight state can be observed. The real
+/// screen makes four sequential network calls before it advances; this stands
+/// in for all of them.
+class _HangingAuthService extends AuthService {
+  final completer = Completer<SignUpResult>();
+  int callCount = 0;
+
+  @override
+  Future<SignUpResult> signUpWithRecovery(
+    String email,
+    String password, {
+    String? fullName,
+  }) {
+    callCount += 1;
+    return completer.future;
   }
 }
 
@@ -100,6 +120,83 @@ void main() {
   });
 
   testWidgets(
+    'Continue shows a spinner for the whole sign-up round-trip and cannot be '
+    'tapped twice',
+    (tester) async {
+      useOnboardingViewport(tester);
+      final auth = _HangingAuthService();
+      var nextCalled = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authServiceProvider.overrideWithValue(auth),
+            cachedOnboardingStateProvider.overrideWithValue(
+              const OnboardingState(
+                currentPage: onboardingPasswordPageIndex,
+                signUpEmail: 'taken@example.com',
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            home: SignUpPasswordScreen(
+              onNext: () => nextCalled = true,
+              onBack: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(
+        find.byType(OnboardingAutofocusTextField),
+        'hunter2',
+      );
+      await tester.pump();
+
+      final button = find.byType(OnboardingContinueButton);
+      expect(
+        find.descendant(
+          of: button,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+        reason: 'idle button shows its label',
+      );
+
+      await tester.tap(button);
+      await tester.pump();
+
+      // The point of the fix: feedback lands on the very next frame, while the
+      // round-trip is still open — not when the NEXT screen finally builds.
+      expect(
+        find.descendant(
+          of: button,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+        reason: 'the tap must change something on screen immediately',
+      );
+
+      await tester.tap(button, warnIfMissed: false);
+      await tester.pump();
+      expect(
+        auth.callCount,
+        1,
+        reason: 'a spinning button must not accept a second sign-up',
+      );
+
+      auth.completer.complete(
+        const SignUpResult(SignUpOutcome.failed, errorMessage: 'nope'),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(nextCalled, isFalse);
+      await _drainTimers(tester);
+    },
+  );
+
+  testWidgets(
     'failed recovery (existing email + wrong password) surfaces the real auth '
     'error, not the old dead-end copy, and does not advance',
     (tester) async {
@@ -143,8 +240,8 @@ void main() {
 
       await _enterPasswordAndSubmit(tester);
 
-      expect(find.text('Something went wrong. Please try again.'),
-          findsOneWidget);
+      expect(
+          find.text('Something went wrong. Please try again.'), findsOneWidget);
       expect(find.textContaining('tap Continue to finish signing in'),
           findsNothing);
       expect(nextCalled, isFalse);

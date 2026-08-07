@@ -32,10 +32,14 @@ import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
 import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/features/journal/journal_export.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/core/constants/app_durations.dart';
 
@@ -472,6 +476,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// D2's export control — hand the user their own words back.
+  ///
+  /// Shares a plain-text document rather than writing a file: `share_plus` is
+  /// already a dependency, the OS sheet lets them pick Files / Mail / Notes /
+  /// anywhere, and it needs no storage permission on either platform.
+  Future<void> _exportJournal() async {
+    final reflections = ref.read(reflectProvider).savedReflections;
+    final now = DateTime.now();
+    final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    final text = buildJournalExport(reflections, generatedOn: stamp);
+
+    if (!mounted) return;
+    // Anchored to the screen for iPad, where an unanchored share sheet throws.
+    final box = context.findRenderObject() as RenderBox?;
+    await Share.share(
+      text,
+      subject: '$journalExportHeader — $stamp',
+      sharePositionOrigin:
+          box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+    );
+  }
+
+  /// D2's delete-all control.
+  ///
+  /// Two-step, reusing the same confirm shape as every other irreversible
+  /// delete in the app. The count is in the prompt on purpose: "delete 137
+  /// entries" is a different decision from "delete all entries", and the user
+  /// should be told which one they are making.
+  Future<void> _deleteAllJournalEntries() async {
+    final count = ref.read(reflectProvider).savedReflections.length;
+    if (count == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            duration: kSnackBarDuration,
+            content: Text('There is nothing saved to delete.')),
+      );
+      return;
+    }
+
+    final confirmed = await confirmDeleteDialog(
+      context,
+      title: 'Delete all $count '
+          '${count == 1 ? 'entry' : 'entries'}?',
+      body: 'Every muḥāsabah and reflection you have saved will be permanently '
+          "destroyed, on this device and on our servers. This can't be undone.\n\n"
+          'If you want to keep a copy, cancel and use Export my journal first.',
+      confirmLabel: 'Delete everything',
+    );
+    if (!confirmed || !mounted) return;
+
+    final ok = await ref.read(reflectProvider.notifier).deleteAllReflections();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: ok ? kSnackBarDuration : kSnackBarErrorDuration,
+        content: Text(ok
+            ? 'Your journal has been deleted.'
+            : "Couldn't delete your journal. Please try again."),
       ),
     );
   }
@@ -1273,9 +1340,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
 
         // Danger Zone
+        _buildSectionLabel('Your journal'),
+        const SizedBox(height: AppSpacing.sm),
+        _buildSettingsCard([
+          // D2's export control. Not destructive, so it lives here and not in
+          // the Danger Zone — burying "keep a copy" among "destroy things"
+          // would discourage the one action we want to be easy.
+          _buildSettingsRow(
+            icon: Icons.ios_share_rounded,
+            label: 'Export my journal',
+            onTap: _exportJournal,
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.lg),
         _buildSectionLabel('Danger Zone'),
         const SizedBox(height: AppSpacing.sm),
         _buildSettingsCard([
+          _buildSettingsRow(
+            icon: Icons.auto_delete_outlined,
+            label: 'Delete all journal entries',
+            onTap: _deleteAllJournalEntries,
+            isDestructive: true,
+          ),
+          _buildDivider(),
           _buildSettingsRow(
             icon: Icons.replay_rounded,
             label: 'Reset Daily Loop',

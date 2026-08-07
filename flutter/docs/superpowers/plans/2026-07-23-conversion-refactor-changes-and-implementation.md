@@ -381,13 +381,12 @@ the live App Store Connect / RevenueCat config was read rather than the plan's t
 
 *① The $59.99 anchor is CUT — annual stays at **$49.99**.* The plan asserted a $59.99 anchor
 in the W5 bullet and the approved paywall draft. ASC actually sells `sakina_sub_annual` at
-**$49.99** (verified 2026-07-31; AED 199.99 in the AE tier), and `app_strings.dart` agrees
-(`paywallAnnualPrice`, `paywallAnnualPerWeek = $0.96`). Shipping the drafted page would have
-been a **20% price rise smuggled inside a paywall redesign** — a separate decision with its
-own rules for existing subscribers (price preservation or consent, and they can decline).
-Founder: do not raise it. Consequence: the paywall copy uses $49.99 / $0.96 a week, the
-"Save 50% vs weekly" claim is restated so the math is checkable against the weekly row, and
-**W5 loses the price-migration task entirely**. The 3→7-day trial change now stands alone.
+**$49.99** (verified 2026-07-31; AED 199.99 in the AE tier). Shipping the drafted page would
+have been a **20% price rise smuggled inside a paywall redesign** — a separate decision with
+its own rules for existing subscribers (price preservation or consent, and they can decline).
+Founder: do not raise it. Consequence: the shipped paywall reads the localised price and
+derives any savings math from live annual and weekly packages; it has no static price fallback.
+The 3→7-day trial change now stands alone.
 
 *② `discoverName` becomes a genuine 1/day, with a 3-re-roll warmup.* Resolves the ⚠️
 2026-07-30 correction above. The day-open check-in is **one per day, free, permanently

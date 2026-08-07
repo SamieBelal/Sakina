@@ -25,6 +25,8 @@ import 'package:sakina/features/daily/widgets/azm_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_opening_line.dart';
 import 'package:sakina/features/daily/widgets/time_machine_card.dart';
 import 'package:sakina/features/daily/widgets/tonight_entry_summary.dart';
+import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_question_gate.dart';
@@ -132,6 +134,7 @@ void main() {
   DailyLoopState completed({
     SavedReflection? tonight,
     SavedReflection? anchor,
+    bool isReplay = false,
   }) =>
       DailyLoopState(
         loaded: true,
@@ -142,11 +145,18 @@ void main() {
         checkinName: 'Al-Halim',
         checkinNameArabic: 'الحليم',
         tonightEntry: tonight,
+        tonightEntryIsReplay: isReplay,
         timeMachineEntry: anchor,
       );
 
-  Future<_StubLoop> pump(WidgetTester t, DailyLoopState initial) async {
+  Future<_StubLoop> pump(
+    WidgetTester t,
+    DailyLoopState initial, {
+    List<SavedReflection> reflections = const [],
+  }) async {
     final notifier = _StubLoop(initial);
+    final reflectNotifier = ReflectNotifier(loadOnInit: false)
+      ..debugSeedReflections(reflections);
     final router = GoRouter(
       initialLocation: '/muhasabah',
       routes: [
@@ -159,7 +169,10 @@ void main() {
     addTearDown(router.dispose);
     await t.pumpWidget(
       ProviderScope(
-        overrides: [dailyLoopProvider.overrideWith((_) => notifier)],
+        overrides: [
+          dailyLoopProvider.overrideWith((_) => notifier),
+          reflectProvider.overrideWith((_) => reflectNotifier),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );
@@ -188,12 +201,71 @@ void main() {
     await t.pump(const Duration(seconds: 1));
   }
 
+  // ── The replay (2026-08-06) ───────────────────────────────────────────────
+  //
+  // When the day already had a muḥāsabah, the write is refused and this screen
+  // falls back to showing the row that IS on the day. That row carries a
+  // DIFFERENT night's Name, and the screen labelled it "The Name you met" — so
+  // a reader who had just been shown Al-Majeed was told they met Al-Wadud.
+  //
+  // The entry still renders: it is real, it is the user's, and "add to tonight"
+  // appends to it. What changes is the one claim on this screen that is about
+  // TONIGHT rather than about the row.
+  //
+  // MUTATION: pass `isReplay: false` through to TonightEntrySummary → the first
+  // test fails, still claiming the Name was met tonight.
+  group('a replayed night does not claim another night\'s Name', () {
+    testWidgets('the Name label stops saying "you met"', (t) async {
+      await pump(t, completed(tonight: entry(), isReplay: true));
+
+      expect(find.text(MuhasabahCompletionCopy.nameLabelReplay), findsOneWidget);
+      expect(find.text(MuhasabahCompletionCopy.nameLabel), findsNothing,
+          reason: 'this is the false claim the fix exists to remove');
+    });
+
+    testWidgets('and says why the entry on screen is not the one just written',
+        (t) async {
+      await pump(t, completed(tonight: entry(), isReplay: true));
+
+      expect(find.text(MuhasabahCompletionCopy.replayNotice), findsOneWidget,
+          reason: 'silently showing an earlier run of the night is how the '
+              'reader concludes the app lost what they just wrote');
+    });
+
+    testWidgets('the entry itself is still shown, and still appendable',
+        (t) async {
+      await pump(t, completed(tonight: entry(), isReplay: true));
+
+      expect(find.byType(TonightEntrySummary), findsOneWidget);
+      expect(find.byType(AddToTonightCard), findsOneWidget,
+          reason: 'the row is the user\'s own and tonight is still open — a '
+              'replay must not take the journaling affordances away');
+    });
+
+    testWidgets('an ordinary night is completely unchanged', (t) async {
+      await pump(t, completed(tonight: entry()));
+
+      expect(find.text(MuhasabahCompletionCopy.nameLabel), findsOneWidget);
+      expect(find.text(MuhasabahCompletionCopy.nameLabelReplay), findsNothing);
+      expect(find.text(MuhasabahCompletionCopy.replayNotice), findsNothing);
+    });
+  });
+
   group('what was saved', () {
     testWidgets('the words, the Name and the duʿā are shown back',
         (t) async {
       await pump(t, completed(tonight: entry()));
 
-      expect(find.text(MuhasabahCompletionCopy.header), findsOneWidget);
+      // Hour-aware since 2026-08-06: the muḥāsabah is local-DAY keyed, not
+      // night-gated, so a morning reader is told "Today", not "Tonight".
+      // Asserted through the same helper the screen calls — pinning a literal
+      // here would make this test pass in the evening and fail in the morning.
+      // The noun logic itself is pinned exhaustively and clock-free in
+      // test/features/daily/muhasabah_completion_copy_test.dart.
+      expect(
+        find.text(MuhasabahCompletionCopy.headerFor(DateTime.now().hour)),
+        findsOneWidget,
+      );
       expect(find.byType(TonightEntrySummary), findsOneWidget);
       expect(
         find.text('I snapped at my brother and I have been sitting with it.'),
@@ -216,7 +288,10 @@ void main() {
       expect(find.byType(AddToTonightCard), findsNothing);
       expect(find.byType(AzmField), findsNothing);
       expect(find.byType(TimeMachineCard), findsNothing);
-      expect(find.text(MuhasabahCompletionCopy.subheader), findsNothing);
+      expect(
+        find.text(MuhasabahCompletionCopy.subheaderFor(DateTime.now().hour)),
+        findsNothing,
+      );
       // …and the way out still works.
       expect(find.text(MuhasabahCompletionCopy.returnHome), findsOneWidget);
     });
@@ -347,6 +422,53 @@ void main() {
       );
       expect(
           find.text(MuhasabahCompletionCopy.timeMachineYear), findsOneWidget);
+    });
+  });
+
+  // The recap's OTHER home, and the reason `WeeklyRecapCard` still exists.
+  //
+  // 2026-08-06: the Journal's copy of this card became a one-line door onto a
+  // story (`weekly_recap_story_test.dart`). This screen deliberately did NOT
+  // follow. It is already a reflective moment, the card here is already gated on
+  // the time machine having stayed quiet, and sending someone out to a
+  // full-screen story mid-completion would break the night — the completion
+  // screen has exactly one forward action and a second flow is not it.
+  //
+  // MUTATION: swap `WeeklyRecapCard` here for the Journal's line → both tests
+  // below fail.
+  group('the weekly recap on the completion screen', () {
+    List<SavedReflection> aWeekOfNights() => [
+          entry(id: 'n1', day: '2026-08-02', words: 'anxious about money'),
+          entry(id: 'n2', day: '2026-08-01', words: 'stressed about the exam'),
+        ];
+
+    testWidgets('is still the BLOCK card, with no door out of the night',
+        (t) async {
+      await pump(
+        t,
+        completed(tonight: entry(id: 'n1')),
+        reflections: aWeekOfNights(),
+      );
+
+      expect(find.byType(WeeklyRecapCard), findsOneWidget);
+      expect(find.text(JournalResurfacingCopy.recapHeader), findsOneWidget);
+      expect(find.text(JournalResurfacingCopy.recapLineTrail), findsNothing,
+          reason: 'the Journal\'s door is the Journal\'s; this screen must not '
+              'grow a second flow to leave through');
+    });
+
+    testWidgets('the time machine still wins the slot', (t) async {
+      await pump(
+        t,
+        completed(
+          tonight: entry(id: 'n1'),
+          anchor: entry(id: 'old', day: '2026-07-03', words: 'A month ago.'),
+        ),
+        reflections: aWeekOfNights(),
+      );
+
+      expect(find.byType(TimeMachineCard), findsOneWidget);
+      expect(find.byType(WeeklyRecapCard), findsNothing);
     });
   });
 

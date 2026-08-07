@@ -6,10 +6,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../services/card_collection_service.dart';
+import '../../../services/gating_service.dart';
 import '../../streaks/models/companion_state.dart';
 import '../../streaks/providers/cosmetics_ui_providers.dart';
 import '../../streaks/widgets/companion_medallion.dart';
 import '../../../core/theme/app_typography.dart';
+import '../content/free_tier_copy.dart';
 import '../content/help_chips.dart';
 import '../content/intake_questions.dart';
 import '../content/carrying_durations.dart';
@@ -238,6 +240,8 @@ class QueuePlanScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   ..._rows(queue, hasPair),
+                  const SizedBox(height: AppSpacing.lg),
+                  _freeTierLine(),
                 ],
               ),
             ),
@@ -248,6 +252,38 @@ class QueuePlanScreen extends ConsumerWidget {
             onPressed: onNext,
           ),
         ],
+      ),
+    );
+  }
+
+  /// What the free tier actually grants, said once, here.
+  ///
+  /// **This screen and not the paywall, deliberately.** Two screens on, the
+  /// paywall's job is "unlock unlimited"; explaining what someone already has
+  /// for free at the moment you are asking them to pay is handing them a reason
+  /// to decline. This screen is the payoff — its own comment upstream calls it
+  /// *"everything above earns this screen; everything below is an ask"* — so it
+  /// is the last moment in the flow that is pure giving.
+  ///
+  /// **Framed as the grant, never as the cap.** Not "3 reflections a week, then
+  /// you're blocked" but what is true and generous: the day's Name never runs
+  /// out, and there are reflections on top of it. Every gate sheet in the app
+  /// fires AFTER a block; this is the only line in the product that arrives
+  /// before one.
+  ///
+  /// **The numbers are `reel_v1`'s and are stated as constants, not literals.**
+  /// A hardcoded "three" here would silently become a lie the day
+  /// `weekly_pool_size` is re-dialled — and this line is a promise made to a
+  /// user who has not signed up yet, which is the worst kind to break. The
+  /// offline fallback is the right source: it is what the client will enforce
+  /// when it cannot reach config, and it matches the seeded dial and the RPC's
+  /// own `coalesce(..., 3)`.
+  Widget _freeTierLine() {
+    return Text(
+      FreeTierCopy.freeTierGrant(GatingService.weeklyPoolSizeFallback),
+      style: AppTypography.bodySmall.copyWith(
+        color: AppColors.textSecondaryLight,
+        height: 1.45,
       ),
     );
   }

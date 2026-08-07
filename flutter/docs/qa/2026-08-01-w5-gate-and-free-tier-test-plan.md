@@ -51,7 +51,8 @@ offerings fetch returns nothing, so:
 - **the paywall always renders its NO-TRIAL variant**: CTA reads "Subscribe", the terms
   line reads "$49.99 a year. Cancel anytime.", and the ceremony collapses to **2 pages**
   (the trial timeline is dropped by design)
-- prices fall back to the shipped USD constants (`$49.99` / `$4.99`)
+- the paywall renders its explicit unavailable state: no fabricated prices, billing terms,
+  or purchase CTA are shown
 
 **So the sim gives you preview #5 — the ineligible user — and nothing else.** That is a
 real and important state (every lapsed trialer lands there), but it is not the default one.

@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/core/constants/fade_through_route.dart';
+import 'package:sakina/core/constants/app_motion.dart';
+import 'package:sakina/core/constants/motion_context.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -11,12 +17,16 @@ import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/journal/content/new_reflection_copy.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
+import 'package:sakina/features/journal/providers/reflection_allowance_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/journal_search.dart';
 import 'package:sakina/features/journal/journal_themes.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
-import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/journal/widgets/compose_menu.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
@@ -27,10 +37,13 @@ import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/reflection_story_page.dart';
+import 'package:sakina/features/journal/screens/weekly_recap_story_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
@@ -85,6 +98,28 @@ final journalLocalDayProvider = FutureProvider.autoDispose<String?>((ref) async 
   }
 });
 
+/// The week the Journal last gave the weekly recap its slot, or null.
+///
+/// Read once, at the start of a visit, and never invalidated: the write that
+/// follows a show would otherwise re-run this and re-evaluate the gate against
+/// the value just written. `autoDispose` so that LEAVING the Journal is what
+/// re-reads it — but the answer is latched in `_recapAllowedThisVisit` rather
+/// than read live, because this provider can also be disposed *mid-visit* (see
+/// that field, and the search-mode note on `_gatedWeeklyRecap`).
+///
+/// Failures are indistinguishable from "never shown", which is the direction
+/// the gate is safe in: a SharedPreferences that cannot be read shows the recap
+/// rather than silencing it forever.
+final journalRecapWeekProvider = FutureProvider.autoDispose<String?>((ref) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs
+        .getString(supabaseSyncService.scopedKey(weeklyRecapLastWeekPrefsKey));
+  } catch (_) {
+    return null;
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Entry type for unified feed
 // ---------------------------------------------------------------------------
@@ -125,6 +160,15 @@ final DateTime _undatedEntrySortKey =
 // Screen
 // ---------------------------------------------------------------------------
 
+/// One line of the header's stat block.
+///
+/// [accent] is the trailing fragment that lifts out of the tertiary grey —
+/// today only the streak's number. [spaced] adds a gap ABOVE the line, used to
+/// separate a fact about the future from the facts about the past. Both are
+/// optional and both default to "plain", so a new line added here is quiet
+/// unless someone decides otherwise. See `_statsLines`.
+typedef _StatLine = ({String lead, String? accent, bool spaced});
+
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key});
 
@@ -142,6 +186,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// tab-switch that rebuilds this screen re-arms it and a `setState` from the
   /// tab controller does not.
   bool _resurfacingFired = false;
+
+  /// The weekly recap's cadence gate, answered once per visit and then held.
+  /// Null until [_maybeEmitResurfacingShown] has both its async inputs. See
+  /// [_gatedWeeklyRecap] for why this is a latch and not a live read.
+  bool? _recapAllowedThisVisit;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
   int _lastTabIndex = 0;
 
@@ -155,6 +204,37 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   /// Index of the Badges tab in [_buildScaffold]'s IndexedStack / TabBar.
   static const _achievementsTabIndex = 3;
+
+  // ── Search (2026-08-06) ───────────────────────────────────────────────────
+  //
+  // Search is a MODE, not a fifth tab and not a fourth filter chip.
+  //
+  // The filters and the tabs both answer "which KIND of thing", and the archive
+  // already has two rows of controls saying so. The question search answers —
+  // "where is the night I wrote about my father" — is not a kind, it cuts across
+  // every tab at once, and a per-tab search box would have meant a user who
+  // searched from the wrong tab being told, truthfully and uselessly, that their
+  // entry does not exist. So the whole screen becomes the results, and closing
+  // it puts every one of those controls back exactly as it was.
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  bool _searching = false;
+
+  /// The parsed query. Empty means "not filtering" even while the mode is open,
+  /// which is what the prompt state renders.
+  List<String> _searchTokens = const [];
+
+  /// Set during build, read by [_searchDebounce] when it fires — the count is a
+  /// property of the results the user is looking at, and that is the only place
+  /// it is known.
+  int _searchResultCount = 0;
+  Timer? _searchDebounce;
+
+  /// Debounced so `p` / `pa` / `pai` / `pain` is one `journal_searched` and not
+  /// four. Long enough to sit out ordinary typing, short enough that a user who
+  /// pauses to read their results has already been counted.
+  static const _searchAnalyticsDebounce = Duration(milliseconds: 700);
 
   @override
   void initState() {
@@ -176,6 +256,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   @override
   void dispose() {
     _tab.dispose();
+    // Cancelled, not left to fire: the timer's callback reads `ref` and calls
+    // `setState`, and both are errors once this State is gone.
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -242,7 +327,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   ) {
     // Wave E's strip, resolved HERE so its `ref.watch` calls happen during
     // build. See [_buildResurfacingStrip].
+    //
+    // Built BEFORE the search branch even though search never renders it. It
+    // holds the only surviving `ref.watch(journalLocalDayProvider)` once
+    // `_resurfacingFired` latches, and that provider is `autoDispose`: skipping
+    // this line while searching drops its last watcher, disposes it, and makes
+    // closing search re-await a future — so the strip would pop back in a frame
+    // late, every time.
     final resurfacing = _buildResurfacingStrip(reflections);
+
+    if (_searching) return _buildSearchScaffold(allEntries);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
@@ -254,13 +348,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(totalCount, reflections),
-            if (totalCount > 0) ...[
-              const SizedBox(height: 12),
-              _buildInlineStats(
-                  reflections, builtDuas.length + savedDuas.length),
-            ],
-            const SizedBox(height: 16),
+            _buildHeader(
+              totalCount,
+              reflections,
+              builtDuas.length + savedDuas.length,
+            ),
+            if (totalCount > 0) _buildRecapBlock(reflections),
+            const SizedBox(height: 20),
             _buildTabs(),
             Expanded(
               child: IndexedStack(
@@ -281,10 +375,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(int total, List<SavedReflection> reflections) {
+  Widget _buildHeader(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
+          AppSpacing.pagePadding, 20, AppSpacing.pagePadding, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -296,21 +394,305 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                         style: AppTypography.displayLarge
                             .copyWith(color: AppColors.textPrimaryLight))
                     .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideY(begin: 0.05, end: 0, duration: 500.ms),
-                const SizedBox(height: 4),
-                Text(
-                  total == 0 ? 'Your spiritual diary' : '$total entries',
-                  style: AppTypography.bodyMedium
-                      .copyWith(color: AppColors.textSecondaryLight),
-                ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                    .fadeIn(duration: context.motion(AppMotion.entrance))
+                    .slideY(
+                      begin: 0.05,
+                      end: 0,
+                      duration: context.motion(AppMotion.entrance),
+                      curve: AppMotion.enter,
+                    ),
+                const SizedBox(height: 6),
+                // One `Text` per line rather than a single `\n`-joined string,
+                // so each keeps its own baseline spacing and a long one
+                // ellipsises on its own instead of pushing the next down.
+                ..._buildStatsBlock(total, reflections, duasCount),
               ],
             ),
           ),
+          _buildSearchButton(),
           _buildBrowseButton(reflections),
         ],
       ),
     );
+  }
+
+  // ── Search (2026-08-06) ─────────────────────────────────────────────────────
+
+  /// The entry point, next to the calendar.
+  ///
+  /// Both are ways of *finding* an entry rather than of making one, so they sit
+  /// together in the header and leave the compose FAB as the only primary
+  /// control on the screen (D3). Search first, because it is the one that works
+  /// on a journal of any size.
+  Widget _buildSearchButton() {
+    return Semantics(
+      button: true,
+      label: 'Search your journal',
+      child: IconButton(
+        onPressed: _openSearch,
+        icon: const Icon(Icons.search_rounded, size: 22),
+        color: AppColors.textSecondaryLight,
+        tooltip: 'Search',
+      ),
+    ).animate().fadeIn(
+          duration: context.motion(AppMotion.entrance),
+          delay: context.motion(AppMotion.beat),
+        );
+  }
+
+  void _openSearch() {
+    HapticFeedback.lightImpact();
+    setState(() => _searching = true);
+    // After the frame that builds the field — a focus request against a node
+    // whose widget does not exist yet is dropped, and the keyboard never opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _searching) _searchFocus.requestFocus();
+    });
+  }
+
+  /// Leaves search and forgets the query.
+  ///
+  /// The query is cleared rather than kept, so re-opening search starts from the
+  /// prompt. A box that reopens holding a half-typed word from twenty minutes
+  /// ago is answering a question the user is no longer asking, and the archive
+  /// behind it would come back pre-filtered with no visible reason why.
+  void _closeSearch() {
+    _searchDebounce?.cancel();
+    _searchFocus.unfocus();
+    _searchController.clear();
+    setState(() {
+      _searching = false;
+      _searchTokens = const [];
+      _searchResultCount = 0;
+    });
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchTokens = journalSearchTokens(value));
+    _searchDebounce?.cancel();
+    if (_searchTokens.isEmpty) return;
+    // Reads [_searchResultCount], which the build triggered by the `setState`
+    // above will have written by the time this fires.
+    _searchDebounce = Timer(_searchAnalyticsDebounce, () {
+      if (!mounted) return;
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.journalSearched,
+        properties: {
+          AnalyticsEvents.propResultCount: _searchResultCount,
+          AnalyticsEvents.propHasResults: _searchResultCount > 0,
+        },
+      );
+    });
+  }
+
+  /// The whole screen while searching: the field, and the results.
+  ///
+  /// The stats row, the tab bar, the filter chips, the resurfacing strip and the
+  /// compose FAB are all gone — deliberately. Results are the only thing on
+  /// screen that can answer the question being asked, the keyboard is already
+  /// covering half of it, and a FAB floating over a result list is a target for
+  /// the thumb that is reaching past it.
+  Widget _buildSearchScaffold(List<_JournalEntry> allEntries) {
+    final results = _searchTokens.isEmpty
+        ? const <_JournalEntry>[]
+        : allEntries.where(_matchesSearch).toList();
+    // Written during build on purpose — see [_searchResultCount].
+    _searchResultCount = results.length;
+
+    // A back gesture closes SEARCH, not the Journal. Search is a mode on this
+    // screen rather than a pushed route, so without this the system back swipe
+    // would skip straight past it to the previous tab and leave the user
+    // wondering where the archive went.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeSearch();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFBF7F2),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchField(),
+              Expanded(child: _buildSearchResults(results)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _matchesSearch(_JournalEntry entry) {
+    switch (entry.type) {
+      case _EntryType.reflection:
+        return reflectionMatchesSearch(
+            entry.data as SavedReflection, _searchTokens);
+      case _EntryType.builtDua:
+        return builtDuaMatchesSearch(
+            entry.data as SavedBuiltDua, _searchTokens);
+      case _EntryType.savedDua:
+        return relatedDuaMatchesSearch(
+            entry.data as SavedRelatedDua, _searchTokens);
+    }
+  }
+
+  Widget _buildSearchField() {
+    final hasText = _searchController.text.isNotEmpty;
+    return Padding(
+      // Top matches the header's 32, so the field lands where the title was and
+      // the screen does not jump when search opens.
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'Search your journal',
+              textField: true,
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                style: AppTypography.bodyMedium
+                    .copyWith(color: AppColors.textPrimaryLight),
+                decoration: InputDecoration(
+                  hintText: 'Search your journal',
+                  hintStyle: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textTertiaryLight),
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      size: 20, color: AppColors.textTertiaryLight),
+                  suffixIcon: !hasText
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          color: AppColors.textTertiaryLight,
+                          tooltip: 'Clear',
+                        ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm + 4,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                        color: AppColors.borderLight, width: 0.5),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                        color: AppColors.borderLight, width: 0.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          TextButton(
+            onPressed: _closeSearch,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondaryLight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              minimumSize: const Size(0, 44),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTypography.labelLarge
+                  .copyWith(color: AppColors.textSecondaryLight),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: context.motion(AppMotion.feedback));
+  }
+
+  Widget _buildSearchResults(List<_JournalEntry> results) {
+    if (_searchTokens.isEmpty) {
+      return _searchMessage(
+        'Search your entries, your duas and the Names.',
+        sub: 'A word you wrote, a place, a feeling.',
+      );
+    }
+    if (results.isEmpty) {
+      return _searchMessage(
+        'Nothing matches that.',
+        sub: 'Try one word rather than a phrase — every word you type has to '
+            'appear in the entry.',
+      );
+    }
+
+    return ListView.builder(
+      // The keyboard is up: dragging the list should put it away, the way every
+      // other search list on the platform does.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
+      itemCount: results.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              results.length == 1 ? '1 entry' : '${results.length} entries',
+              style: AppTypography.labelSmall
+                  .copyWith(color: AppColors.textTertiaryLight),
+            ),
+          );
+        }
+        return _animatedCard(
+          index - 1,
+          _buildEntryCard(
+            results[index - 1],
+            origin: AnalyticsEvents.originJournalSearch,
+          ),
+        );
+      },
+    );
+  }
+
+  /// The two quiet states of search — nothing typed, and nothing found.
+  ///
+  /// Deliberately not [_buildEmptyState]: that one carries a 200px illustration
+  /// and a primary button, and neither belongs on a screen where the keyboard is
+  /// already covering the bottom half and the user is mid-question.
+  Widget _searchMessage(String message, {required String sub}) {
+    return Align(
+      alignment: const Alignment(0, -0.5),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: AppTypography.bodyLarge
+                  .copyWith(color: AppColors.textSecondaryLight),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              sub,
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textTertiaryLight, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: context.motion(AppMotion.item));
   }
 
   // ── Browse (D4) ─────────────────────────────────────────────────────────────
@@ -345,7 +727,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         color: AppColors.textSecondaryLight,
         tooltip: 'Browse by month',
       ),
-    ).animate().fadeIn(duration: 500.ms, delay: 200.ms);
+    ).animate().fadeIn(
+          duration: context.motion(AppMotion.entrance),
+          delay: context.motion(AppMotion.beat),
+        );
   }
 
   void _onCalendarDay(
@@ -413,198 +798,278 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   String? _topTheme(List<SavedReflection> reflections) =>
       journalTopTheme(reflections);
 
-  Widget _buildInlineStats(List<SavedReflection> reflections, int duasCount) {
-    final statsAsync = ref.watch(_journalStatsProvider);
+  /// The lifetime counts, as quiet lines under the title.
+  ///
+  /// This used to be a bordered box of four icon tiles — ~72px of the first
+  /// screen spent on numbers nobody opens the Journal to read. The counts are
+  /// worth keeping (they are the only place "19 Names" is ever stated) but not
+  /// worth a card: they are context for the title, so they render as the
+  /// title's subtitle and the screen starts ~92px higher.
+  ///
+  /// ## Lines, not one dot-joined run
+  ///
+  /// Everything used to be `join('  ·  ')` into a single `Text`, which wrapped
+  /// wherever the width ran out — mid-clause. On a 390pt phone that produced
+  /// *"19 entries · 9 duʿās · 7 Names · best"* / *"streak 10 · 9 free to try"*:
+  /// a streak broken across two rows, and a budget fact reading as the tail of
+  /// a count. Dot separators only work while the run fits on one line; past
+  /// that they stop grouping and start colliding.
+  ///
+  /// So the facts are grouped by KIND, one line each:
+  ///
+  ///  1. **What is in the archive** — entries, duʿās, Names. One fact in three
+  ///     parts, so these keep their dots.
+  ///  2. **The streak.** An achievement, not an inventory item.
+  ///  3. **The allowance.** A budget, and the only line here about what the
+  ///     user can still DO rather than what they have already done.
+  ///
+  /// ## Three lines of identical grey is a list, not a hierarchy
+  ///
+  /// Splitting them fixed the wrap and introduced a new problem: three runs of
+  /// the same size, weight and colour, which reads as flat. Two devices fix it,
+  /// and deliberately not three — the point is a focal point, not a carnival:
+  ///
+  ///  * **One accent, on the streak's NUMBER.** `goldInk` is the app's
+  ///    achievement colour and the contrast-safe one (`secondary` sits at about
+  ///    2.1:1 on this background, which is why the 6px type dots use `goldInk`
+  ///    too). The word stays tertiary; only the number lifts. A pill was the
+  ///    obvious alternative and is the wrong one — this screen already removed
+  ///    a pill from the theme line precisely because *if it looks like a
+  ///    surface, it opens*, and a streak that cannot be tapped must not look
+  ///    tappable.
+  ///  * **Rhythm on the allowance.** It gets extra space above it rather than a
+  ///    second colour, because it belongs to a different tense: everything
+  ///    above is what has happened, this is what is still available. A gap says
+  ///    that without competing with the accent.
+  ///
+  /// Empty lines are omitted rather than reserved, so a user with no streak and
+  /// no metered allowance sees exactly the one line they had before any of this.
+  List<_StatLine> _statsLines(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
+    // **Watched BEFORE the empty-archive early return, and that is the fix for
+    // a real bug** (review, 2026-08-07).
+    //
+    // `readReflectionAllowance` documents its own precondition: it is safe as a
+    // `read` only because this line already `watch`es the provider on every
+    // build, keeping the `autoDispose` alive. That was false for exactly the
+    // audience the feature exists for — a brand-new account with an empty
+    // archive returned below without ever reaching the watch, so nothing
+    // subscribed, and the compose menu's `ref.read` on a cold provider got
+    // `AsyncLoading` → the number-free fallback, permanently, until the user
+    // had at least one entry. A premium user with an empty archive likewise
+    // saw "Uses one reflection" instead of "Included with premium".
+    //
+    // Hoisting the watch above the return costs one subscription on a screen
+    // that has nothing to show, and buys the count for the only people who
+    // have never seen it.
+    final allowance = watchReflectionAllowance(ref);
 
-    // Unique Names encountered
+    if (total == 0) {
+      return const [(lead: 'Your spiritual diary', accent: null, spaced: false)];
+    }
+
     final uniqueNames = reflections.map((r) => r.name).toSet().length;
+    final counts = <String>[
+      '$total ${total == 1 ? 'entry' : 'entries'}',
+      if (duasCount > 0) '$duasCount ${duasCount == 1 ? 'duʿā' : 'duʿās'}',
+      if (uniqueNames > 0) '$uniqueNames ${uniqueNames == 1 ? 'Name' : 'Names'}',
+    ];
 
-    final topTheme = _topTheme(reflections);
+    final lines = <_StatLine>[
+      (lead: counts.join('  ·  '), accent: null, spaced: false),
+    ];
 
-    // E2. The recap wins the slot when the week has something in it; the
-    // lifetime line is the fallback. See [WeeklyRecapCard] for why they never
-    // render together.
-    final recap = resolveWeeklyRecap(
-      entries: reflections,
-      todayLocalDay: _todayLocalDay,
-    );
+    // Dropped while [_journalStatsProvider] is in flight or has failed, rather
+    // than holding the whole block behind a loader. A line that appears when
+    // the fetch lands is invisible; the 120px spinner that used to sit here
+    // was not.
+    final best =
+        ref.watch(_journalStatsProvider).valueOrNull?.streak.longestStreak;
+    if (best != null && best > 0) {
+      lines.add((lead: 'Best streak ', accent: '$best', spaced: false));
+    }
 
-    return statsAsync
-        .when(
-          loading: () => const SizedBox(
-            height: 120,
-            child: Center(child: SakinaLoader()),
-          ),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (stats) => Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── 4 stat tiles ──
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                    border: Border.all(color: AppColors.borderLight),
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _statItem(
-                            Icons.auto_stories_rounded,
-                            '${reflections.length}',
-                            'Reflections',
-                            AppColors.primary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(Icons.auto_awesome, '$duasCount', 'Duas',
-                            AppColors.secondary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(Icons.star_rounded, '$uniqueNames', 'Names',
-                            AppColors.secondary),
-                        const VerticalDivider(
-                            width: 1,
-                            thickness: 1,
-                            color: AppColors.borderLight),
-                        _statItem(
-                            Icons.local_fire_department,
-                            '${stats.streak.longestStreak}',
-                            'Best streak',
-                            AppColors.streakAmber),
-                      ],
-                    ),
-                  ),
-                ),
+    // ── The allowance, at rest ──
+    //
+    // A STATE, not a nudge — which is why it belongs here and not in a banner.
+    // It fires no sheet, asks for nothing, cannot be dismissed and updates
+    // itself, so the first-visit-hint doctrine (whose whole subject is
+    // interruptions, and whose lifetime budget is three) does not govern it and
+    // nothing is spent showing it.
+    //
+    // Rendered ONLY when there is an honest number: absent for subscribers,
+    // absent on the legacy per-day tier, and absent while the resolve is in
+    // flight. See [reflectionAllowanceProvider] — "we don't know" and "there is
+    // nothing to say" deliberately collapse to the same silence, because the
+    // alternative is a line that says "0 left" to someone who has three.
+    //
+    // The LONG form, unlike the compose menu's: this line has the width to say
+    // the noun, and "9 free to try" on its own under a title is a fragment.
+    if (allowance != null && allowance.hasCount) {
+      lines.add((
+        lead: NewReflectionCopy.remainingLine(allowance),
+        accent: null,
+        spaced: true,
+      ));
+    }
 
-                // ── E2 weekly recap, else the lifetime theme line ──
-                if (recap != null) ...[
-                  const SizedBox(height: 10),
-                  WeeklyRecapCard(recap: recap),
-                ] else if (topTheme != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5EBD9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: AppColors.secondary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.auto_awesome,
-                            color: AppColors.secondary, size: 16),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'You often turn to Allah with $topTheme',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 400.ms);
+    return lines;
   }
 
-  Widget _statItem(IconData icon, String value, String label, Color color) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              fontWeight: FontWeight.w700,
-            ),
+  /// The stat block, as widgets.
+  ///
+  /// One `Text` per line rather than a single `\n`-joined string, so each keeps
+  /// its own baseline spacing and a long one ellipsises on its own instead of
+  /// pushing the next down.
+  ///
+  /// Built here rather than inline so the loop can see the list's LENGTH, which
+  /// it needs for one reason: the last line takes no trailing gap. The recap
+  /// block underneath brings its own 16pt top padding, so a bottom margin on
+  /// the final line is spent twice — and this block sits inside a budget
+  /// (`journal_archive_test` pins the first card to the top quarter of the
+  /// phone; splitting one wrapped line into three put it 0.4pt over).
+  List<Widget> _buildStatsBlock(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
+    final lines = _statsLines(total, reflections, duasCount);
+    return [
+      for (final (i, line) in lines.indexed)
+        Padding(
+          padding: EdgeInsets.only(
+            top: line.spaced ? 4 : 0,
+            bottom: i == lines.length - 1 ? 0 : 2,
           ),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontSize: 10,
+          child: Text.rich(
+            TextSpan(
+              text: line.lead,
+              children: line.accent == null
+                  ? null
+                  : [
+                      TextSpan(
+                        text: line.accent,
+                        style: const TextStyle(
+                          color: AppColors.goldInk,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall
+                .copyWith(color: AppColors.textTertiaryLight),
           ),
-        ],
-      ),
-    );
+        ).animate().fadeIn(
+              duration: context.motion(AppMotion.entrance),
+              delay: context.motion(AppMotion.beat),
+            ),
+    ];
+  }
+
+  /// E2's weekly recap, else the lifetime theme line, else nothing.
+  ///
+  /// One slot, never both: the recap wins when the week has something in it AND
+  /// the cadence gate lets it, exactly as before. What changed is that the slot
+  /// is no longer nested inside the stats card — it is the first thing under
+  /// the title, which is the only place on this screen worth spending on
+  /// something the archive is OFFERING rather than something it holds.
+  Widget _buildRecapBlock(List<SavedReflection> reflections) {
+    final recap = _gatedWeeklyRecap(reflections);
+    final topTheme = recap != null ? null : _topTheme(reflections);
+    if (recap == null && topTheme == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 0),
+      child: recap != null
+          ? WeeklyRecapLine(
+              recap: recap,
+              onOpen: () => _openWeeklyRecapStory(recap),
+            )
+          // A caption, NOT a pill.
+          //
+          // This used to be a sand-filled rounded rect with the same ✦ mark the
+          // recap line wears — so the archive's one slot held two things that
+          // looked identical and behaved differently: the recap is a door onto
+          // a story, and this is a sentence. A founder tapping this and getting
+          // nothing is the whole reason it changed. Stripping the fill, the
+          // border and the icon leaves the affordance where the behaviour is:
+          // if it looks like a surface, it opens.
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'You often turn to Allah with $topTheme',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                  height: 1.4,
+                ),
+              ),
+            ),
+    ).animate().fadeIn(duration: context.motion(AppMotion.layer));
   }
 
   // ── Tabs ────────────────────────────────────────────────────────────────────
 
   Widget _buildTabs() {
     const labels = ['All', 'Reflections', 'Duas', 'Badges'];
+    // An underline row, not the four-segment pill this used to be. The pill
+    // gave each tab a quarter of the width whether or not its word fitted, so
+    // "Reflections" was scaled down by a `FittedBox` on every phone and the
+    // four labels rendered at four different sizes. Underlined tabs are sized
+    // by their own text, which is why they can afford to be 15px.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderLight),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.dividerLight)),
       ),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final selected = _tab.index == i;
-          return Flexible(
-            child: GestureDetector(
+      // Scrollable so a large text scale pushes the row sideways instead of
+      // overflowing it — the `FittedBox` used to absorb that by shrinking, and
+      // shrinking text is the wrong answer to someone who asked for bigger.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding:
+            const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+        child: Row(
+          children: List.generate(labels.length, (i) {
+            final selected = _tab.index == i;
+            return GestureDetector(
               // Keyed because the tab labels are not unique on this screen —
-              // the inline stats row also renders the word "Reflections", and a
-              // `find.text` in a test would match the stat tile first.
+              // a `find.text` in a test would have to disambiguate.
               key: ValueKey('journal-tab-$i'),
+              behavior: HitTestBehavior.opaque,
               onTap: () => _tab.animateTo(i),
               child: Container(
-                height: 40,
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+                margin:
+                    EdgeInsets.only(right: i == labels.length - 1 ? 0 : 24),
+                // 12 top / 11 bottom keeps the target at ~44px without the
+                // label sitting off-centre against the divider.
+                padding: const EdgeInsets.only(top: 12, bottom: 11),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      labels[i],
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w400,
-                        fontSize: 13,
-                        color: selected
-                            ? Colors.white
-                            : AppColors.textSecondaryLight,
-                      ),
+                  border: Border(
+                    bottom: BorderSide(
+                      color:
+                          selected ? AppColors.primary : Colors.transparent,
+                      width: 2,
                     ),
                   ),
                 ),
+                child: Text(
+                  labels[i],
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected
+                        ? AppColors.textPrimaryLight
+                        : AppColors.textTertiaryLight,
+                  ),
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -617,6 +1082,84 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// resolves (one frame) and on a device whose zone cannot be resolved at all.
   String? get _todayLocalDay =>
       ref.watch(journalLocalDayProvider).value;
+
+  /// The weekly recap the Journal may actually show, or null.
+  ///
+  /// Two conditions, and the second is the new one. `resolveWeeklyRecap` is a
+  /// WINDOW rule — two entries inside a rolling seven days — which for anyone
+  /// writing regularly is true every single day, with content that barely moves
+  /// between one day and the next. [weeklyRecapIsDue] turns that into a rhythm:
+  /// at most one per calendar week. See its doc comment for why a content
+  /// fingerprint was the worse of the two options.
+  ///
+  /// **The gate's answer is LATCHED for the visit** ([_recapAllowedThisVisit]),
+  /// not re-derived here, and that is load-bearing rather than an optimisation.
+  /// The marker is written the moment the recap is shown, so any later re-read
+  /// of it answers "already spent" — and `journalRecapWeekProvider` is
+  /// `autoDispose`, so anything that drops its last watcher for a frame makes it
+  /// re-read. Entering search does exactly that (`_buildInlineStats` is not
+  /// built in search mode), which without the latch would make the line vanish
+  /// when the user cancelled a search. It is the same class of bug the
+  /// `journalLocalDayProvider` note in [_buildScaffold] describes.
+  ///
+  /// Null until the latch is set — one frame of the lifetime theme line, which
+  /// is better than a flash of a recap the gate is about to suppress.
+  ///
+  /// **The muḥāsabah completion screen does not go through here.** Its recap is
+  /// already gated on having finished a night and on the time machine having
+  /// stayed quiet, and it is the night's own closing card — see
+  /// `muhasabah_screen.dart`.
+  WeeklyRecap? _gatedWeeklyRecap(List<SavedReflection> reflections) {
+    if (_recapAllowedThisVisit != true) return null;
+    return resolveWeeklyRecap(
+      entries: reflections,
+      todayLocalDay: _todayLocalDay,
+    );
+  }
+
+  /// Records that this week's recap has been spent.
+  ///
+  /// Fire-and-forget and latched to the visit: a failed write means the recap
+  /// shows again, which is the harmless direction. Called from
+  /// [_maybeEmitResurfacingShown] because that is the one place that already
+  /// runs exactly once per visit, after both async inputs the gate depends on
+  /// have resolved, and it is deciding the same boolean for the same reason.
+  Future<void> _recordRecapShownThisWeek(String? todayLocalDay) async {
+    final week = weeklyRecapWeekKey(todayLocalDay);
+    if (week == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        supabaseSyncService.scopedKey(weeklyRecapLastWeekPrefsKey),
+        week,
+      );
+    } catch (_) {
+      // See above: an unwritten marker costs a repeat, not a lost recap.
+    }
+  }
+
+  /// Opens the recap as a story on the sacred canvas.
+  ///
+  /// **The payload is structural only.** The line the user tapped is their own
+  /// writing and the beat count is a property of the recap's SHAPE; neither the
+  /// quote, nor a theme, nor a Name travels with the event.
+  void _openWeeklyRecapStory(WeeklyRecap recap) {
+    HapticFeedback.lightImpact();
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.journalRecapOpened,
+      properties: {
+        AnalyticsEvents.propEntryCount: recap.entryCount,
+        AnalyticsEvents.propBeatCount: buildWeeklyRecapScreens(recap).length,
+      },
+    );
+    Navigator.of(context, rootNavigator: true).push(
+      fadeThroughRoute(
+        context,
+        WeeklyRecapStoryPage(recap: recap),
+        name: 'WeeklyRecapStoryPage',
+      ),
+    );
+  }
 
   /// The strip above the All feed: at most two cards, often none.
   ///
@@ -696,12 +1239,25 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     if (_resurfacingFired) return;
     final dayAsync = ref.watch(journalLocalDayProvider);
     if (dayAsync.isLoading) return;
+    // The cadence marker is the second async input the answer depends on. Its
+    // `weekly_recap` boolean must mean "the archive opened with it", not "the
+    // window would have allowed it" — otherwise the property counts something
+    // no user ever saw.
+    final weekAsync = ref.watch(journalRecapWeekProvider);
+    if (weekAsync.isLoading) return;
     _resurfacingFired = true;
 
     final day = dayAsync.value;
+    // The gate, decided ONCE for this visit — see [_gatedWeeklyRecap] for why
+    // it may not be re-derived after the marker below is written.
+    _recapAllowedThisVisit = weeklyRecapIsDue(
+      todayLocalDay: day,
+      lastShownWeek: weekAsync.value,
+    );
     final onThisNight =
         resolveOnThisNight(entries: reflections, todayLocalDay: day);
-    final recap = resolveWeeklyRecap(entries: reflections, todayLocalDay: day);
+    final recap = _gatedWeeklyRecap(reflections);
+    if (recap != null) unawaited(_recordRecapShownThisWeek(day));
     final prompt = selectAnsweredDuaPrompt(
       duas: duasState.savedBuiltDuas,
       now: DateTime.now(),
@@ -837,13 +1393,33 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             child: Row(
               children: [
                 _filterChip('All', 0, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
                 const SizedBox(width: 8),
-                _filterChip('Nightly', 1, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                // *"Muḥāsabah"*, not *"Nightly"* (2026-08-07).
+                //
+                // The muḥāsabah is NOT night-gated and never has been. It is
+                // keyed on `entry_local_day` with a one-per-local-day unique
+                // index, and nothing in the daily loop consults the clock to
+                // decide whether it may be done — `MuhasabahCompletionCopy`
+                // carries the whole note, and swaps its own header to *"Today
+                // is written down"* before 17:00 for exactly this reason. A
+                // filter labelled "Nightly" told a morning journaller their
+                // 9am accounting was filed under the wrong word.
+                //
+                // It also now matches the chip on the cards it filters to,
+                // which reads MUHĀSABAH. A filter and the thing it selects
+                // should use one name.
+                _filterChip('Muhāsabah', 1, _reflectionFilter,
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
                 const SizedBox(width: 8),
-                _filterChip('Reflect', 2, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                // Matches its chip too — the cards read REFLECTION, and this
+                // said "Reflect", which is the name of the SCREEN they are made
+                // on rather than of the entry.
+                _filterChip('Reflection', 2, _reflectionFilter,
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
               ],
             ),
           );
@@ -894,13 +1470,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             child: Row(
               children: [
                 _filterChip('All', 0, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
                 const SizedBox(width: 8),
                 _filterChip('Built', 1, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
                 const SizedBox(width: 8),
                 _filterChip('Saved', 2, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
               ],
             ),
           );
@@ -912,14 +1491,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   /// One filter chip. Shared by the Duas tab and (D1) the Reflections tab, so
   /// the two rows cannot drift into looking like different controls.
+  ///
+  /// [group] keys the chip. The labels are NOT unique on this screen — both
+  /// filter rows start with "All", the tab row has an "All" of its own, and
+  /// `IndexedStack` builds every tab whether or not it is showing, so a
+  /// `find.text('All')` in a test matches up to three widgets and taps
+  /// whichever the tree happens to reach first. Same reasoning as the
+  /// `journal-tab-$i` keys.
   Widget _filterChip(
     String label,
     int index,
     int selectedIndex,
-    ValueChanged<int> onSelect,
-  ) {
+    ValueChanged<int> onSelect, {
+    required String group,
+  }) {
     final selected = selectedIndex == index;
     return GestureDetector(
+      key: ValueKey('journal-filter-$group-$index'),
       onTap: () {
         HapticFeedback.selectionClick();
         onSelect(index);
@@ -1023,12 +1611,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                     ),
                   )
                       .animate()
-                      .fadeIn(delay: (i * 40).ms, duration: 300.ms)
+                      .fadeIn(
+                          delay: context.stagger(i),
+                          duration: context.motion(AppMotion.item))
                       .slideY(
                           begin: 0.04,
                           end: 0,
-                          delay: (i * 40).ms,
-                          duration: 300.ms);
+                          delay: context.stagger(i),
+                          duration: context.motion(AppMotion.item),
+                          curve: AppMotion.enter);
                 }),
               ];
             }),
@@ -1040,10 +1631,19 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Entry card dispatcher ───────────────────────────────────────────────────
 
-  Widget _buildEntryCard(_JournalEntry entry) {
+  /// [origin] is where the card is being rendered, and it travels with the tap
+  /// into `journal_entry_opened`. The feed's own value is the default because
+  /// that is where every card was rendered before search existed; passing it
+  /// explicitly from search is what keeps "people find things and read them"
+  /// separable from "people scroll and read things".
+  Widget _buildEntryCard(
+    _JournalEntry entry, {
+    String origin = AnalyticsEvents.originJournalFeed,
+  }) {
     switch (entry.type) {
       case _EntryType.reflection:
-        return _buildReflectionCard(entry.data as SavedReflection);
+        return _buildReflectionCard(entry.data as SavedReflection,
+            origin: origin);
       case _EntryType.builtDua:
         return _buildBuiltDuaCard(entry.data as SavedBuiltDua);
       case _EntryType.savedDua:
@@ -1064,9 +1664,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     HapticFeedback.lightImpact();
     _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatStory);
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        settings: const RouteSettings(name: 'ReflectionStoryPage'),
-        builder: (_) => ReflectionStoryPage(reflection: r),
+      fadeThroughRoute(
+        context,
+        ReflectionStoryPage(reflection: r),
+        name: 'ReflectionStoryPage',
       ),
     );
   }
@@ -1075,8 +1676,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     HapticFeedback.lightImpact();
     _trackEntryOpened(r, origin: origin, format: AnalyticsEvents.entryFormatDetail);
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-          builder: (_) => ReflectionDetailPage(
+      fadeThroughRoute(
+          context,
+          ReflectionDetailPage(
                 reflection: r,
                 onRemove: () =>
                     ref.read(reflectProvider.notifier).deleteReflection(r.id),
@@ -1121,87 +1723,55 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     }
   }
 
-  Widget _buildReflectionCard(SavedReflection r) {
+  Widget _buildReflectionCard(
+    SavedReflection r, {
+    String origin = AnalyticsEvents.originJournalFeed,
+  }) {
     final date = DateTime.parse(r.date);
     final canReadAsStory = ReflectionStoryPage.canRenderAsStory(r);
     return _ExpandableCard(
-      onTap: () => _openReflectionDetail(
-        r,
-        origin: AnalyticsEvents.originJournalFeed,
-      ),
-      // D2's entry point. Shown only when there is a story to read — an entry
-      // that saved nothing but the user's words would open on a cover card and
-      // end there, which is a worse read than the detail page.
-      leadingAction: !canReadAsStory
+      // **The story IS the entry (2026-08-06).** Tapping a card used to open the
+      // detail page, with the story behind a "Read as story" link on the card's
+      // footer — so the format the archive was rebuilt around was the one you
+      // had to opt into, and the two lines of grey text D2 was written to fix
+      // stayed the default. The tap now opens the story and the link is gone.
+      //
+      // An entry with no beats still opens the detail page: for it the story
+      // would be a cover card and nothing else, which is a worse read than the
+      // page. `canRenderAsStory` is the same check that used to gate the link.
+      onTap: () => canReadAsStory
+          ? _openReflectionStory(r, origin: origin)
+          : _openReflectionDetail(r, origin: origin),
+      // The detail page is not orphaned by that swap, and it must not be: it is
+      // the only home of share, delete and edit. The footer's "View full ›"
+      // hint — already on every card, so this adds no control — becomes its
+      // door. On an entry with no story it is inert, because the card's own tap
+      // already goes there.
+      onViewFull: !canReadAsStory
           ? null
-          : _cardTextAction(
-              icon: Icons.auto_stories_rounded,
-              label: 'Read as story',
-              onTap: () => _openReflectionStory(
-                r,
-                origin: AnalyticsEvents.originJournalFeed,
-              ),
-            ),
+          : () => _openReflectionDetail(r, origin: origin),
       // D1: the chip tells the two sources apart. A nightly accounting and an
       // ad-hoc Reflect save land in the same table and used to render with the
       // same word on them.
       topLeft: r.isMuhasabah
           ? _typeChip('Muhāsabah', AppColors.primary)
-          : _typeChip('Reflection', AppColors.secondary),
+          : _typeChip('Reflection', AppColors.goldInk),
       topRight: _dateLabel(date),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          // Name badge
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5EE),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      r.nameArabic,
-                      style: const TextStyle(
-                        fontFamily: 'Amiri',
-                        fontSize: 16,
-                        color: AppColors.primary,
-                        height: 1.2,
-                      ),
-                      textDirection: TextDirection.rtl,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      r.name,
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '"${r.userText}"',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontStyle: FontStyle.italic,
-              height: 1.5,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      // The entry, unquoted. The quotation marks were there to mark 15px grey
+      // italic as the user's voice; at 19px near-black leading the card, the
+      // voice is unambiguous and the marks are two glyphs of chrome on the one
+      // line that should have none.
+      summary: _FadingText(
+        r.userText,
+        style: _entryWordsStyle,
+        maxLines: 3,
       ),
+      // The Name, on the footer rather than above the words.
+      //
+      // Reading order is now *what you carried* → *the Name you met*, which is
+      // the order the night actually happened in. The badge used to sit first,
+      // so every card opened with the app's answer before the user's question.
+      leadingAction: _nameLine(r),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1238,9 +1808,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              settings: const RouteSettings(name: 'DuaDetailPage'),
-              builder: (_) => DuaDetailPage.fromBuiltDua(
+          fadeThroughRoute(
+              context,
+              name: 'DuaDetailPage',
+              DuaDetailPage.fromBuiltDua(
                     d,
                     onRemove: () => ref
                         .read(duasProvider.notifier)
@@ -1273,20 +1844,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       topLeft: d.isAnswered
           ? _typeChip(
               JournalResurfacingCopy.answeredChip, AppColors.primary)
-          : _typeChip('Personal Dua', AppColors.secondary),
+          : _typeChip('Personal Dua', AppColors.goldInk),
       topRight: _dateLabel(date),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(
-            d.need,
-            style: AppTypography.labelLarge
-                .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      summary: _FadingText(
+        d.need,
+        style: _entryWordsStyle.copyWith(fontSize: 18),
+        maxLines: 3,
       ),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1324,9 +1887,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              settings: const RouteSettings(name: 'DuaDetailPage'),
-              builder: (_) => DuaDetailPage.fromRelatedDua(
+          fadeThroughRoute(
+              context,
+              name: 'DuaDetailPage',
+              DuaDetailPage.fromRelatedDua(
                     d,
                     onRemove: () => ref
                         .read(duasProvider.notifier)
@@ -1334,24 +1898,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   )),
         );
       },
-      topLeft: _typeChip('Saved Dua', AppColors.secondary),
+      topLeft: _typeChip('Saved Dua', AppColors.goldInk),
       topRight: Text(
         d.source,
-        style: AppTypography.bodySmall
-            .copyWith(color: AppColors.textTertiaryLight),
+        style: AppTypography.labelSmall.copyWith(
+          color: AppColors.textTertiaryLight,
+          letterSpacing: 0.2,
+        ),
       ),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(
-            d.title,
-            style: AppTypography.labelLarge
-                .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      summary: _FadingText(
+        d.title,
+        style: _entryWordsStyle.copyWith(fontSize: 18),
+        maxLines: 3,
       ),
       expanded: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1444,16 +2002,42 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
+    ).animate().fadeIn(duration: context.motion(AppMotion.layer)).slideY(
+          begin: 0.1,
+          end: 0,
+          duration: context.motion(AppMotion.layer),
+          curve: AppMotion.enter,
+        );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
+  /// Feed entrance for one card.
+  ///
+  /// The delay used to be a raw `index * 50` with **no ceiling**, applied from
+  /// three call sites with the list index. Item 20 waited 950ms, item 40 waited
+  /// 1,950ms, item 100 waited 4,950ms. Because these are `ListView.builder`s
+  /// the delay is keyed to the LIST index and not to when the item was built,
+  /// so scrolling quickly into a long journal showed blank cards that faded in
+  /// seconds later — worse the longer someone had been journaling, which is
+  /// exactly backwards. `AppMotion`'s own doc names the ceiling it broke: *"a
+  /// staggered reveal should settle inside ~800-900ms total."*
+  ///
+  /// `context.stagger` clamps at six steps (a seven-item span in 240ms) and
+  /// returns zero under reduced motion, where a stagger is delay with no
+  /// movement to justify it.
   Widget _animatedCard(int index, Widget child) {
+    final delay = context.stagger(index);
     return child
         .animate()
-        .fadeIn(delay: (index * 50).ms, duration: 300.ms)
-        .slideY(begin: 0.05, end: 0, delay: (index * 50).ms, duration: 300.ms);
+        .fadeIn(delay: delay, duration: context.motion(AppMotion.item))
+        .slideY(
+          begin: 0.05,
+          end: 0,
+          delay: delay,
+          duration: context.motion(AppMotion.item),
+          curve: AppMotion.enter,
+        );
   }
 
   /// A small text+icon control that lives inside a card without stealing the
@@ -1505,25 +2089,101 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ),
       );
 
+  /// Everything the compose control may offer right now.
+  List<JournalComposeAction> get _composeOptions => ref.watch(
+        dailyLoopProvider.select(
+          (s) => journalComposeOptions(
+            tonightEntry: s.tonightEntry,
+            checkinDone: s.checkinDone,
+          ),
+        ),
+      );
+
+  /// Handle for MEASURING the FAB, on a wrapper rather than on the button.
+  ///
+  /// `KeyedSubtree` is a proxy — it adds no render object of its own, so its
+  /// rect is the FAB's rect exactly. Wrapping instead of re-keying is what
+  /// leaves `ValueKey('journal-compose-fab')` where six tests already expect to
+  /// find it; a widget gets one key, and this needed two kinds.
+  ///
+  /// Owned by the State (not a library-level global) so two Journals alive at
+  /// once during a route transition cannot collide on one GlobalKey.
+  final GlobalKey _composeFabKey = GlobalKey(debugLabel: 'journal-compose-fab');
+
+  /// A permanent `+`.
+  ///
+  /// It used to be an extended FAB whose label and icon were resolved from the
+  /// day — "Begin Muhāsabah", then "Add to today", then "Free write" — so the
+  /// screen's one primary control changed identity three times a day without
+  /// moving. This does one thing: it opens the chooser. What the chooser holds
+  /// is allowed to vary; the control is not.
   Widget _buildComposeButton() {
-    final action = _composeAction;
-    final label = JournalComposeCopy.label(action);
-    return FloatingActionButton.extended(
-      onPressed: () => _onCompose(
-        action,
-        entryPoint: AnalyticsEvents.composeEntryFab,
+    return KeyedSubtree(
+      key: _composeFabKey,
+      child: FloatingActionButton(
+        key: const ValueKey('journal-compose-fab'),
+        onPressed: _openComposeSheet,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        tooltip: 'Write',
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      icon: Icon(switch (action) {
-        JournalComposeAction.startTonight => Icons.nightlight_round,
-        JournalComposeAction.addToTonight => Icons.add_rounded,
-        JournalComposeAction.freeWrite => Icons.edit_outlined,
-      }),
-      label: Text(
-        label,
-        style: AppTypography.labelLarge.copyWith(color: Colors.white),
-      ),
+    );
+  }
+
+  /// The FAB's rect in global coordinates, or null before first layout.
+  ///
+  /// Null is survivable and must be: the alternative is a crash on a tap that
+  /// arrived in the frame before layout settled. The caller skips opening the
+  /// menu rather than opening one anchored at the origin.
+  Rect? get _composeFabRect {
+    final box = _composeFabKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  void _openComposeSheet() {
+    // Measured before anything else, and a hard precondition: every position in
+    // the menu is expressed relative to this rect, so opening without it would
+    // put the whole stack — and the × that covers the button — somewhere the
+    // user never pressed. That is not hypothetical; it is the bug this
+    // replaced.
+    final fabRect = _composeFabRect;
+    if (fabRect == null) return;
+
+    HapticFeedback.lightImpact();
+    final options = _composeOptions;
+    // The denominator. `journal_compose_tapped` still fires per CHOSEN action,
+    // so that series is unbroken — but with a sheet in between, "opened the
+    // composer" and "composed" are now different numbers, and without this one
+    // an abandoned sheet is indistinguishable from a FAB nobody pressed.
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.journalComposeOpened,
+      properties: {AnalyticsEvents.propOptionCount: options.length},
+    );
+
+    showComposeMenu(
+      context,
+      options: options,
+      fabRect: fabRect,
+      // The menu's ONLY premium signal, and its only count — one read, so the
+      // two cannot contradict each other. It used to also take an `isPremium`
+      // from `premiumStateProvider`, which caches for the life of the app; a
+      // free user got "9 free to try" in the header and "Included with premium"
+      // in the menu on the same screen. See [JournalComposeCopy.subtitle].
+      //
+      // Already in memory: `_statsLine` watches the same provider on every
+      // build, so by the time a finger reaches the `+` this is a synchronous
+      // read. A `read` and not a `watch` because this is a handler, not a
+      // build.
+      allowance: readReflectionAllowance(ref),
+      // Only fires on a CHOICE. A scrim tap, the ×, or the back gesture closes
+      // the menu and calls nothing — a dismissed chooser is not a compose, so
+      // it gets no event and no navigation.
+      onPick: (action) {
+        if (!mounted) return;
+        _onCompose(action, entryPoint: AnalyticsEvents.composeEntryFab);
+      },
     );
   }
 
@@ -1544,21 +2204,51 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             AnalyticsEvents.composeActionStartTonight,
           JournalComposeAction.addToTonight =>
             AnalyticsEvents.composeActionAddToTonight,
-          JournalComposeAction.freeWrite =>
-            AnalyticsEvents.composeActionFreeWrite,
+          JournalComposeAction.newReflection =>
+            AnalyticsEvents.composeActionNewReflection,
         },
         AnalyticsEvents.propEntryPoint: entryPoint,
+        // Read from the SAME state that produced the options list, so the
+        // property describes the day the user was actually looking at rather
+        // than the day as of a re-read a frame later.
+        //
+        // `tonightEntry != null` and not `checkinDone`: the question is "is
+        // there an entry for today", and an offline night that completed the
+        // loop without leaving a row is a day with nothing written in it.
+        // See [AnalyticsEvents.propAlreadyDidMuhasabah].
+        AnalyticsEvents.propAlreadyDidMuhasabah:
+            ref.read(dailyLoopProvider).tonightEntry != null,
       },
     );
     switch (action) {
       case JournalComposeAction.startTonight:
         context.go('/muhasabah?$questionEntryQueryParam='
           '$questionEntryHomeCta');
-      case JournalComposeAction.freeWrite:
-        context.go('/reflect');
+      case JournalComposeAction.newReflection:
+        _openNewReflection();
       case JournalComposeAction.addToTonight:
         _showAddToTonightSheet();
     }
+  }
+
+  /// PUSH, not `go` — and that is the whole difference between this and the
+  /// Reflect tab it replaces.
+  ///
+  /// `go` replaces the location, which is right for a tab and wrong for a
+  /// composition: the user came from their archive and expects to land back in
+  /// it, on the entry they just wrote. Pushing gives them the system back
+  /// gesture for free and makes the return a `pop` this screen can react to.
+  ///
+  /// The await is what refreshes the count. `reflectionAllowanceProvider` is
+  /// resolved once per visit, so a reflection written inside that visit would
+  /// otherwise leave the header and the next menu quoting a number one too high
+  /// — the most embarrassing possible failure of a line whose entire job is to
+  /// be trusted. Invalidating on the way back re-resolves it against a gate
+  /// that has now been charged.
+  Future<void> _openNewReflection() async {
+    await context.push<void>(newReflectionRoutePath);
+    if (!mounted) return;
+    ref.invalidate(reflectionAllowanceProvider);
   }
 
   /// The append sheet.
@@ -1584,8 +2274,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         padding: EdgeInsets.only(
           left: 24,
           right: 24,
-          top: 4,
-          bottom: 24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          top: 8,
+          // **Three terms, and the missing one is why the field sat on the
+          // screen's edge.**
+          //
+          //  * 32 — the sheet's own breathing room under its last control. Was
+          //    24, which is the right number under a paragraph and too tight
+          //    under a 52pt text field: the field is the thing being reached
+          //    for, and a control that close to the edge reads as clipped.
+          //  * `viewInsets.bottom` — the keyboard, when it is up.
+          //  * `padding.bottom` — **the home indicator**, which was simply not
+          //    accounted for. On an indicator device that is 34 of the missing
+          //    points, and it is `padding` rather than `viewPadding` on
+          //    purpose: `padding` collapses to zero when the keyboard covers
+          //    the indicator, so the two terms never double-count.
+          bottom: 32 +
+              MediaQuery.of(sheetContext).viewInsets.bottom +
+              MediaQuery.of(sheetContext).padding.bottom,
         ),
         child: Consumer(
           builder: (context, ref, _) {
@@ -1609,7 +2314,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  MuhasabahCompletionCopy.addToTonight,
+                  MuhasabahCompletionCopy.addToCtaFor(DateTime.now().hour),
                   style: AppTypography.headlineMedium
                       .copyWith(color: AppColors.textPrimaryLight),
                 ),
@@ -1630,22 +2335,81 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
+  /// The entry's kind, as a caption on the background above its card.
+  ///
+  /// Was a filled 9px pill inside the card. Out on the page it needs no fill to
+  /// be legible, so [color] survives only as a 6px dot — enough to tell the two
+  /// sources apart at a glance down the feed, and the one thing the deleted
+  /// 4px gold rail was supposed to be doing but could not, because every card
+  /// got the same rail.
+  ///
+  /// Gold callers pass [AppColors.goldInk], not [AppColors.secondary]: at 6px
+  /// the dot has no area to carry a tint, and `C8985E` sits at about 2.1:1 on
+  /// this page. The dot is never the ONLY cue — the word next to it says the
+  /// same thing — but a cue too faint to see is not worth the 13px it costs.
   Widget _typeChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTypography.labelSmall.copyWith(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-      ),
+        const SizedBox(width: 7),
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textSecondaryLight,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The Name, on a reflection card's footer.
+  ///
+  /// Two [Text]s, never one: Arabic and Latin in a single widget is banned
+  /// (CLAUDE.md), and they need different faces anyway.
+  Widget _nameLine(SavedReflection r) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          r.nameArabic,
+          // `AppTypography.quranArabic`, NOT a raw `fontFamily: 'Amiri'`
+          // string. The app bundles no font assets at all — every face is
+          // loaded at runtime by `google_fonts`, which registers Amiri under
+          // the family name **`Amiri_regular`**. A literal `'Amiri'` therefore
+          // matched nothing and fell back to the system font, so the Name on
+          // every journal card rendered in SF/Roboto instead of Amiri. Same bug
+          // class DESIGN.md §3 recorded for the hardcoded `'DM Sans'` in the
+          // coachmark.
+          style: AppTypography.quranArabic.copyWith(
+            fontSize: 19,
+            color: AppColors.primary,
+            height: 1.1,
+          ),
+          textDirection: TextDirection.rtl,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            r.name,
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1713,8 +2477,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     }
     return Text(
       label,
-      style:
-          AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+      style: AppTypography.labelSmall.copyWith(
+        color: AppColors.textTertiaryLight,
+        letterSpacing: 0.2,
+      ),
     );
   }
 }
@@ -1722,6 +2488,81 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 // ---------------------------------------------------------------------------
 // Reusable expandable card
 // ---------------------------------------------------------------------------
+
+/// Softer than [AppSpacing.cardRadius] (14), which is the app's radius for
+/// dense controls. A journal card is the largest surface on its screen and 14
+/// reads as tight at that size.
+const double _cardRadius = 20;
+
+/// The entry's own words, as the headline of its card.
+///
+/// This is the whole redesign in one style. The words used to render at
+/// `bodyMedium` (15) in `textSecondaryLight` grey, italic, clamped to two lines
+/// with an ellipsis — the smallest, faintest, most truncated thing on a card
+/// whose only subject they are. The Name badge above them was larger and had a
+/// filled background. On a journal, the entry outranks the app's label for it.
+TextStyle get _entryWordsStyle => AppTypography.bodyLarge.copyWith(
+      fontSize: 19,
+      fontWeight: FontWeight.w500,
+      color: AppColors.textPrimaryLight,
+      height: 1.45,
+      letterSpacing: -0.15,
+    );
+
+/// [Text] that fades out at the bottom when it overflows, instead of ellipsing.
+///
+/// An ellipsis reports that the string was cut; a fade reports that the entry
+/// continues, which is the true thing and the one that invites the tap. It is
+/// applied ONLY when the text actually overflows — an unconditional
+/// [ShaderMask] would wash out the last line of every short entry, which is
+/// most of them.
+class _FadingText extends StatelessWidget {
+  const _FadingText(this.text, {required this.style, required this.maxLines});
+
+  final String text;
+  final TextStyle style;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Measured with the SAME text scaler the paint will use, so a user at
+        // 200% type does not get a fade over text that fits (or none over text
+        // that does not).
+        final probe = TextPainter(
+          text: TextSpan(text: text, style: style),
+          maxLines: maxLines,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final overflows = probe.didExceedMaxLines;
+        probe.dispose();
+
+        final child = Text(
+          text,
+          style: style,
+          maxLines: maxLines,
+          overflow: overflows ? TextOverflow.clip : TextOverflow.visible,
+        );
+        if (!overflows) return child;
+
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            // Opaque until well into the last line, so only the final ~third
+            // of it dissolves.
+            colors: [Colors.white, Colors.white, Colors.transparent],
+            stops: [0, 0.72, 1],
+          ).createShader(rect),
+          child: child,
+        );
+      },
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Achievement card
@@ -1853,6 +2694,7 @@ class _ExpandableCard extends StatefulWidget {
     required this.expanded,
     this.onTap,
     this.leadingAction,
+    this.onViewFull,
   });
 
   final Widget topLeft;
@@ -1866,6 +2708,16 @@ class _ExpandableCard extends StatefulWidget {
   /// footer row to put it on.
   final Widget? leadingAction;
 
+  /// Makes the footer's "View full ›" hint a real target, going somewhere other
+  /// than [onTap].
+  ///
+  /// Added when a reflection card's tap became the story: the hint was already
+  /// drawn on every card, so wiring it is the only way to keep the detail page
+  /// — share, delete and edit — reachable WITHOUT putting another control on
+  /// the card. Null leaves it what it has always been, a label describing where
+  /// the card's own tap goes.
+  final VoidCallback? onViewFull;
+
   @override
   State<_ExpandableCard> createState() => _ExpandableCardState();
 }
@@ -1873,114 +2725,163 @@ class _ExpandableCard extends StatefulWidget {
 class _ExpandableCardState extends State<_ExpandableCard> {
   bool _open = false;
 
+  /// The footer's "View full ›".
+  ///
+  /// Inert unless [_ExpandableCard.onViewFull] is set, and then wrapped the way
+  /// [_cardTextAction] wraps its own: an inner [GestureDetector] wins the arena
+  /// for its own bounds, so this opens the detail page while a tap anywhere
+  /// else on the card still opens the story.
+  Widget _viewFullHint() {
+    final hint = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'View full',
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textTertiaryLight,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 12,
+          color: AppColors.textTertiaryLight,
+        ),
+      ],
+    );
+    final onViewFull = widget.onViewFull;
+    if (onViewFull == null) return hint;
+    return Semantics(
+      button: true,
+      label: 'View full entry',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onViewFull();
+        },
+        // Padding, not a bigger font: the hint has to keep looking like a hint
+        // while being large enough to hit.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: hint,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap ??
-          () {
-            HapticFeedback.selectionClick();
-            setState(() => _open = !_open);
-          },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-          border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Gold accent bar
-              Container(
-                width: 4,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(AppSpacing.cardRadius),
-                    bottomLeft: Radius.circular(AppSpacing.cardRadius),
-                  ),
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 26),
+      child: GestureDetector(
+        onTap: widget.onTap ??
+            () {
+              HapticFeedback.selectionClick();
+              setState(() => _open = !_open);
+            },
+        // Opaque so the gap between the metadata row and the card face is still
+        // part of the card's target rather than a dead strip.
+        //
+        // The 26px separating one card from the next is NOT part of it, which is
+        // why that space is a `Padding` outside this detector rather than a
+        // `margin` inside it: an opaque detector hits its own margin box, so a
+        // margin here would make the gap below every card open the card above it.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Metadata, OUTSIDE the card ──
+            //
+            // Type and date used to be the first row inside the card, at full
+            // contrast, above the user's own words. That put the app's labels
+            // ahead of the entry on the entry's own card. Out here they read as
+            // what they are — a caption on the thing below — and the card face
+            // is left for content only.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 9),
+              child: Row(
+                children: [
+                  widget.topLeft,
+                  const Spacer(),
+                  widget.topRight,
+                ],
               ),
-              // Content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top row: type chip + date/action
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          widget.topLeft,
-                          widget.topRight,
-                        ],
-                      ),
-                      // Summary (always visible)
-                      widget.summary,
-                      const SizedBox(height: 8),
-                      if (widget.onTap != null)
-                        // Navigate hint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (widget.leadingAction != null) ...[
-                              widget.leadingAction!,
-                              const Spacer(),
-                            ],
-                            Text(
-                              'View full',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textTertiaryLight,
-                              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(_cardRadius),
+                // No border. The cream page behind these cards (#FBF7F2)
+                // already separates a white surface from the background —
+                // which is the job the reference art gets from its tints — so
+                // the 1px outline was drawing a boundary that was already
+                // visible, on every card, twice per gap.
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.textPrimaryLight.withValues(alpha: 0.045),
+                    blurRadius: 14,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Summary (always visible)
+                  widget.summary,
+                  if (widget.onTap != null) ...[
+                    // A hairline, not a gap: it separates the entry from the
+                    // Name without spending another 12px on a screen whose
+                    // whole complaint was density.
+                    Container(
+                      height: 1,
+                      margin: const EdgeInsets.only(top: 18, bottom: 12),
+                      color: AppColors.dividerLight,
+                    ),
+                    Row(
+                      children: [
+                        if (widget.leadingAction != null)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: widget.leadingAction!,
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 12,
-                              color: AppColors.textTertiaryLight,
-                            ),
-                          ],
-                        )
-                      else ...[
-                        // Expand toggle hint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AnimatedRotation(
-                              turns: _open ? 0.5 : 0,
-                              duration: const Duration(milliseconds: 200),
-                              child: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 18,
-                                color: AppColors.textTertiaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Expanded content
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                          child:
-                              _open ? widget.expanded : const SizedBox.shrink(),
+                          )
+                        else
+                          const Spacer(),
+                        _viewFullHint(),
+                      ],
+                    ),
+                  ] else ...[
+                    // Expand toggle hint
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        AnimatedRotation(
+                          turns: _open ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppColors.textTertiaryLight,
+                          ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
+                    ),
+                    // Expanded content
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      child:
+                          _open ? widget.expanded : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

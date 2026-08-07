@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/progress/screens/progress_screen.dart';
-import '../features/reflect/screens/reflect_screen.dart';
+import '../features/journal/screens/new_reflection_screen.dart';
 import '../features/dua_times/screens/precise_times_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
 import '../features/journal/screens/journal_screen.dart';
@@ -271,6 +271,20 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         ),
       ),
 
+      // New reflection (full screen, no bottom nav) — the Journal's `+`.
+      //
+      // Deliberately NOT under the shell, and deliberately not `/reflect`. It
+      // replaced a bottom-nav tab on 2026-08-07: the capability is the same one
+      // that tab had, but it is reached from the archive it writes into rather
+      // than advertised as a second daily habit. Full screen for the same
+      // reason `/muhasabah` is — the sacred canvas is the whole screen or it is
+      // not the canvas.
+      GoRoute(
+        path: newReflectionRoutePath,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NewReflectionScreen(),
+      ),
+
       // Companion stage (full screen, no bottom nav). Tapping the Home
       // medallion pushes here; the wardrobe is pushed on top of it.
       GoRoute(
@@ -341,12 +355,6 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
             path: '/',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: ProgressScreen(),
-            ),
-          ),
-          GoRoute(
-            path: '/reflect',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ReflectScreen(),
             ),
           ),
           GoRoute(

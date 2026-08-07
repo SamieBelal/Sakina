@@ -8,6 +8,7 @@ import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/app_config_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/_test_utils.dart';
 
@@ -48,12 +49,25 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final spy = _SpyAnalytics();
+    // The screen reads the session in initState to decide whether a saved run
+    // belongs to an account that still exists. Authenticated here, which is the
+    // ordinary case and leaves the restart path untaken.
+    final appSession = AppSessionNotifier(
+      initialOnboarded: false,
+      authStateChanges: const Stream<AuthState>.empty(),
+      isAuthenticatedProvider: () => true,
+      currentUserIdProvider: () => 'user-1',
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => false,
+    );
+    addTearDown(appSession.dispose);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           analyticsProvider.overrideWithValue(spy),
           appConfigServiceProvider.overrideWithValue(_StubAppConfig()),
+          appSessionProvider.overrideWithValue(appSession),
         ],
         child: const MaterialApp(home: OnboardingScreen()),
       ),

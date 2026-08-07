@@ -23,9 +23,11 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
-import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -123,9 +125,13 @@ void main() {
         GoRoute(
             path: '/muhasabah',
             builder: (_, __) => const Scaffold(body: Text('MUHASABAH ROUTE'))),
+        // The Journal's `+` pushes the composer here. Was `/reflect` until
+        // 2026-08-07; that route no longer exists, and a stub for a route the
+        // screen can no longer reach is a harness lying about the app.
         GoRoute(
-            path: '/reflect',
-            builder: (_, __) => const Scaffold(body: Text('REFLECT ROUTE'))),
+            path: newReflectionRoutePath,
+            builder: (_, __) =>
+                const Scaffold(body: Text('NEW REFLECTION ROUTE'))),
       ],
     );
     addTearDown(router.dispose);
@@ -159,7 +165,16 @@ void main() {
       expect(find.byType(OnThisNightCard), findsOneWidget);
       expect(find.text(MuhasabahCompletionCopy.timeMachineMonth),
           findsOneWidget);
-      expect(find.text('The result comes on Thursday.'), findsOneWidget);
+      // Scoped to the card. The feed card below it renders the same words
+      // unquoted now, so an unscoped finder matches both — which is the point
+      // of the resurfacing card, not a bug in it.
+      expect(
+        find.descendant(
+          of: find.byType(OnThisNightCard),
+          matching: find.text('The result comes on Thursday.'),
+        ),
+        findsOneWidget,
+      );
 
       await t.tap(find.text(JournalResurfacingCopy.onThisNightOpen));
       await t.pumpAndSettle();
@@ -174,6 +189,11 @@ void main() {
   });
 
   group('E2 — the weekly recap', () {
+    // 2026-08-06: the recap stopped being a block in the archive and became a
+    // one-line door onto a story — see `weekly_recap_story_test.dart`, which
+    // owns the beats, the cadence gate and the dismissal. What this group still
+    // pins is the thing that did NOT change: whatever the recap looks like, it
+    // and the lifetime theme line share one slot and never stack.
     testWidgets('replaces the lifetime theme line, never stacks on it',
         (t) async {
       await pump(t, reflections: [
@@ -182,8 +202,8 @@ void main() {
         muhasabah(day: '2026-07-31', words: 'worried about money'),
       ]);
 
-      expect(find.byType(WeeklyRecapCard), findsOneWidget);
-      expect(find.text(JournalResurfacingCopy.recapHeader), findsOneWidget);
+      expect(find.byType(WeeklyRecapLine), findsOneWidget);
+      expect(find.text(JournalResurfacingCopy.recapLineTrail), findsOneWidget);
       expect(
         find.textContaining('You often turn to Allah with'),
         findsNothing,
@@ -200,9 +220,150 @@ void main() {
         muhasabah(day: '2026-01-04', words: 'worried'),
       ]);
 
-      expect(find.byType(WeeklyRecapCard), findsNothing);
+      expect(find.byType(WeeklyRecapLine), findsNothing);
       expect(find.textContaining('You often turn to Allah with'),
           findsOneWidget);
+    });
+
+    // 2026-08-06. The two occupants of this slot used to be near-identical sand
+    // pills wearing the same ✦ mark — but only one is a door. The founder tried
+    // to tap the wrong one, which is the bug: the affordance has to sit where
+    // the behaviour is.
+    testWidgets('the lifetime line is a caption, not a control', (t) async {
+      await pump(t, reflections: [
+        muhasabah(day: '2026-01-02', words: 'anxious'),
+        muhasabah(day: '2026-01-03', words: 'stressed'),
+        muhasabah(day: '2026-01-04', words: 'worried'),
+      ]);
+
+      final line = find.textContaining('You often turn to Allah with');
+      expect(line, findsOneWidget);
+      expect(
+        find.ancestor(of: line, matching: find.byType(GestureDetector)),
+        findsNothing,
+        reason: 'nothing about this line may suggest it opens something — '
+            'there is nowhere for it to go',
+      );
+      expect(
+        find.ancestor(of: line, matching: find.byType(Semantics)).evaluate().any(
+            (e) => (e.widget as Semantics).properties.button ?? false),
+        isFalse,
+        reason: 'and a screen reader must not announce it as a button either',
+      );
+      expect(
+        find.byIcon(Icons.auto_awesome),
+        findsNothing,
+        reason: 'the ✦ mark is the recap line\'s. The fallback wore an '
+            'identical one on an identical sand pill, which is what made the '
+            'door and the sentence impossible to tell apart',
+      );
+    });
+  });
+
+  // Every other widget test in this file renders ONE surface. The ceiling and
+  // the order are properties of the two together, and they live nowhere but the
+  // child order of `_buildResurfacingStrip`'s Column — a two-line edit away from
+  // silently inverting, with no test to notice.
+  //
+  // The order is a product decision, not a layout accident: the answered-duʿā
+  // prompt is the only one of the surfaces that ASKS the user for anything, and
+  // burying an ask under a reminiscence is how it gets missed and then repeated.
+  group('when the archive has two things to resurface at once', () {
+    testWidgets('both render, and the ask comes first', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-07-03')],
+        duas: [builtDua()],
+      );
+
+      expect(find.byType(AnsweredDuaCard), findsOneWidget);
+      expect(find.byType(OnThisNightCard), findsOneWidget);
+      expect(
+        t.getTopLeft(find.byType(AnsweredDuaCard)).dy,
+        lessThan(t.getTopLeft(find.byType(OnThisNightCard)).dy),
+        reason: 'the ask sits above the reminiscence — an ask buried under a '
+            'memory is one the user scrolls past and is then asked again',
+      );
+    });
+
+    testWidgets('two is the ceiling — the recap does not become a third card',
+        (t) async {
+      // The recap is due here (two entries inside the window, fresh prefs) AND
+      // both strip surfaces resolve. Before the 2026-08-06 redesign the recap
+      // was a block that could stack into this area; it is now a line in the
+      // header slot, above the tabs. This pins that it stayed out of the feed.
+      await pump(
+        t,
+        reflections: [
+          muhasabah(day: '2026-07-03'), // the anchor
+          muhasabah(day: '2026-08-01', words: 'work is crushing me'),
+          muhasabah(day: '2026-07-31', words: 'anxious about the exam'),
+        ],
+        duas: [builtDua()],
+      );
+
+      expect(find.byType(WeeklyRecapLine), findsOneWidget);
+      expect(find.byType(AnsweredDuaCard), findsOneWidget);
+      expect(find.byType(OnThisNightCard), findsOneWidget);
+
+      expect(
+        find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(WeeklyRecapLine),
+        ),
+        findsNothing,
+        reason: 'the recap belongs to the header slot, not to the feed — in '
+            'the feed it would be the third card the strip may never have',
+      );
+      expect(
+        t.getTopLeft(find.byType(WeeklyRecapLine)).dy,
+        lessThan(t.getTopLeft(find.byType(AnsweredDuaCard)).dy),
+      );
+    });
+
+    testWidgets('answering the duʿā leaves the memory standing', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-07-03')],
+        duas: [builtDua()],
+      );
+
+      await t.tap(find.text(JournalResurfacingCopy.notYetAction));
+      await t.pump();
+      await t.pump(const Duration(seconds: 1));
+
+      expect(find.byType(AnsweredDuaCard), findsNothing);
+      expect(find.byType(OnThisNightCard), findsOneWidget,
+          reason: 'dismissing one surface must not take the other with it — '
+              'they are independent resolvers sharing a Column');
+    });
+
+    testWidgets('the tour anchor still lands on the first ENTRY, not on either '
+        'card', (t) async {
+      // The off-by-one this file was written for gets worse with two cards in
+      // the strip, because the strip is a single ListView item however many
+      // cards it holds.
+      await pump(
+        t,
+        reflections: [
+          muhasabah(day: '2026-07-03'),
+          muhasabah(day: '2026-08-02', words: 'tonight'),
+        ],
+        duas: [builtDua()],
+      );
+
+      final anchor = find.byWidgetPredicate(
+        (w) => w is TourAnchor && w.anchorId == 'firstEntry',
+      );
+      expect(anchor, findsOneWidget);
+      expect(
+        find.descendant(of: anchor, matching: find.byType(AnsweredDuaCard)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: anchor, matching: find.byType(OnThisNightCard)),
+        findsNothing,
+      );
     });
   });
 
@@ -298,7 +459,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.descendant(of: anchor, matching: find.text('"tonight"')),
+        find.descendant(of: anchor, matching: find.text('tonight')),
         findsOneWidget,
       );
     });
@@ -308,9 +469,9 @@ void main() {
       await pump(t, reflections: [muhasabah(day: '2026-08-02')]);
       expect(find.byType(OnThisNightCard), findsNothing);
       expect(find.byType(AnsweredDuaCard), findsNothing);
-      expect(find.byType(WeeklyRecapCard), findsNothing);
+      expect(find.byType(WeeklyRecapLine), findsNothing);
       // And the entry is still there.
-      expect(find.text('"I could not sleep."'), findsOneWidget);
+      expect(find.text('I could not sleep.'), findsOneWidget);
     });
   });
 }

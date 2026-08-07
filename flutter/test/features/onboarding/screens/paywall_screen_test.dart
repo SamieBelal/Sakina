@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/widgets/paywall_gate_page.dart';
+import 'package:sakina/services/purchase_service.dart';
 
 /// The condensed `soft_inapp` surface — the destination every cap-sheet and
 /// warm-up-sheet upgrade CTA lands on.
@@ -14,6 +16,46 @@ import 'package:sakina/features/paywall/widgets/paywall_gate_page.dart';
 /// to pin is gone: the W5 gate replaced it, and the condensed surface leads
 /// with "Choose how you continue." plus a value line. Nothing derived from
 /// `dailyCommitmentMinutes` renders on a purchase surface any more.
+class _FakePurchaseService extends PurchaseService {
+  _FakePurchaseService() : super.test();
+
+  @override
+  Future<List<Package>> getOfferings() async => [
+        Package(
+          'annual',
+          PackageType.annual,
+          StoreProduct(
+            'sakina_sub_annual',
+            'Test description',
+            'Test title',
+            49.99,
+            '\$49.99',
+            'USD',
+          ),
+          const PresentedOfferingContext('default', null, null),
+        ),
+        Package(
+          'weekly',
+          PackageType.weekly,
+          StoreProduct(
+            'sakina_sub_weekly',
+            'Test description',
+            'Test title',
+            4.99,
+            '\$4.99',
+            'USD',
+          ),
+          const PresentedOfferingContext('default', null, null),
+        ),
+      ];
+
+  @override
+  Future<Map<String, IntroEligibilityStatus>> getIntroEligibility(
+    List<String> productIds,
+  ) async =>
+      const {};
+}
+
 void main() {
   setUp(() {
     // REQUIRED, even though these tests read no prefs directly. Under
@@ -23,10 +65,12 @@ void main() {
     // await prefs, so without this line adding one ✕ test to this file would
     // hang instead of fail — which reads as a logic bug, not a harness gap.
     SharedPreferences.setMockInitialValues({});
+    PurchaseService.debugSetOverride(_FakePurchaseService());
     debugDisablePaywallAnimations = true;
   });
 
   tearDown(() {
+    PurchaseService.debugClearOverride();
     debugDisablePaywallAnimations = false;
   });
 
@@ -93,7 +137,8 @@ void main() {
     expect(find.text(triggerLine), findsOneWidget);
     expect(find.text(AppStrings.paywallSoftGateDefaultLine), findsNothing);
     expect(tester.takeException(), isNull,
-        reason: 'a two-line trigger sentence must not overflow the 390pt frame');
+        reason:
+            'a two-line trigger sentence must not overflow the 390pt frame');
 
     // Everything the decision needs is still on screen with it.
     expect(find.text(AppStrings.paywallPremiumBenefit1), findsOneWidget);
@@ -111,7 +156,8 @@ void main() {
     }
   });
 
-  testWidgets('dismissing the condensed surface goes through the free-tier '
+  testWidgets(
+      'dismissing the condensed surface goes through the free-tier '
       'card and home', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -122,12 +168,28 @@ void main() {
     await tester.tap(find.byType(PaywallCloseButton));
     await tester.pumpAndSettle();
 
+    // The condensed surface shows the plans, annual is selected, the weekly
+    // package is loaded and nothing is in flight — every condition of
+    // `_eligibleForExitOffer` — so the downsell ALWAYS comes first here.
+    // Asserting that rather than tolerating its absence: an `if` here would
+    // keep this test green on the day the sheet silently stops firing, which
+    // is exactly the regression worth catching.
+    expect(
+      find.text(AppStrings.paywallExitOfferDecline),
+      findsOneWidget,
+      reason: 'the ✕ on a priced surface offers weekly before it lets go',
+    );
+    await tester.tap(find.text(AppStrings.paywallExitOfferDecline));
+    await tester.pumpAndSettle();
+
     expect(find.text(AppStrings.paywallAlwaysFreeCardBody), findsOneWidget);
     expect(completed, isFalse);
 
     await tester.tap(
         find.widgetWithText(OutlinedButton, AppStrings.paywallGateContinue));
-    await tester.pumpAndSettle();
+    // `pump`, not `pumpAndSettle`: the hand-off shows an indeterminate loader
+    // (so the tap has immediate feedback) which by definition never settles.
+    await tester.pump();
     expect(completed, isTrue);
   });
 

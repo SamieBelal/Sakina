@@ -80,7 +80,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'r-rejected',
@@ -122,7 +121,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'r-journal',
@@ -188,7 +186,6 @@ void main() {
       // it would for a returning free user with a full journal.
       final notifier = ReflectNotifier(
         dependencies: ReflectDependencies(
-          getFollowUpQuestions: (_) async => const [],
           reflect: (_) async => successResponse(),
           now: () => fixedNow,
           createId: () => 'r-next',

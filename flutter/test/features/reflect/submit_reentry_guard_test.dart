@@ -79,7 +79,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) {
           aiCallCount++;
           return completer.future;
@@ -133,7 +132,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) {
           aiCallCount++;
           return completer.future;

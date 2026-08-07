@@ -1,7 +1,7 @@
 /// OpenAI Chat Completions integration for the Sakina app.
 ///
-/// Maps user emotions to Names of Allah via the configured chat model,
-/// parses structured responses, and provides follow-up question generation.
+/// Maps user emotions to Names of Allah via the configured chat model and
+/// parses structured responses.
 library;
 
 import 'dart:async';
@@ -111,20 +111,6 @@ class ReflectContext {
   });
 }
 
-enum FollowUpQuestionType { scale, choice }
-
-class FollowUpQuestion {
-  final FollowUpQuestionType type;
-  final String question;
-  final List<String>? options;
-
-  const FollowUpQuestion({
-    required this.type,
-    required this.question,
-    this.options,
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -134,7 +120,7 @@ const String _openAiChatUrl = kIsWeb
     ? 'http://localhost:8787/v1/chat/completions'
     : 'https://api.openai.com/v1/chat/completions';
 
-/// Single model for all AI calls (follow-ups, reflect, find names, build dua, daily).
+/// Single model for all AI calls (reflect, find names, build dua, daily).
 const _chatModel = 'gpt-4o-mini';
 
 // ---------------------------------------------------------------------------
@@ -738,76 +724,16 @@ Dua (transliteration): ${t.dua.transliteration} — "${t.dua.translation}" (${t.
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Get follow-up questions to help the user articulate their feelings.
-/// Skips if text is already detailed (>150 chars).
-Future<List<FollowUpQuestion>> getFollowUpQuestions(String userText) async {
-  if (userText.length > 150) return [];
-
-  const systemPrompt =
-      '''You help users explore their feelings more deeply before we match them with a Name of Allah.
-
-Rules:
-- Ask about the CONTENT of their feelings, not meta-questions about the app
-- Never ask yes/no questions
-- Ask questions that help clarify the emotional state
-- Return exactly 2 questions in JSON format
-
-Return a JSON array of objects, each with:
-- "type": either "scale" or "choice"
-- "question": the question text
-- For "choice" type, include "options": array of 3-4 short options
-
-Example:
-[
-  {"type": "scale", "question": "How intense is this feeling right now, from gentle to overwhelming?"},
-  {"type": "choice", "question": "What triggered this feeling?", "options": ["A specific event", "It built up over time", "I woke up with it", "I'm not sure"]}
-]''';
-
-  final response = await _callOpenAiChat(
-    systemPrompt: systemPrompt,
-    userMessage: 'The user said: "$userText"',
-    maxCompletionTokens: 300,
-  );
-
-  if (response == null) return [];
-
-  final text = _extractTextFromResponse(response);
-  if (text == null) return [];
-
-  try {
-    // Extract JSON from the response (may be wrapped in markdown code fences)
-    final jsonStr = text
-        .replaceAll(RegExp(r'```json?\s*'), '')
-        .replaceAll('```', '')
-        .trim();
-    final parsed = jsonDecode(jsonStr) as List<dynamic>;
-
-    return parsed.map((item) {
-      final map = item as Map<String, dynamic>;
-      final typeStr = map['type'] as String;
-      final type = typeStr == 'scale'
-          ? FollowUpQuestionType.scale
-          : FollowUpQuestionType.choice;
-      final options = map['options'] as List<dynamic>?;
-      return FollowUpQuestion(
-        type: type,
-        question: map['question'] as String,
-        options: options?.cast<String>(),
-      );
-    }).toList();
-  } catch (_) {
-    return [];
-  }
-}
-
 /// Main reflect endpoint: maps a user's feelings to a Name of Allah.
 Future<ReflectResponse> reflectWithOpenAI(
   String userText, {
   ReflectContext? context,
   String? forceName,
 }) async {
-  // Off-topic detection — only check the raw user text (first line),
-  // not the combined text which includes AI-generated follow-up questions.
+  // Off-topic detection — the first line only. The daily loop joins multiple
+  // check-in answers with ' / ' into one line, so this still sees the user's
+  // own words there; what it deliberately never sees is the card blurb the
+  // loop appends on the no-answer path.
   final rawUserText = userText.split('\n').first.trim();
   final classification = classifyOffTopic(rawUserText);
 

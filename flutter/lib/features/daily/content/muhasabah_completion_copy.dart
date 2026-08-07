@@ -34,16 +34,36 @@ abstract final class MuhasabahCompletionCopy {
   /// Section label above the Name.
   static const String nameLabel = 'The Name you met';
 
+  /// The same slot, when the entry on screen is one the day ALREADY had — see
+  /// [DailyLoopState.tonightEntryIsReplay].
+  ///
+  /// The row is real and it is the user's, so it is still shown; what changes
+  /// is the claim made about it. [nameLabel] says *you met this tonight*, and
+  /// on a replay that is simply false — the ceremony just handed over a
+  /// different Name. This label says only what is true: this is the Name
+  /// recorded on today's entry.
+  static const String nameLabelReplay = 'The Name on today’s entry';
+
+  /// Sits above the summary on a replay, so the screen is not silently showing
+  /// someone else's night with no explanation.
+  static const String replayNotice =
+      'Today already had an entry, so this is the one that was kept.';
+
   // ── Add to tonight (C1) ──
 
   /// The affordance, not a button that submits a form.
   ///
-  /// *"Add to tonight"*, never *"Reflect again"* or *"New entry"*: the honest
-  /// answer to "it won't let me do it again" is that tonight's entry is still
-  /// open, not that a second night can be started. A label promising a second
-  /// reflection would be promising a second reveal, which is exactly the thing
-  /// the economy fires once.
-  static const String addToTonight = 'Add to tonight';
+  /// Never *"Reflect again"* or *"New entry"*: the honest answer to "it won't
+  /// let me do it again" is that tonight's entry is still open, not that a
+  /// second night can be started. A label promising a second reflection would
+  /// be promising a second reveal, which is exactly the thing the economy fires
+  /// once.
+  ///
+  /// The wording moved from *"Add to tonight"* to *"Something else for
+  /// tonight"* on 2026-08-07 — see [addToCtaFor] for the survey behind it. The
+  /// constraint above is unchanged; only the half that named a database
+  /// operation was replaced.
+  static const String addToTonight = 'Something else for tonight';
 
   /// Accessible name for the append field.
   static const String addFieldLabel = 'Add to tonight';
@@ -120,4 +140,77 @@ abstract final class MuhasabahCompletionCopy {
   /// card re-roll, premium-gated for `reel_v1`, and conflating it with the
   /// journaling path is the confusion this screen exists to remove.
   static const String returnHome = 'Return to Home';
+
+  // ── The morning reader ────────────────────────────────────────────────────
+  //
+  // The muḥāsabah is NOT night-gated. It is keyed on `entry_local_day` with a
+  // one-per-user-per-local-day unique index, and nothing in the daily provider
+  // consults the clock to decide whether it may be done — the only
+  // `DateTime.now().hour` reads there pick a greeting and a quest duʿā. So a
+  // user who opens the app at 9am does a complete, correct muḥāsabah and then
+  // gets told "Tonight is written down."
+  //
+  // That is a copy bug, not a behaviour bug, and the fix is a noun rather than
+  // a gate: the entry belongs to a DAY, so before evening it should say so.
+  // Classical muḥāsabah is evening-associated but not evening-restricted, and
+  // refusing a morning reader — or lying to them about when they are — would
+  // both be worse than swapping one word.
+  //
+  // [hour] is passed in, never read from `DateTime.now()` here, so every string
+  // below stays pure and testable.
+
+  /// The hour at which "today" becomes "tonight". 17:00 local — late enough
+  /// that an afternoon session still reads as daytime, early enough that it has
+  /// turned over before ʿIshāʾ anywhere this app ships.
+  static const int eveningStartsAtHour = 17;
+
+  static bool _isEvening(int hour) => hour >= eveningStartsAtHour;
+
+  /// "Tonight" after [eveningStartsAtHour], "Today" before it. Capitalised.
+  static String dayNoun(int hour) => _isEvening(hour) ? 'Tonight' : 'Today';
+
+  /// Lowercase form, for mid-sentence use.
+  static String dayNounLower(int hour) => _isEvening(hour) ? 'tonight' : 'today';
+
+  /// [header], with the right noun for the hour.
+  static String headerFor(int hour) => '${dayNoun(hour)} is written down.';
+
+  /// [subheader], with the right noun for the hour.
+  static String subheaderFor(int hour) =>
+      'Your words, the Name you met, and the duʿā are saved to your journal. '
+      '${dayNoun(hour)} stays open until tomorrow.';
+
+  /// [addToTonightCta], with the right noun for the hour.
+  ///
+  /// **Was "Add to today" until 2026-08-07, and the rename is the point.**
+  /// That label named the MECHANISM — a row exists for this date, put another
+  /// line on it. Surveying the field (Five Minute Journal, Stoic, Day One,
+  /// Rosebud, Niyyah, Hallow) turned up no app that labels this action after
+  /// its storage: the guided journals name the MOMENT ("Evening reflection")
+  /// and the free-form ones name the CONTENT ("What else are you grateful
+  /// for?"). Ours now names the content, and harmonises with the field's own
+  /// placeholder — *"Anything else on your heart…"* — which was already doing
+  /// that job one screen later.
+  ///
+  /// Hour-aware for the reason it always was: the entry is keyed to the local
+  /// DAY, so a reader at 09:00 is adding to *today* even though the ritual is
+  /// called the nightly muḥāsabah.
+  static String addToCtaFor(int hour) =>
+      'Something else for ${dayNounLower(hour)}';
+
+  /// The same label, short enough for the Journal's compose menu.
+  ///
+  /// Not a second name — the same name, elided. The menu's card is capped at
+  /// 168pt (`_labelMaxWidth`) so that the option rows stay annotations on their
+  /// icons rather than becoming a menu with icons stuck on the side; at 13pt
+  /// the long form measures ~192pt and would ellipsise to
+  /// "Something else for tod…", which is worse than eliding on purpose.
+  ///
+  /// Mirrors the split `NewReflectionCopy.remainingLine` / `remainingShort`
+  /// already makes for the same reason, on the same surface.
+  /// Deliberately hour-INDEPENDENT, unlike its long form: the day noun is the
+  /// first thing the elision drops, and a menu row whose text changed at 17:00
+  /// would reintroduce the shape-shifting control that
+  /// [JournalComposeAction] was rebuilt to remove.
+  static const String addToCtaShort = 'Something else';
 }

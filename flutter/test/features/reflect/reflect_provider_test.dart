@@ -80,7 +80,6 @@ void main() {
 
     final notifier = ReflectNotifier(
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-loaded',
@@ -95,19 +94,18 @@ void main() {
     expect(notifier.state.savedReflections.single.verses, isEmpty);
   });
 
-  test('follow-up flow builds combined text and saves successful reflection',
-      () async {
+  // Was "follow-up flow builds combined text and saves successful reflection".
+  // The follow-up interstitial, the emotion chips and the four-step result
+  // walker were all removed on 2026-08-07 with the Reflect tab — the composer
+  // sends the user's sentence straight to the model and `BeatRevealFlow` owns
+  // the progression. What this test was ACTUALLY protecting survives verbatim
+  // below: one submit consumes exactly one use, saves exactly one row, and that
+  // row carries its verses to both the cache and the server.
+  test('a submit spends one use and saves one row, verses and all', () async {
     String? reflectedText;
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [
-          ai.FollowUpQuestion(
-            type: ai.FollowUpQuestionType.choice,
-            question: 'What feels heaviest right now?',
-            options: ['Fear', 'Loneliness'],
-          ),
-        ],
         reflect: (text) async {
           reflectedText = text;
           return successResponse();
@@ -119,20 +117,13 @@ void main() {
     addTearDown(notifier.dispose);
 
     notifier.setUserText('I feel overwhelmed');
-    notifier.toggleEmotion('Anxious');
-    notifier.toggleEmotion('Tired');
 
     await notifier.submit();
 
-    expect(notifier.state.screenState, ReflectScreenState.followup);
-    expect(await getReflectUsageToday(), 0);
-
-    await notifier.answerFollowUp('It feels constant');
-
-    expect(reflectedText, contains('I feel overwhelmed'));
-    expect(reflectedText, contains('Emotions: Anxious, Tired'));
-    expect(reflectedText, contains('Q: What feels heaviest right now?'));
-    expect(reflectedText, contains('A: It feels constant'));
+    // Verbatim, and nothing appended. The old path decorated the prompt with an
+    // "Emotions:" line and the Q/A pairs; the composer's chips fill the field
+    // itself, so what the model receives is what the user can see they wrote.
+    expect(reflectedText, 'I feel overwhelmed');
     expect(notifier.state.screenState, ReflectScreenState.result);
     expect(await getReflectUsageToday(), 1);
     expect(notifier.state.savedReflections, hasLength(1));
@@ -140,12 +131,6 @@ void main() {
     expect(notifier.state.savedReflections.single.date,
         fixedNow.toIso8601String());
     expect(notifier.state.savedReflections.single.verses, hasLength(1));
-
-    await notifier.continueStep();
-    await notifier.continueStep();
-    expect(notifier.state.currentStep, ReflectStep.story);
-    notifier.previousStep();
-    expect(notifier.state.currentStep, ReflectStep.reflection);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('saved_reflections:user-1'), isNotNull);
@@ -191,7 +176,6 @@ void main() {
 
     final notifier = ReflectNotifier(
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'unused',
@@ -219,7 +203,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-gated',
@@ -247,7 +230,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async {
           aiCallCount++;
           // First call: off-topic. Second call: on-topic.
@@ -282,7 +264,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async {
           aiCallCount++;
           if (aiCallCount == 1) throw Exception('first call boom');
@@ -318,7 +299,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-warmup-exhaust',
@@ -342,7 +322,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => throw Exception('boom'),
         now: () => fixedNow,
         createId: () => 'reflection-error',

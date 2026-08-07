@@ -47,7 +47,7 @@ class PaywallValueDepthPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = nameTransliteration;
     final headline = name == null
-        ? AppStrings.paywallPlanSelectHeadline
+        ? AppStrings.paywallValueDepthHeadlineFallback
         : (isSignContract
                 ? AppStrings.paywallValueDepthHeadlineSignTemplate
                 : AppStrings.paywallValueDepthHeadlineTemplate)

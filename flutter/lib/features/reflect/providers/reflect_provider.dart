@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
+// A deck night's content. Model-only (`name_story_deck.dart` imports nothing),
+// so this cannot introduce a cycle. See [buildSavedReflection].
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
@@ -141,9 +144,6 @@ String _clampText(String? value, int maxChars) {
   return value.substring(0, maxChars);
 }
 
-typedef ReflectFollowUpLoader = Future<List<ai.FollowUpQuestion>> Function(
-  String userText,
-);
 typedef ReflectResponseLoader = Future<ai.ReflectResponse> Function(
     String text);
 typedef ReflectNow = DateTime Function();
@@ -152,13 +152,11 @@ typedef ReflectIdFactory = String Function();
 String _defaultReflectIdFactory() => _uuid.v4();
 
 class ReflectDependencies {
-  final ReflectFollowUpLoader getFollowUpQuestions;
   final ReflectResponseLoader reflect;
   final ReflectNow now;
   final ReflectIdFactory createId;
 
   const ReflectDependencies({
-    required this.getFollowUpQuestions,
     required this.reflect,
     required this.now,
     required this.createId,
@@ -166,7 +164,6 @@ class ReflectDependencies {
 }
 
 const _defaultReflectDependencies = ReflectDependencies(
-  getFollowUpQuestions: ai.getFollowUpQuestions,
   reflect: ai.reflectWithOpenAI,
   now: DateTime.now,
   createId: _defaultReflectIdFactory,
@@ -176,9 +173,15 @@ const _defaultReflectDependencies = ReflectDependencies(
 // Enums
 // ---------------------------------------------------------------------------
 
-enum ReflectScreenState { input, followup, loading, result, offtopic }
-
-enum ReflectStep { name, reflection, story, dua }
+/// The composer's four states.
+///
+/// `followup` is gone (2026-08-07). It named an interstitial that asked the
+/// user two or three AI-generated questions between their sentence and the
+/// reveal — a shape that predates `BeatRevealFlow`, cost an extra OpenAI
+/// round-trip on the way in, and had no renderer left once the Reflect tab was
+/// folded into the Journal. `ReflectStep` went with it for the same reason: the
+/// beat flow owns its own progression now.
+enum ReflectScreenState { input, loading, result, offtopic }
 
 // ---------------------------------------------------------------------------
 // Saved reflection model
@@ -621,9 +624,24 @@ class SavedReflection {
 /// [response] is nullable because the deck path has no AI response at all: the
 /// pre-authored beats ARE the content, and the night still deserves an entry
 /// carrying the user's words, the Name and the duʿā.
+///
+/// [deck] is how that content actually arrives (2026-08-07). Until this
+/// parameter existed the sentence above was aspirational: a deck night reached
+/// here with `response == null` and nothing else, so every field below
+/// collapsed to `''` and the row went out carrying the user's words and the
+/// Name and *nothing else* — `beat_data` null, no verses, no duʿā. The night
+/// was complete and correct; only its artifact was empty, and the archive
+/// re-read it as a two-screen story: a cover and a Name.
+///
+/// The mapping mirrors `buildBeatScreensFromDeck` so a re-read lands on the
+/// same beats the reader was shown live, in the same order. It is deliberately
+/// lossy where the row shape cannot hold the deck's structure — a row has one
+/// `takeaway` and one reframe pair, a deck may carry several of each — and the
+/// flattening below states which one wins in each case.
 SavedReflection buildSavedReflection({
   required String userText,
   required ai.ReflectResponse? response,
+  NameStoryDeck? deck,
   String? id,
   String? date,
   String? name,
@@ -634,7 +652,50 @@ SavedReflection buildSavedReflection({
   String azm = '',
   DateTime Function()? now,
 }) {
-  final reframe = response?.reframe ?? '';
+  // ── The deck path's content, flattened into the row's shape ──
+  //
+  // ONLY when there is no response. A response and a deck never coexist on a
+  // real night (`startDeeper` short-circuits the AI prefetch the moment it has
+  // a deck), and if they ever did, the response is the thing the reader was
+  // actually shown. This is also the guard that keeps the older regression
+  // fixed: a stale response from a PREVIOUS night must never be written under
+  // tonight's Name, and reading the deck instead of the response cannot
+  // reintroduce that.
+  final List<NameStoryBeat> deckBeats = response == null
+      ? (deck?.beats ?? const <NameStoryBeat>[])
+      : const <NameStoryBeat>[];
+
+  List<NameStoryBeat> beatsOfKind(Set<String> kinds) =>
+      deckBeats.where((b) => kinds.contains(b.kind)).toList();
+
+  String firstPrimaryOf(String kind) {
+    for (final b in deckBeats) {
+      if (b.kind == kind) return b.primary;
+    }
+    return '';
+  }
+
+  final deckStory = beatsOfKind({'story'});
+  final deckVerses = beatsOfKind({'verse', 'comfort_verse'});
+  final deckDuas = beatsOfKind({'dua'});
+  final deckTakeaways = beatsOfKind({'takeaway'});
+
+  // The pair-synergy beat is a takeaway wearing a `synergy` label, and it is
+  // about the OTHER Name of the pair — so a real takeaway outranks it for the
+  // single slot the row has. Falls back to it only when it is the only one.
+  final deckTakeaway = deckTakeaways
+      .where((b) => !b.isPairSynergy)
+      .followedBy(deckTakeaways)
+      .map((b) => b.primary)
+      .firstWhere((p) => p.isNotEmpty, orElse: () => '');
+
+  // `bridge` renders as the key line and `recognition` as the reframe body —
+  // the same two slots, in the same order, that the deck flow draws them in.
+  final deckKeyLine = firstPrimaryOf('bridge');
+  final deckReframeBody = firstPrimaryOf('recognition');
+
+  final reframe = response?.reframe ??
+      [deckKeyLine, deckReframeBody].where((s) => s.isNotEmpty).join('\n\n');
   final preview =
       reframe.length > 150 ? '${reframe.substring(0, 150)}...' : reframe;
 
@@ -650,8 +711,22 @@ SavedReflection buildSavedReflection({
     nameArabic: _clampText(nameArabic ?? response?.nameArabic, _nameArabicMaxChars),
     reframePreview: _clampText(preview, _reframePreviewMaxChars),
     reframe: _clampText(reframe, _reframeMaxChars),
-    story: _clampText(response?.story, _storyMaxChars),
-    verses: (response?.verses ?? const <ReflectVerse>[])
+    // The prose column, for the legacy `splitIntoBeats` fallback and the
+    // export. On a deck night the structured `storyBeats` below are what a
+    // re-read actually renders; this is the same lines joined.
+    story: _clampText(
+      response?.story ?? deckStory.map((b) => b.primary).join('\n\n'),
+      _storyMaxChars,
+    ),
+    verses: (response?.verses ??
+            deckVerses.map((b) => ReflectVerse(
+                  arabic: b.arabic,
+                  // A deck verse carries its translation on `primary` and its
+                  // citation on `source` — the slots `buildBeatScreensFromDeck`
+                  // reads them from.
+                  translation: b.primary,
+                  reference: b.source,
+                )))
         .take(_versesMaxCount)
         .map((v) => ReflectVerse(
               arabic: _clampText(v.arabic, _verseArabicMaxChars),
@@ -659,12 +734,18 @@ SavedReflection buildSavedReflection({
               reference: _clampText(v.reference, _verseReferenceMaxChars),
             ))
         .toList(),
-    duaArabic: _clampText(response?.duaArabic, _duaArabicMaxChars),
-    duaTransliteration:
-        _clampText(response?.duaTransliteration, _duaTransliterationMaxChars),
-    duaTranslation:
-        _clampText(response?.duaTranslation, _duaTranslationMaxChars),
-    duaSource: _clampText(response?.duaSource, _duaSourceMaxChars),
+    duaArabic: _clampText(
+        response?.duaArabic ?? deckDuas.firstOrNull?.arabic,
+        _duaArabicMaxChars),
+    duaTransliteration: _clampText(
+        response?.duaTransliteration ?? deckDuas.firstOrNull?.transliteration,
+        _duaTransliterationMaxChars),
+    duaTranslation: _clampText(
+        response?.duaTranslation ?? deckDuas.firstOrNull?.primary,
+        _duaTranslationMaxChars),
+    duaSource: _clampText(
+        response?.duaSource ?? deckDuas.firstOrNull?.source,
+        _duaSourceMaxChars),
     relatedNames: (response?.relatedNames ?? const <ai.RelatedName>[])
         .take(_relatedNamesMaxCount)
         .map((r) => {
@@ -672,15 +753,25 @@ SavedReflection buildSavedReflection({
               'nameArabic': _clampText(r.nameArabic, _nameArabicMaxChars),
             })
         .toList(),
-    reframeKey: _clampText(response?.reframeKey, _beatKeyMaxChars),
-    reframeBody: _clampText(response?.reframeBody, _beatBodyMaxChars),
-    storyTitle: _clampText(response?.storyTitle, _beatTitleMaxChars),
-    storyBeats: (response?.storyBeats ?? const <String>[])
+    reframeKey:
+        _clampText(response?.reframeKey ?? deckKeyLine, _beatKeyMaxChars),
+    reframeBody:
+        _clampText(response?.reframeBody ?? deckReframeBody, _beatBodyMaxChars),
+    // The title is drawn on the FIRST story screen and the source under the
+    // LAST — see `buildBeatScreensFromReflection`. Taking them from the same
+    // two beats keeps a re-read identical to the live reading.
+    storyTitle: _clampText(
+        response?.storyTitle ?? deckStory.firstOrNull?.label,
+        _beatTitleMaxChars),
+    storyBeats: (response?.storyBeats ?? deckStory.map((b) => b.primary))
         .take(_storyBeatsMaxCount)
         .map((b) => _clampText(b, _beatLineMaxChars))
         .toList(),
-    storySource: _clampText(response?.storySource, _beatSourceMaxChars),
-    takeaway: _clampText(response?.takeaway, _beatTakeawayMaxChars),
+    storySource: _clampText(
+        response?.storySource ?? deckStory.lastOrNull?.source,
+        _beatSourceMaxChars),
+    takeaway:
+        _clampText(response?.takeaway ?? deckTakeaway, _beatTakeawayMaxChars),
     source: source,
     entryLocalDay: entryLocalDay,
     thread: thread.take(_threadMaxCount).toList(),
@@ -865,6 +956,50 @@ Future<SavedReflection?> setMuhasabahAzm({
   final next = _clampText(azm.trim(), _azmMaxChars);
   if (next == entry.azm) return entry;
   return _persistUpdatedReflection(entry.copyWith(azm: next));
+}
+
+/// Rewrites the user's own words on a saved entry (2026-08-06).
+///
+/// **Only [SavedReflection.userText], and only ever that.** The Name, the
+/// reframe, the story, the verses and the duʿā are what the app said back on the
+/// night in question, and an edit must not rewrite history it did not author.
+/// The reframe therefore stays the response to what was originally written —
+/// which is the honest record, even when the two no longer read as a matched
+/// pair.
+///
+/// **It does not re-open the night.** Like every other function in this section
+/// it is a pure text write against a row that already exists: no reveal, no
+/// streak, no reward ladder, no allowance. That is also why editing is allowed
+/// on an entry of ANY age while "add to tonight" stops at the local-day
+/// rollover — an append is a new line the night did not have, and a night that
+/// has closed does not get new lines; a correction is not a new line.
+///
+/// Returns the updated entry, the entry unchanged when [text] is already what is
+/// stored, or null when the entry is not in the cache, when [text] is blank (an
+/// entry cannot be edited into having no words — that is what delete is for), or
+/// when the server refuses the write.
+Future<SavedReflection?> editReflectionText({
+  required String id,
+  required String text,
+}) async {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  SavedReflection? entry;
+  for (final r in await _readCachedReflections()) {
+    if (r.id == id) {
+      entry = r;
+      break;
+    }
+  }
+  if (entry == null) return null;
+
+  // Clamped here as well as in `toSupabaseRow`, per the P2-5 REVIEW Finding 1
+  // doctrine: local state, the prefs blob and the row must all see the same
+  // truncated value, so what stays on screen is exactly what was stored.
+  final next = _clampText(trimmed, _userTextMaxChars);
+  if (next == entry.userText) return entry;
+  return _persistUpdatedReflection(entry.copyWith(userText: next));
 }
 
 /// The append that will actually fit, or null when the entry has no room left.
@@ -1114,11 +1249,6 @@ class ReflectState {
   final String userText;
   final ai.ReflectResponse? result;
   final String? error;
-  final ReflectStep currentStep;
-  final List<ai.FollowUpQuestion> followUpQuestions;
-  final List<String> followUpAnswers;
-  final int currentFollowUpIndex;
-  final Set<String> selectedEmotions;
   final List<SavedReflection> savedReflections;
 
   /// Set when the user attempted to reflect but the gating layer blocked the
@@ -1137,11 +1267,6 @@ class ReflectState {
     this.userText = '',
     this.result,
     this.error,
-    this.currentStep = ReflectStep.name,
-    this.followUpQuestions = const [],
-    this.followUpAnswers = const [],
-    this.currentFollowUpIndex = 0,
-    this.selectedEmotions = const {},
     this.savedReflections = const [],
     this.gateResult,
     this.warmupJustExhausted,
@@ -1152,11 +1277,6 @@ class ReflectState {
     String? userText,
     ai.ReflectResponse? result,
     String? error,
-    ReflectStep? currentStep,
-    List<ai.FollowUpQuestion>? followUpQuestions,
-    List<String>? followUpAnswers,
-    int? currentFollowUpIndex,
-    Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
     GateResult? gateResult,
     GatedFeature? warmupJustExhausted,
@@ -1170,11 +1290,6 @@ class ReflectState {
       userText: userText ?? this.userText,
       result: clearResult ? null : (result ?? this.result),
       error: clearError ? null : (error ?? this.error),
-      currentStep: currentStep ?? this.currentStep,
-      followUpQuestions: followUpQuestions ?? this.followUpQuestions,
-      followUpAnswers: followUpAnswers ?? this.followUpAnswers,
-      currentFollowUpIndex: currentFollowUpIndex ?? this.currentFollowUpIndex,
-      selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
       gateResult: clearGateResult ? null : (gateResult ?? this.gateResult),
       warmupJustExhausted: clearWarmupJustExhausted
@@ -1232,16 +1347,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
 
   void setUserText(String text) {
     state = state.copyWith(userText: text);
-  }
-
-  void toggleEmotion(String emotion) {
-    final updated = Set<String>.from(state.selectedEmotions);
-    if (updated.contains(emotion)) {
-      updated.remove(emotion);
-    } else {
-      updated.add(emotion);
-    }
-    state = state.copyWith(selectedEmotions: updated);
   }
 
   /// Clears the gate-blocked flag after the paywall sheet is dismissed.
@@ -1371,19 +1476,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       state = state.copyWith(
           screenState: ReflectScreenState.loading, clearError: true);
 
-      final questions =
-          await _dependencies.getFollowUpQuestions(state.userText);
-
-      if (questions.isNotEmpty) {
-        state = state.copyWith(
-          screenState: ReflectScreenState.followup,
-          followUpQuestions: questions,
-          followUpAnswers: [],
-          currentFollowUpIndex: 0,
-        );
-      } else {
-        await _reflect(_buildCombinedText([]));
-      }
+      await _reflect(state.userText);
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
@@ -1392,53 +1485,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
       );
-    }
-  }
-
-  /// Record a follow-up answer. If last question, triggers reflect.
-  Future<void> answerFollowUp(String answer) async {
-    final updatedAnswers = [...state.followUpAnswers, answer];
-    final isLast =
-        state.currentFollowUpIndex >= state.followUpQuestions.length - 1;
-
-    state = state.copyWith(followUpAnswers: updatedAnswers);
-
-    if (isLast) {
-      await _reflect(_buildCombinedText(updatedAnswers));
-    } else {
-      state =
-          state.copyWith(currentFollowUpIndex: state.currentFollowUpIndex + 1);
-    }
-  }
-
-  /// Skip follow-ups and reflect with just the original text.
-  Future<void> skipFollowUps() async {
-    await _reflect(_buildCombinedText([]));
-  }
-
-  /// Advance result step: name → reflection → story → dua.
-  Future<void> continueStep() async {
-    const nextStep = {
-      ReflectStep.name: ReflectStep.reflection,
-      ReflectStep.reflection: ReflectStep.story,
-      ReflectStep.story: ReflectStep.dua,
-    };
-    final next = nextStep[state.currentStep];
-    if (next != null) {
-      state = state.copyWith(currentStep: next);
-    }
-  }
-
-  /// Go back one result step: dua → story → reflection → name.
-  void previousStep() {
-    const prevStep = {
-      ReflectStep.reflection: ReflectStep.name,
-      ReflectStep.story: ReflectStep.reflection,
-      ReflectStep.dua: ReflectStep.story,
-    };
-    final prev = prevStep[state.currentStep];
-    if (prev != null) {
-      state = state.copyWith(currentStep: prev);
     }
   }
 
@@ -1452,7 +1498,17 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     final previous = List<SavedReflection>.from(state.savedReflections);
     final updated = previous.where((r) => r.id != id).toList();
     state = state.copyWith(savedReflections: updated, clearError: true);
-    await _persistReflections(updated);
+    // The local write is a failure mode too, and it used to be the only one
+    // here that was silent — see [_tryPersistReflections]. A refused cache
+    // write is treated exactly like a refused server delete: roll the list
+    // back, say so, and leave the row alone on both sides.
+    if (!await _tryPersistReflections(updated)) {
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete the reflection. Please try again.",
+      );
+      return;
+    }
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
@@ -1469,12 +1525,82 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         throw Exception('deleteRow(user_reflections) returned false');
       }
     } catch (_) {
-      state = state.copyWith(
-        savedReflections: previous,
-        error: "Couldn't delete the reflection. Please try again.",
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete the reflection. Please try again.",
       );
-      await _persistReflections(previous);
     }
+  }
+
+  /// Destroys every saved reflection — the D2 "delete all" control.
+  ///
+  /// D2 made server-side storage of confessional text conditional on this
+  /// existing (plan §B4: *"the decision was 'store it *with* the controls', not
+  /// 'store it'"*). Shipping the storage without it is the half-decision this
+  /// method closes.
+  ///
+  /// Mirrors [deleteReflection]'s shape exactly, and for the same reason:
+  /// optimistic local clear, then the server delete, then a **full rollback**
+  /// if the server refused. `deleteRow` swallows its exception and returns
+  /// false, so a silent failure would otherwise leave the user believing their
+  /// journal was destroyed while every row survives and resurrects on the next
+  /// `hydrateReflectionCacheFromRows`. On a destroy-everything action that
+  /// divergence is the worst possible outcome, so it is handled explicitly.
+  ///
+  /// One `deleteRow` call, not N: it filters on `user_id`, and RLS scopes the
+  /// statement to the caller's own rows.
+  Future<bool> deleteAllReflections() async {
+    final previous = List<SavedReflection>.from(state.savedReflections);
+    if (previous.isEmpty) return true;
+
+    state = state.copyWith(savedReflections: const [], clearError: true);
+    // **This guard matters most here.** On a single delete an unreported cache
+    // failure loses one row; on delete-all it tells someone their entire
+    // journal is gone while every entry is still on disk and on the server,
+    // ready to reappear at the next launch. Refusing before the server call
+    // means nothing has been destroyed when the message says nothing was.
+    if (!await _tryPersistReflections(const [])) {
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete your journal. Please try again.",
+      );
+      return false;
+    }
+
+    final userId = supabaseSyncService.currentUserId;
+    // Signed out: the local cache IS the journal, so clearing it is the whole
+    // job and there is nothing on a server to refuse.
+    if (userId == null) return true;
+
+    try {
+      final deleted = await supabaseSyncService.deleteRow(
+          'user_reflections', 'user_id', userId);
+      if (!deleted) {
+        throw Exception('deleteRow(user_reflections by user_id) returned false');
+      }
+      return true;
+    } catch (_) {
+      await _rollBackDelete(
+        previous,
+        "Couldn't delete your journal. Please try again.",
+      );
+      return false;
+    }
+  }
+
+  /// Puts [previous] back on screen and on disk, and says why.
+  ///
+  /// Shared by both delete paths so the two cannot drift on what a failure
+  /// looks like. The re-persist is best-effort by design: the in-memory list is
+  /// what the user is looking at and it has already been restored, and on the
+  /// one path that reaches here because the CACHE refused, disk was never
+  /// changed — it still holds [previous], so a second refusal costs nothing.
+  Future<void> _rollBackDelete(
+    List<SavedReflection> previous,
+    String message,
+  ) async {
+    state = state.copyWith(savedReflections: previous, error: message);
+    await _tryPersistReflections(previous);
   }
 
   @visibleForTesting
@@ -1517,6 +1643,37 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     state = state.copyWith(
       savedReflections:
           capReflections([reflection, ...state.savedReflections]),
+    );
+  }
+
+  /// Test seams for the two states a submit can land in WITHOUT ever touching
+  /// [ReflectScreenState] — a blocked gate and a refused bypass.
+  ///
+  /// Both matter because a screen that watches only `screenState` cannot see
+  /// either of them, which is exactly the defect
+  /// `new_reflection_screen_test.dart` pins: the composer latched a
+  /// "submit in flight" flag on send and released it only on the transition
+  /// back to `input`, a transition these two paths never make.
+  ///
+  /// Driving the state directly rather than stubbing `GatingService` keeps the
+  /// test about the SCREEN's reaction, which is where the bug was.
+  @visibleForTesting
+  void debugSetGateResultForTest(GateResult gate) {
+    state = state.copyWith(gateResult: gate);
+  }
+
+  @visibleForTesting
+  void debugSetErrorForTest(String message) {
+    state = state.copyWith(error: message);
+  }
+
+  /// The state a back-gesture out of the beat flow leaves behind: a finished
+  /// result on an app-scoped provider that no screen owns any more.
+  @visibleForTesting
+  void debugSetResultForTest(ai.ReflectResponse response) {
+    state = state.copyWith(
+      screenState: ReflectScreenState.result,
+      result: response,
     );
   }
 
@@ -1575,7 +1732,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         state = state.copyWith(
           screenState: ReflectScreenState.result,
           result: response,
-          currentStep: ReflectStep.name,
         );
         if (_consumeFreeUsageOnSuccess) {
           final outcome = await GatingService().markUsed(
@@ -1608,22 +1764,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     }
   }
 
-  String _buildCombinedText(List<String> answers) {
-    final buffer = StringBuffer(state.userText);
-    if (state.selectedEmotions.isNotEmpty) {
-      buffer.writeln();
-      buffer.writeln('Emotions: ${state.selectedEmotions.join(', ')}');
-    }
-    for (var i = 0; i < answers.length; i++) {
-      if (i < state.followUpQuestions.length) {
-        buffer
-          ..writeln()
-          ..writeln('Q: ${state.followUpQuestions[i].question}')
-          ..writeln('A: ${answers[i]}');
-      }
-    }
-    return buffer.toString();
-  }
 
   /// Saves the reflection. There is deliberately no free-tier row cap here.
   ///
@@ -1705,6 +1845,27 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         state = state.copyWith(savedReflections: list);
       }
     } catch (_) {}
+  }
+
+  /// [_persistReflections], with the throw turned into a `false`.
+  ///
+  /// `SharedPreferences.getInstance()` and `setString` can both fail — a
+  /// missing platform channel, a full or read-only disk, a decode error in the
+  /// plugin. Every OTHER failure on the delete paths was already handled
+  /// explicitly; this one was not, so a cache write that threw left the list
+  /// cleared in memory, unchanged on disk, and NO error anywhere. The user saw
+  /// their journal vanish, was told nothing, and found it all back at the next
+  /// launch.
+  ///
+  /// Returns true when the blob was written.
+  Future<bool> _tryPersistReflections(List<SavedReflection> reflections) async {
+    try {
+      await _persistReflections(reflections);
+      return true;
+    } catch (e) {
+      debugPrint('[reflect] reflection cache write failed: $e');
+      return false;
+    }
   }
 
   Future<void> _persistReflections(List<SavedReflection> reflections) async {

@@ -178,6 +178,7 @@ abstract final class AnalyticsEvents {
   static const paywallViewed = 'paywall_viewed';
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
+
   /// Fired on ✕ / dismiss of ANY paywall placement. Props: `{placement}` —
   /// `arm` arrives free via the `paywall_exp_arm` super property.
   ///
@@ -844,6 +845,44 @@ abstract final class AnalyticsEvents {
   static const String entryTypeSavedDua = 'saved_dua';
   static const String entryTypeReflection = 'reflection';
 
+  // Gift-a-Dua funnel (2026-08-02). The gift affordance shipped with NO
+  // instrumentation at all, so its discoverability — the thing we actually
+  // doubt — was unmeasurable. Three steps, so a drop can be located:
+  //
+  //   gift_cta_shown     the Ameen screen rendered a gift affordance (once per
+  //                      result, NOT per rebuild — a scroll must not inflate it)
+  //   gift_preview_opened the user tapped through to the gift preview
+  //   gift_sent          the share sheet was invoked with the rendered pages
+  //
+  // shown → opened is the DISCOVERABILITY rate (does anyone find it?);
+  // opened → sent is the INTENT rate (having seen it, do they send it?).
+  // Conflating them would hide which half is broken.
+  //
+  // gift_cta_shown fires ONCE per result and carries NO placement: both the
+  // corner icon and the labeled CTA render together, so emitting one per
+  // affordance would double the impression count and halve every rate below it.
+  // gift_preview_opened and gift_sent DO carry [propPlacement], which is what
+  // actually answers "did the labeled CTA beat the corner icon" — the question
+  // the labeled CTA was added to settle.
+  //
+  // gift_sent carries [propPageCount] since a multi-page gift can be truncated
+  // by a share target that only accepts one image, and [propShareStatus]
+  // because `shareXFiles` completes when the sheet CLOSES however it closed:
+  // a dismissed sheet is not a sent gift and is never reported, while
+  // `unavailable` (platform can't tell) IS reported but stays separable from a
+  // confirmed `success` so the send rate can be read with the right caveat.
+  static const String giftCtaShown = 'gift_cta_shown';
+  static const String giftPreviewOpened = 'gift_preview_opened';
+  static const String giftSent = 'gift_sent';
+
+  // Values for [propPlacement] on the gift funnel.
+  static const String giftPlacementCornerIcon = 'ameen_corner_icon';
+  static const String giftPlacementPrimaryCta = 'ameen_labeled_cta';
+
+  static const String propPageCount = 'page_count';
+
+  /// `success` | `unavailable` — the platform's own verdict on the share.
+  static const String propShareStatus = 'share_status';
   // ─────────────────────────────────────────────────────────────────────────
   // Journaling (Wave H, 2026-08-02). See
   // docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md.
@@ -903,11 +942,53 @@ abstract final class AnalyticsEvents {
   /// The Journal's one primary control (D3), tapped. [propAction] is the
   /// meaning it had at the moment of the tap
   /// ([composeActionStartTonight] | [composeActionAddToTonight] |
-  /// [composeActionFreeWrite]) and [propEntryPoint] is which of its two
+  /// [composeActionNewReflection]) and [propEntryPoint] is which of its two
   /// renderings was used ([composeEntryFab] | [composeEntryEmptyState]) — the
   /// empty-state copy is aimed at a user with nothing in the archive yet, and
   /// its conversion is a different question from the FAB's.
+  ///
+  /// Also carries [propAlreadyDidMuhasabah] — see there for the question it
+  /// exists to answer.
   static const String journalComposeTapped = 'journal_compose_tapped';
+
+  /// Whether today's muḥāsabah was already written when this compose action was
+  /// chosen (2026-08-07).
+  ///
+  /// **The one number that decides whether the Journal's two writing doors stay
+  /// two doors.** After the Reflect tab folded into the Journal, "Begin
+  /// Muḥāsabah" and "New reflection" run the same engine and differ in exactly
+  /// two ways: which direction the Name comes from (the queue picks it before
+  /// you write, vs the model picks it from what you wrote), and the price (free
+  /// and streak-bearing, vs metered). That is a real distinction — but only if
+  /// users actually hold it.
+  ///
+  /// Read as: of the taps whose [propAction] is [composeActionNewReflection],
+  /// what share have this `true`?
+  ///
+  ///  * **Mostly true** — people reach for the extra reflection *after* the
+  ///    day's ritual. The two doors are serving two real moments; leave them.
+  ///  * **Mostly false** — people are meeting the metered door first and
+  ///    paying for something the free one would have given them. That is an
+  ///    argument for one door whose kind the app resolves.
+  ///
+  /// Deliberately a BOOLEAN, not the entry's id or its thread length: the
+  /// question is about the user's state of mind, and anything narrower starts
+  /// describing the entry, which `answer text never leaves the device` already
+  /// forbids.
+  static const String propAlreadyDidMuhasabah = 'already_did_muhasabah';
+
+  /// The `+` was pressed and the chooser opened (2026-08-07).
+  ///
+  /// The denominator [journalComposeTapped] stopped being able to supply once a
+  /// sheet came between the control and the act: an abandoned chooser and a FAB
+  /// nobody pressed used to be the same non-event. Carries
+  /// [propOptionCount] — the number of rows the sheet offered — because "one
+  /// option" and "two options" are different products and the day decides which
+  /// the user gets.
+  static const String journalComposeOpened = 'journal_compose_opened';
+
+  /// How many rows the compose sheet showed. See [journalComposeOpened].
+  static const String propOptionCount = 'option_count';
 
   /// An archived entry was opened for re-reading (D2/D4/E1) — the whole point
   /// of Wave D, and unmeasurable before it.
@@ -919,6 +1000,52 @@ abstract final class AnalyticsEvents {
   /// space as [journalEntryCreated]) so "people re-read their nights" is
   /// separable from "people re-read their Reflect saves".
   static const String journalEntryOpened = 'journal_entry_opened';
+
+  /// A settled journal search (2026-08-06). **Debounced, never per keystroke** —
+  /// one event per query the user stopped typing, so `p` `pa` `pai` `pain` is one
+  /// search and not four.
+  ///
+  /// Props: [propResultCount] and [propHasResults]. **The query itself is never
+  /// sent, and neither is its length.** What someone types into a journal search
+  /// box is the same confessional text the answer-text rule already keeps off
+  /// the wire — the search box is simply a second place to type it, and it would
+  /// be a strange doctrine that protected the entry and not the search for it.
+  ///
+  /// `has_results: false` is the slice that matters: a search that finds nothing
+  /// is either a journal that does not contain the memory or a matcher that
+  /// cannot reach it, and the ratio is the only way to tell which.
+  ///
+  /// Conversion is measured through [journalEntryOpened] with
+  /// [originJournalSearch], not by a second event here.
+  static const String journalSearched = 'journal_searched';
+
+  /// The user's own words on a saved entry were rewritten (2026-08-06).
+  ///
+  /// **Fires only on a committed change.** A blank edit, an unchanged re-save,
+  /// an entry missing from the cache and a server refusal are all silent — the
+  /// event counts edits the journal KEPT, exactly like
+  /// [muhasabahThreadAppended].
+  ///
+  /// Props: [propSource] (`muhasabah` | `reflect`) and [propAgeDays] — how old
+  /// the entry was when it was edited, which is the question the feature exists
+  /// to answer. Never the text, before or after.
+  static const String journalEntryEdited = 'journal_entry_edited';
+
+  /// The Journal's weekly recap was OPENED as a story (2026-08-06).
+  ///
+  /// The recap used to be a passive block and had nothing to measure; in the
+  /// archive it is now a one-line door onto four screens on the sacred canvas,
+  /// and whether anyone walks through it is the only question the change asks.
+  /// `journal_resurfacing_shown{weekly_recap: true}` is the denominator — the
+  /// same relationship [journalBrowseOpened] has with the calendar.
+  ///
+  /// Props: [propEntryCount] (entries in the window) and [propBeatCount] (how
+  /// many screens the recap actually built, since empty themes and an empty
+  /// one-line are skipped rather than rendered blank). **Both are structural.
+  /// Never the quoted line, never a theme, never a Name, never anything derived
+  /// from what the user wrote** — the door leads with the user's own words and
+  /// none of them may travel with the tap.
+  static const String journalRecapOpened = 'journal_recap_opened';
 
   /// The Month of Light calendar was opened as the Journal's browse control
   /// (D4). The denominator for `journal_entry_opened{origin: journal_calendar}`
@@ -956,20 +1083,41 @@ abstract final class AnalyticsEvents {
   static const String propHasAzm = 'has_azm';
   static const String propFirstTime = 'first_time';
   static const String propCleared = 'cleared';
-  // `propAction` is declared once, above, next to the duʿā-times notice that
-  // introduced it. Both branches added their own copy of the same `'action'`
-  // key, so the 2026-08-05 merge produced two declarations of one wire key —
-  // which Dart rejects, and which is how a later rename silently splits a
-  // funnel in half. Collapsed to the documented one.
   static const String propEntryPoint = 'entry_point';
   static const String propFormat = 'format';
   static const String propOnThisNight = 'on_this_night';
+  /// On [journalResurfacingShown]. Since 2026-08-06 this is the CADENCE-GATED
+  /// answer — what the archive actually opened with, not what the rolling
+  /// seven-day window would have allowed. The Journal shows the recap at most
+  /// once per calendar week, so expect a step change at that release and read
+  /// no signal into it. [journalRecapOpened] is the numerator over this.
   static const String propWeeklyRecap = 'weekly_recap';
   static const String propAnsweredPrompt = 'answered_prompt';
 
+  /// On [journalRecapOpened]. The shape of the recap that was opened — how many
+  /// entries the window held, and how many screens that became. A recap whose
+  /// themes and one-line are both empty builds two beats, and the distribution
+  /// is how "the story is thin" gets noticed without reading anybody's week.
+  static const String propEntryCount = 'entry_count';
+  static const String propBeatCount = 'beat_count';
+
+  /// On [journalSearched]. A count of matched entries — never the query.
+  static const String propResultCount = 'result_count';
+  static const String propHasResults = 'has_results';
+
+  /// On [journalEntryEdited]. Whole days between the entry's own date and the
+  /// edit, clamped at zero: "people fix tonight's typo" and "people revisit a
+  /// night from March" are different features wearing the same button.
+  static const String propAgeDays = 'age_days';
+
   static const String composeActionStartTonight = 'start_tonight';
   static const String composeActionAddToTonight = 'add_to_tonight';
-  static const String composeActionFreeWrite = 'free_write';
+  /// The wire value stays `free_write` although the action is now
+  /// `newReflection` and the button reads "New reflection". Renaming it would
+  /// split `journal_compose_tapped` into two incomparable series at T0 for a
+  /// cosmetic gain — the same reasoning that made `source` a PROPERTY on
+  /// `journal_entry_created` rather than a second event.
+  static const String composeActionNewReflection = 'free_write';
   static const String composeEntryFab = 'fab';
   static const String composeEntryEmptyState = 'empty_state';
 
@@ -982,44 +1130,7 @@ abstract final class AnalyticsEvents {
   static const String originJournalFeed = 'journal_feed';
   static const String originJournalCalendar = 'journal_calendar';
   static const String originOnThisNight = 'on_this_night';
-  // Gift-a-Dua funnel (2026-08-02). The gift affordance shipped with NO
-  // instrumentation at all, so its discoverability — the thing we actually
-  // doubt — was unmeasurable. Three steps, so a drop can be located:
-  //
-  //   gift_cta_shown     the Ameen screen rendered a gift affordance (once per
-  //                      result, NOT per rebuild — a scroll must not inflate it)
-  //   gift_preview_opened the user tapped through to the gift preview
-  //   gift_sent          the share sheet was invoked with the rendered pages
-  //
-  // shown → opened is the DISCOVERABILITY rate (does anyone find it?);
-  // opened → sent is the INTENT rate (having seen it, do they send it?).
-  // Conflating them would hide which half is broken.
-  //
-  // gift_cta_shown fires ONCE per result and carries NO placement: both the
-  // corner icon and the labeled CTA render together, so emitting one per
-  // affordance would double the impression count and halve every rate below it.
-  // gift_preview_opened and gift_sent DO carry [propPlacement], which is what
-  // actually answers "did the labeled CTA beat the corner icon" — the question
-  // the labeled CTA was added to settle.
-  //
-  // gift_sent carries [propPageCount] since a multi-page gift can be truncated
-  // by a share target that only accepts one image, and [propShareStatus]
-  // because `shareXFiles` completes when the sheet CLOSES however it closed:
-  // a dismissed sheet is not a sent gift and is never reported, while
-  // `unavailable` (platform can't tell) IS reported but stays separable from a
-  // confirmed `success` so the send rate can be read with the right caveat.
-  static const String giftCtaShown = 'gift_cta_shown';
-  static const String giftPreviewOpened = 'gift_preview_opened';
-  static const String giftSent = 'gift_sent';
-
-  // Values for [propPlacement] on the gift funnel.
-  static const String giftPlacementCornerIcon = 'ameen_corner_icon';
-  static const String giftPlacementPrimaryCta = 'ameen_labeled_cta';
-
-  static const String propPageCount = 'page_count';
-
-  /// `success` | `unavailable` — the platform's own verdict on the share.
-  static const String propShareStatus = 'share_status';
+  static const String originJournalSearch = 'journal_search';
 
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
@@ -1685,9 +1796,6 @@ abstract final class AnalyticsEvents {
   /// get through the queue or stall at position 2.
   static const String propQueuePosition = 'queue_position';
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Deck personalisation — the variant selector (plan 2026-08-05 §6, D13)
-  // ───────────────────────────────────────────────────────────────────────────
 
   /// A Name-story deck's two personalisable beats were resolved for one
   /// encounter. Emitted by `DeckVariantSelector.select`.
