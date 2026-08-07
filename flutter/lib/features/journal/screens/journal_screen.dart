@@ -1243,13 +1243,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             child: Row(
               children: [
                 _filterChip('All', 0, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
                 const SizedBox(width: 8),
                 _filterChip('Nightly', 1, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
                 const SizedBox(width: 8),
                 _filterChip('Reflect', 2, _reflectionFilter,
-                    (i) => setState(() => _reflectionFilter = i)),
+                    (i) => setState(() => _reflectionFilter = i),
+                    group: 'reflection'),
               ],
             ),
           );
@@ -1300,13 +1303,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             child: Row(
               children: [
                 _filterChip('All', 0, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
                 const SizedBox(width: 8),
                 _filterChip('Built', 1, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
                 const SizedBox(width: 8),
                 _filterChip('Saved', 2, _duaFilter,
-                    (i) => setState(() => _duaFilter = i)),
+                    (i) => setState(() => _duaFilter = i),
+                    group: 'dua'),
               ],
             ),
           );
@@ -1318,14 +1324,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   /// One filter chip. Shared by the Duas tab and (D1) the Reflections tab, so
   /// the two rows cannot drift into looking like different controls.
+  ///
+  /// [group] keys the chip. The labels are NOT unique on this screen — both
+  /// filter rows start with "All", the tab row has an "All" of its own, and
+  /// `IndexedStack` builds every tab whether or not it is showing, so a
+  /// `find.text('All')` in a test matches up to three widgets and taps
+  /// whichever the tree happens to reach first. Same reasoning as the
+  /// `journal-tab-$i` keys.
   Widget _filterChip(
     String label,
     int index,
     int selectedIndex,
-    ValueChanged<int> onSelect,
-  ) {
+    ValueChanged<int> onSelect, {
+    required String group,
+  }) {
     final selected = selectedIndex == index;
     return GestureDetector(
+      key: ValueKey('journal-filter-$group-$index'),
       onTap: () {
         HapticFeedback.selectionClick();
         onSelect(index);

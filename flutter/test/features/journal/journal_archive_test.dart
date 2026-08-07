@@ -28,6 +28,8 @@ import 'package:sakina/features/journal/journal_compose_action.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
+import 'package:sakina/features/streaks/widgets/month_of_light_cell.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
@@ -121,17 +123,35 @@ void main() {
         source: 'Ibn Hibban',
       );
 
+  SavedBuiltDua builtDua({
+    String id = 'b1',
+    String need = 'Ease for my mother',
+  }) =>
+      SavedBuiltDua(
+        id: id,
+        savedAt: '2026-08-04T12:00:00Z',
+        need: need,
+        arabic: 'اللهم يسر',
+        transliteration: 'Allahumma yassir',
+        translation: 'O Allah, make it easy.',
+      );
+
   Future<_StubLoop> pump(
     WidgetTester t, {
     List<SavedReflection> reflections = const [],
     List<SavedRelatedDua> duas = const [],
+    List<SavedBuiltDua> builtDuas = const [],
     DailyLoopState? loop,
+    MonthOfLight? month,
   }) async {
     final reflectNotifier = ReflectNotifier(loadOnInit: false)
       ..debugSeedReflections(reflections);
     final duasNotifier = DuasNotifier(loadOnInit: false);
-    if (duas.isNotEmpty) {
-      duasNotifier.state = duasNotifier.state.copyWith(savedRelatedDuas: duas);
+    if (duas.isNotEmpty || builtDuas.isNotEmpty) {
+      duasNotifier.state = duasNotifier.state.copyWith(
+        savedRelatedDuas: duas,
+        savedBuiltDuas: builtDuas,
+      );
     }
     final loopNotifier = _StubLoop(loop ?? const DailyLoopState(loaded: true));
 
@@ -156,6 +176,8 @@ void main() {
           duasProvider.overrideWith((_) => duasNotifier),
           questsProvider.overrideWith((_) => _StubQuests()),
           dailyLoopProvider.overrideWith((_) => loopNotifier),
+          if (month != null)
+            monthOfLightProvider.overrideWith((_) async => month),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -167,6 +189,15 @@ void main() {
 
   Future<void> openTab(WidgetTester t, int index) async {
     await t.tap(find.byKey(ValueKey('journal-tab-$index')));
+    await t.pump();
+    await t.pump(const Duration(seconds: 1));
+  }
+
+  /// Taps a filter chip by KEY, never by label. "All" is the first chip of both
+  /// filter rows AND the first tab, and `IndexedStack` builds every tab whether
+  /// or not it is showing — so `find.text('All')` matches up to three widgets.
+  Future<void> filter(WidgetTester t, String group, int index) async {
+    await t.tap(find.byKey(ValueKey('journal-filter-$group-$index')));
     await t.pump();
     await t.pump(const Duration(seconds: 1));
   }
@@ -192,9 +223,7 @@ void main() {
       expect(find.text('MUHĀSABAH'), findsOneWidget);
       expect(find.text('REFLECTION'), findsOneWidget);
 
-      await t.tap(find.text('Nightly'));
-      await t.pump();
-      await t.pump(const Duration(seconds: 1));
+      await filter(t, 'reflection', 1);
 
       expect(find.text('MUHĀSABAH'), findsOneWidget);
       expect(find.text('REFLECTION'), findsNothing);
@@ -204,9 +233,7 @@ void main() {
       await pump(t, reflections: [muhasabah(), reflectSave()]);
       await openTab(t, 1);
 
-      await t.tap(find.text('Reflect'));
-      await t.pump();
-      await t.pump(const Duration(seconds: 1));
+      await filter(t, 'reflection', 2);
 
       expect(find.text('MUHĀSABAH'), findsNothing);
       expect(find.text('REFLECTION'), findsOneWidget);
@@ -350,6 +377,225 @@ void main() {
       // bump but still fails if a new banner moves in.
       final chipY = t.getTopLeft(find.text('MUHĀSABAH')).dy;
       expect(chipY, lessThan(844 * 0.25));
+    });
+  });
+
+  // The Duas tab's filter row is the exact twin of the Reflections tab's, and
+  // shares `_filterChip` with it precisely so the two cannot drift into looking
+  // like different controls. Until now only one of the twins was tested.
+  //
+  // The two kinds are genuinely different objects — a duʿā you BUILT from your
+  // own need, and one you SAVED from a reflection — living in separate lists on
+  // `DuasState`. A filter that reads the wrong list is invisible until a user
+  // has both.
+  group('the Duas tab filters by where the duʿā came from', () {
+    const duasTab = 2;
+
+    testWidgets('All shows both kinds', (t) async {
+      await pump(t, duas: [savedDua()], builtDuas: [builtDua()]);
+      await openTab(t, duasTab);
+
+      expect(find.text('PERSONAL DUA'), findsOneWidget);
+      expect(find.text('SAVED DUA'), findsOneWidget);
+      expect(find.text('Ease for my mother'), findsOneWidget);
+      expect(find.text('Dua for ease'), findsOneWidget);
+    });
+
+    testWidgets('Built shows only the ones you made', (t) async {
+      await pump(t, duas: [savedDua()], builtDuas: [builtDua()]);
+      await openTab(t, duasTab);
+
+      await filter(t, 'dua', 1);
+
+      expect(find.text('PERSONAL DUA'), findsOneWidget);
+      expect(find.text('SAVED DUA'), findsNothing);
+      expect(find.text('Dua for ease'), findsNothing);
+    });
+
+    testWidgets('Saved shows only the ones you kept', (t) async {
+      await pump(t, duas: [savedDua()], builtDuas: [builtDua()]);
+      await openTab(t, duasTab);
+
+      await filter(t, 'dua', 2);
+
+      expect(find.text('SAVED DUA'), findsOneWidget);
+      expect(find.text('PERSONAL DUA'), findsNothing);
+      expect(find.text('Ease for my mother'), findsNothing);
+    });
+
+    testWidgets('returning to All brings both back — the filter is not a delete',
+        (t) async {
+      await pump(t, duas: [savedDua()], builtDuas: [builtDua()]);
+      await openTab(t, duasTab);
+
+      await filter(t, 'dua', 1);
+      await filter(t, 'dua', 0);
+
+      expect(find.text('PERSONAL DUA'), findsOneWidget);
+      expect(find.text('SAVED DUA'), findsOneWidget);
+    });
+
+    testWidgets('the chips render even when one side is empty', (t) async {
+      // Same rule D1 states for the Reflections tab: an empty "Saved" list is
+      // itself the answer to "where are my saved duʿās", and hiding the chip
+      // would leave the question unanswered.
+      await pump(t, builtDuas: [builtDua()]);
+      await openTab(t, duasTab);
+
+      // By key: "All" is also a tab label, so the text finder is ambiguous.
+      expect(find.byKey(const ValueKey('journal-filter-dua-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('journal-filter-dua-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('journal-filter-dua-2')), findsOneWidget);
+      expect(find.text('Built'), findsOneWidget);
+      expect(find.text('Saved'), findsOneWidget);
+
+      await filter(t, 'dua', 2);
+
+      expect(find.text('PERSONAL DUA'), findsNothing,
+          reason: 'an empty filter shows nothing rather than falling back to '
+              'everything');
+    });
+
+    testWidgets('the filter does not leak across tabs', (t) async {
+      // `_duaFilter` and `_reflectionFilter` are separate fields on the same
+      // State. Sharing `_filterChip` between them is what makes crossing them
+      // a plausible mistake.
+      await pump(
+        t,
+        reflections: [muhasabah(), reflectSave()],
+        duas: [savedDua()],
+        builtDuas: [builtDua()],
+      );
+
+      await openTab(t, duasTab);
+      await filter(t, 'dua', 1);
+
+      await openTab(t, 1); // Reflections
+      expect(find.text('MUHĀSABAH'), findsOneWidget);
+      expect(find.text('REFLECTION'), findsOneWidget,
+          reason: 'the Reflections tab is still on All — picking Built on the '
+              'Duas tab must not have moved it');
+    });
+  });
+
+  // D4 — the calendar became a door. `month_of_light_browse_test` pins WHICH
+  // cells route; this pins where the Journal takes them once they do.
+  //
+  // The middle case is the one with no coverage at all and the most ways to be
+  // wrong: a night the STREAK knows about but the journal does not. Every night
+  // completed before Wave B started persisting entries is one of these, and so
+  // is a night whose write the server refused. Doing nothing at all reads as a
+  // broken tap; opening a blank page is worse.
+  group('D4 — the calendar opens a night, or says why it cannot', () {
+    MonthOfLight month(Map<int, MonthCellState> states) {
+      final cells = <DateTime, MonthCellState>{};
+      for (var d = 1; d <= 31; d++) {
+        cells[DateTime.utc(2026, 8, d)] =
+            states[d] ?? MonthCellState.future;
+      }
+      return MonthOfLight(
+        cells: cells,
+        litCount: states.values.where((s) => s == MonthCellState.lit).length,
+        month: DateTime.utc(2026, 8, 1),
+      );
+    }
+
+    Finder cellFor(DateTime day) => find.byWidgetPredicate(
+          (w) => w is MonthOfLightCell && w.day == day && !w.dense,
+        );
+
+    Future<void> openCalendar(WidgetTester t) async {
+      await t.tap(find.byTooltip('Browse by month'));
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('a lit night with an entry opens that entry', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-02')],
+        month: month({2: MonthCellState.lit}),
+      );
+
+      await openCalendar(t);
+      await t.tap(cellFor(DateTime.utc(2026, 8, 2)));
+      await t.pumpAndSettle();
+
+      // `textContaining`, not `text`: the story cover wraps the words in
+      // typographic quotes, so the literal string never matches there.
+      expect(find.textContaining('I snapped at my brother tonight.'),
+          findsWidgets,
+          reason: 'the night opened');
+      expect(find.text('That night was lit, but no entry was saved for it.'),
+          findsNothing);
+    });
+
+    testWidgets('a lit night with NO entry says so plainly', (t) async {
+      // The 1st is lit; the only entry is on the 2nd.
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-08-02')],
+        month: month({1: MonthCellState.lit, 2: MonthCellState.lit}),
+      );
+
+      await openCalendar(t);
+      await t.tap(cellFor(DateTime.utc(2026, 8, 1)));
+      await t.pumpAndSettle();
+
+      expect(
+        find.text('That night was lit, but no entry was saved for it.'),
+        findsOneWidget,
+        reason: 'a pre-Wave-B night, or one the server refused — saying '
+            'nothing at all reads as a broken tap',
+      );
+    });
+
+    testWidgets('an empty journal does not crash the calendar', (t) async {
+      await pump(t, month: month({1: MonthCellState.lit}));
+
+      await openCalendar(t);
+      await t.tap(cellFor(DateTime.utc(2026, 8, 1)));
+      await t.pumpAndSettle();
+
+      expect(find.text('That night was lit, but no entry was saved for it.'),
+          findsOneWidget);
+    });
+
+    testWidgets('today pending starts tonight rather than opening it',
+        (t) async {
+      await pump(t, month: month({2: MonthCellState.todayPending}));
+
+      await openCalendar(t);
+      await t.tap(cellFor(DateTime.utc(2026, 8, 2)));
+      await t.pumpAndSettle();
+
+      expect(find.text('MUHASABAH ROUTE'), findsOneWidget);
+      expect(find.text('That night was lit, but no entry was saved for it.'),
+          findsNothing,
+          reason: 'todayPending is handled BEFORE the entry lookup — a pending '
+              'night has no entry by definition, so falling through would show '
+              'the message on every fresh day');
+    });
+
+    testWidgets('a Reflect save with no local day still answers for its date',
+        (t) async {
+      // The `saved_at` fallback in `_entryForDay`. A Reflect save is not a
+      // night and carries no `entry_local_day`, so without the fallback every
+      // calendar tap on a day whose only entry is a Reflect save would report
+      // "no entry was saved for it" — while the entry sits in the feed above.
+      await pump(
+        t,
+        reflections: [reflectSave(date: '2026-08-01T10:00:00.000Z')],
+        month: month({1: MonthCellState.lit}),
+      );
+
+      await openCalendar(t);
+      await t.tap(cellFor(DateTime.utc(2026, 8, 1)));
+      await t.pumpAndSettle();
+
+      expect(find.text('That night was lit, but no entry was saved for it.'),
+          findsNothing);
+      expect(find.textContaining('The interview is tomorrow and I cannot sleep.'),
+          findsWidgets);
     });
   });
 

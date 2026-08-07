@@ -254,6 +254,113 @@ void main() {
     });
   });
 
+  // Every other widget test in this file renders ONE surface. The ceiling and
+  // the order are properties of the two together, and they live nowhere but the
+  // child order of `_buildResurfacingStrip`'s Column — a two-line edit away from
+  // silently inverting, with no test to notice.
+  //
+  // The order is a product decision, not a layout accident: the answered-duʿā
+  // prompt is the only one of the surfaces that ASKS the user for anything, and
+  // burying an ask under a reminiscence is how it gets missed and then repeated.
+  group('when the archive has two things to resurface at once', () {
+    testWidgets('both render, and the ask comes first', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-07-03')],
+        duas: [builtDua()],
+      );
+
+      expect(find.byType(AnsweredDuaCard), findsOneWidget);
+      expect(find.byType(OnThisNightCard), findsOneWidget);
+      expect(
+        t.getTopLeft(find.byType(AnsweredDuaCard)).dy,
+        lessThan(t.getTopLeft(find.byType(OnThisNightCard)).dy),
+        reason: 'the ask sits above the reminiscence — an ask buried under a '
+            'memory is one the user scrolls past and is then asked again',
+      );
+    });
+
+    testWidgets('two is the ceiling — the recap does not become a third card',
+        (t) async {
+      // The recap is due here (two entries inside the window, fresh prefs) AND
+      // both strip surfaces resolve. Before the 2026-08-06 redesign the recap
+      // was a block that could stack into this area; it is now a line in the
+      // header slot, above the tabs. This pins that it stayed out of the feed.
+      await pump(
+        t,
+        reflections: [
+          muhasabah(day: '2026-07-03'), // the anchor
+          muhasabah(day: '2026-08-01', words: 'work is crushing me'),
+          muhasabah(day: '2026-07-31', words: 'anxious about the exam'),
+        ],
+        duas: [builtDua()],
+      );
+
+      expect(find.byType(WeeklyRecapLine), findsOneWidget);
+      expect(find.byType(AnsweredDuaCard), findsOneWidget);
+      expect(find.byType(OnThisNightCard), findsOneWidget);
+
+      expect(
+        find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(WeeklyRecapLine),
+        ),
+        findsNothing,
+        reason: 'the recap belongs to the header slot, not to the feed — in '
+            'the feed it would be the third card the strip may never have',
+      );
+      expect(
+        t.getTopLeft(find.byType(WeeklyRecapLine)).dy,
+        lessThan(t.getTopLeft(find.byType(AnsweredDuaCard)).dy),
+      );
+    });
+
+    testWidgets('answering the duʿā leaves the memory standing', (t) async {
+      await pump(
+        t,
+        reflections: [muhasabah(day: '2026-07-03')],
+        duas: [builtDua()],
+      );
+
+      await t.tap(find.text(JournalResurfacingCopy.notYetAction));
+      await t.pump();
+      await t.pump(const Duration(seconds: 1));
+
+      expect(find.byType(AnsweredDuaCard), findsNothing);
+      expect(find.byType(OnThisNightCard), findsOneWidget,
+          reason: 'dismissing one surface must not take the other with it — '
+              'they are independent resolvers sharing a Column');
+    });
+
+    testWidgets('the tour anchor still lands on the first ENTRY, not on either '
+        'card', (t) async {
+      // The off-by-one this file was written for gets worse with two cards in
+      // the strip, because the strip is a single ListView item however many
+      // cards it holds.
+      await pump(
+        t,
+        reflections: [
+          muhasabah(day: '2026-07-03'),
+          muhasabah(day: '2026-08-02', words: 'tonight'),
+        ],
+        duas: [builtDua()],
+      );
+
+      final anchor = find.byWidgetPredicate(
+        (w) => w is TourAnchor && w.anchorId == 'firstEntry',
+      );
+      expect(anchor, findsOneWidget);
+      expect(
+        find.descendant(of: anchor, matching: find.byType(AnsweredDuaCard)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: anchor, matching: find.byType(OnThisNightCard)),
+        findsNothing,
+      );
+    });
+  });
+
   group('E3 — the answered duʿā', () {
     testWidgets('asks gently, with two equal ways out', (t) async {
       await pump(t,
