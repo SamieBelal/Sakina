@@ -46,8 +46,31 @@ abstract final class MuhasabahCompletionCopy {
 
   /// Sits above the summary on a replay, so the screen is not silently showing
   /// someone else's night with no explanation.
+  ///
+  /// Used only when the second run's words could NOT be folded in — a blank
+  /// answer, words the entry already holds, a full thread, a refused write. When
+  /// they were kept, [replayNoticeFolded] says so instead.
   static const String replayNotice =
       'Today already had an entry, so this is the one that was kept.';
+
+  /// The same slot when the second run's answer WAS folded into the day's entry
+  /// (2026-08-07).
+  ///
+  /// [replayNotice] is accurate and still reads as *your writing is gone* —
+  /// which, before the fold existed, it was: the reader had run the whole night
+  /// again, paid 25 tokens or a fair-use slot for it, and the app kept nothing.
+  /// This line's whole job is to name where the words went, and the thread
+  /// rendered under "Added today" a few rows below is the proof.
+  ///
+  /// Says nothing about the Name. That claim is [nameLabelReplay]'s, and it is
+  /// still the entry's Name rather than the one just revealed — the fold moves
+  /// the words and changes nothing else.
+  ///
+  /// Hour-independent, matching [replayNotice] rather than [headerFor]: the two
+  /// occupy one slot and swap on outcome, and a pair that also disagreed about
+  /// the day noun would read as two unrelated messages.
+  static const String replayNoticeFolded =
+      'Today already had an entry, so what you just wrote was added to it.';
 
   // ── Add to tonight (C1) ──
 

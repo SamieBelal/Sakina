@@ -448,8 +448,17 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْحَكِيمُ',
     episode: 26,
     callFor: ['confusion', 'painful decrees', 'not understanding why', 'trusting the plan'],
-    invocationStyle: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
-    samplePhrase: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
+    // Recut 2026-08-05 (Sahih Muslim 2696). This feeds the AI's build-a-dua
+    // prompt context; left stale it would keep proposing Al-Lateef's
+    // invocation for Al-Hakeem, which is the defect being fixed.
+    invocationStyle:
+        "La hawla wa la quwwata illa billahil 'Azeezil Hakeem",
+    // Complete, not elided. This string is handed to the model as "Sample
+    // phrase" (ai_service.dart:1382); an abbreviated supplication with "..."
+    // in the middle invites the model to reproduce the abbreviation. A prompt
+    // has no length budget worth saving here.
+    samplePhrase:
+        "La ilaha illallahu wahdahu la shareeka lah, Allahu akbaru kabeera, wal-hamdu lillahi katheera, subhanallahi rabbil 'alameen, la hawla wa la quwwata illa billahil 'Azeezil Hakeem",
   ),
 
   // Observation cluster
@@ -798,8 +807,8 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْمَتِينُ',
     episode: 54,
     callFor: ['seeking firm ground', 'instability', 'feeling shaken', 'firmness in trials'],
-    invocationStyle: "La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem",
-    samplePhrase: "La hawla wa la quwwata illa billahil 'Aliyyil 'Azeem",
+    invocationStyle: 'La hawla wa la quwwata illa billah',
+    samplePhrase: 'La hawla wa la quwwata illa billah',
   ),
 
   // Timing cluster
@@ -948,8 +957,8 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْبَرُّ',
     episode: 79,
     callFor: ['gratitude for goodness', 'source of all good', 'steadfastness in birr', 'faith in trials'],
-    invocationStyle: "Ya Barr, thabbintni 'ala birrik",
-    samplePhrase: "Ya Barr, thabbintni 'ala birrik waj'al imani rasikhana hina tartajifu qulub",
+    invocationStyle: "Ya Barr, thabbitni 'ala birrik",
+    samplePhrase: "Ya Barr, thabbitni 'ala birrik waj'al imani rasikhan hina tartajiful-qulub",
   ),
 ];
 

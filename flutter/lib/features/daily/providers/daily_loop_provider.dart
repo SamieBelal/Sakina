@@ -29,6 +29,10 @@ import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
+// The deterministic variant selector (deck personalisation Wave 5). Policy —
+// rotation, the seen set, the fallback ladder — lives entirely behind
+// `select()`; this provider only latches the answer next to the deck.
+import 'package:sakina/services/deck_variant_selector.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
 // Re-exports `launch_gate_state.dart`, which is where `markDailyLaunchShown`
@@ -191,6 +195,28 @@ class DailyLoopState {
   /// `buildBeatScreensFromDeck` instead of a [ReflectResponse].
   final NameStoryDeck? revealDeck;
 
+  /// The variant selection LATCHED for [revealDeck] at reveal time (deck
+  /// personalisation Wave 5, §4.3).
+  ///
+  /// It lives here — beside the deck, resolved by the same async code that
+  /// resolved the deck — for one reason: `DeckVariantSelector.select` is async
+  /// (it reads prefs) and `muhasabah_screen._buildBeatFlow` runs inside
+  /// `build()`. Resolving it there would render `primary` on the first frame
+  /// and swap the bridge sentence out from under a reader mid-sentence, which
+  /// is precisely the failure §4.3 names ("selection latches at flow entry").
+  /// The screen therefore does no resolving at all; it reads
+  /// [DeckVariantSelection.selection] and hands it to
+  /// `buildBeatScreensFromDeck`.
+  ///
+  /// Null whenever [revealDeck] is null, and also when the selector failed —
+  /// a null selection renders every `primary`, which is byte-identical to the
+  /// pre-personalisation reveal (D11: `primary` is the safety net, so there is
+  /// no kill switch to build).
+  ///
+  /// Written down only on completion: [DailyLoopNotifier.completeDeeper] calls
+  /// `DeckVariantSelector.markCompleted`, never the abandon path (D12).
+  final DeckVariantSelection? revealVariant;
+
   /// How many positions are still sealed. Lets the home CTA subtitle (Wave 4)
   /// render without a second fetch.
   final int queueSealedRemaining;
@@ -243,13 +269,31 @@ class DailyLoopState {
   /// just been shown Al-Majeed was told they met Al-Wadud. Observed on
   /// 2026-08-06.
   ///
-  /// Reachable in production whenever the server refuses the insert on
-  /// `uniq_muhasabah_per_local_day`: a second device, or a completion whose
-  /// sync lands after another device has already claimed the day. The
-  /// `!checkinDone` gate blocks the same-device replay, so this is rare — but
-  /// `saveMuhasabahReflection` has always returned the boolean that detects it,
-  /// and it was simply dropped on the floor.
+  /// **Not rare, and not second-device-only** — this dartdoc said both until
+  /// 2026-08-07, and the claim sent one QA triage down the wrong path. The
+  /// `!checkinDone` gate does not block the same-device replay, because the
+  /// completion screen's own primary CTA ("Seek Another Name") calls
+  /// [resetToday], which wipes state to `const DailyLoopState()` and clears
+  /// `checkinDone` before re-running the whole ceremony. A second muḥāsabah on
+  /// one device is a supported, PAID path — 25 tokens at the cap sheet for a
+  /// free reader, 30/day fair-use for premium — and every one of them lands
+  /// here, deterministically, at the local cache check in
+  /// [saveMuhasabahReflection] before the server is even asked.
+  ///
+  /// What the second run wrote is no longer lost; see [tonightAnswerFolded].
   final bool tonightEntryIsReplay;
+
+  /// True when this completion's own answer was folded into [tonightEntry]'s
+  /// thread because the day's one muḥāsabah row was already taken.
+  ///
+  /// Always false unless [tonightEntryIsReplay] is true — a night that wrote its
+  /// own row has nothing to fold. The converse does NOT hold: a replay folds
+  /// nothing when the answer was blank, when it duplicates words the entry
+  /// already carries, when the twenty-append budget is spent, or when the server
+  /// refuses. **The completion screen must switch its notice on THIS, never on
+  /// the replay flag**, or it promises an append that did not happen — which is
+  /// the same lie as the one the fold exists to end, pointing the other way.
+  final bool tonightAnswerFolded;
 
   /// The user's own entry from 30 / 90 / 365 nights ago — nearest available,
   /// at most one (C3).
@@ -294,6 +338,7 @@ class DailyLoopState {
     this.revealSource = revealSourceGacha,
     this.revealQueuePosition,
     this.revealDeck,
+    this.revealVariant,
     this.queueSealedRemaining = 0,
     this.rewardClaimResult,
     this.streakCount = 0,
@@ -312,6 +357,7 @@ class DailyLoopState {
     this.warmupJustExhausted,
     this.tonightEntry,
     this.tonightEntryIsReplay = false,
+    this.tonightAnswerFolded = false,
     this.timeMachineEntry,
     this.lastNightAzm,
     this.error,
@@ -356,6 +402,7 @@ class DailyLoopState {
     String? revealSource,
     int? revealQueuePosition,
     NameStoryDeck? revealDeck,
+    DeckVariantSelection? revealVariant,
     int? queueSealedRemaining,
 
     /// Set only by the reveal write in [DailyLoopNotifier.discoverName], which
@@ -388,6 +435,7 @@ class DailyLoopState {
     bool clearWarmupJustExhausted = false,
     SavedReflection? tonightEntry,
     bool? tonightEntryIsReplay,
+    bool? tonightAnswerFolded,
     SavedReflection? timeMachineEntry,
     String? lastNightAzm,
     String? error,
@@ -456,6 +504,11 @@ class DailyLoopState {
           ? revealQueuePosition
           : (revealQueuePosition ?? this.revealQueuePosition),
       revealDeck: resetReveal ? revealDeck : (revealDeck ?? this.revealDeck),
+      // Cleared and re-set with the deck it belongs to, never independently —
+      // a selection that outlived its deck would personalise the NEXT reveal
+      // with the previous one's variant id.
+      revealVariant:
+          resetReveal ? revealVariant : (revealVariant ?? this.revealVariant),
       queueSealedRemaining: queueSealedRemaining ?? this.queueSealedRemaining,
       rewardClaimResult: rewardClaimResult ?? this.rewardClaimResult,
       streakCount: streakCount ?? this.streakCount,
@@ -480,6 +533,7 @@ class DailyLoopState {
       tonightEntry: tonightEntry ?? this.tonightEntry,
       tonightEntryIsReplay:
           tonightEntryIsReplay ?? this.tonightEntryIsReplay,
+      tonightAnswerFolded: tonightAnswerFolded ?? this.tonightAnswerFolded,
       timeMachineEntry: timeMachineEntry ?? this.timeMachineEntry,
       lastNightAzm: lastNightAzm ?? this.lastNightAzm,
       error: clearError ? null : (error ?? this.error),
@@ -1454,6 +1508,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         } catch (_) {}
       }
 
+      // The variant selection, resolved HERE and latched onto state beside the
+      // deck (Wave 5 wiring). It cannot be resolved in `muhasabah_screen`,
+      // which builds its screens inside `build()` — see the doc on
+      // [DailyLoopState.revealVariant].
+      //
+      // `state.checkinProblemCategory` is passed straight through, INCLUDING
+      // null: `submitDailyAnswer` derived it a few lines earlier from the same
+      // keyword map onboarding uses, and every legacy path (the dormant
+      // `answerCheckin`, a re-roll, a pre-W4 blob) leaves it null on purpose.
+      // The selector treats null and `unmatched` as the same no-category
+      // branch, so there is nothing to synthesise.
+      //
+      // Read-only (D12): nothing is written down until `completeDeeper`, which
+      // is what makes a cold-restart resume re-resolve to the same id.
+      //
+      // Its own catch, and never allowed to unset the deck: a personalisation
+      // failure costs the tailored sentence, never the reveal. A null selection
+      // renders every `primary`, which is exactly the pre-personalisation text.
+      DeckVariantSelection? variant;
+      if (deck != null) {
+        try {
+          variant = await DeckVariantSelector.select(
+            deck: deck,
+            surface: DeckVariantSurface.daily,
+            problemCategory: state.checkinProblemCategory,
+          );
+        } catch (_) {}
+      }
+
       final card = queueCard ??
           pickNextCard(
             collection,
@@ -1490,6 +1573,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         revealSource: queueDriven ? revealSourceQueue : revealSourceGacha,
         revealQueuePosition: queueDriven ? queueRow!.position : null,
         revealDeck: deck,
+        revealVariant: variant,
         queueSealedRemaining: _sealedRemainingAfter(queueRows, queueRow),
       );
       // A deck-backed reveal must NOT spend an OpenAI call whose result is
@@ -2452,11 +2536,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// lifecycle to completed, persists, and opens the daily Noor faucet.
   Future<void> completeDeeper() async {
     if (state.currentStep == DailyLoopStep.completed) return; // idempotent
+    final variant = state.revealVariant;
     state = state.copyWith(
       deeperDone: true,
       questDone: true,
       currentStep: DailyLoopStep.completed,
     );
+    // The ONLY writer of the variant rotation (D12), and deliberately NOT on
+    // any abandon path: a flow the reader backed out of must leave no trace, so
+    // re-entering resolves to the same sentence rather than skipping past it.
+    //
+    // AFTER the state flip, not before. `markCompleted` is deliberately not
+    // idempotent — it increments `completedEncounters` — so the guard above is
+    // the only thing standing between a second call and a second increment, and
+    // the flip is what arms it. Awaiting anything before the flip would leave
+    // that guard open across the await.
+    //
+    // Awaited but harmless: `markCompleted` swallows its own failures, so the
+    // reader's completed night can never be taken down by bookkeeping.
+    if (variant != null) {
+      await DeckVariantSelector.markCompleted(variant);
+    }
     await _persistTodayState();
     await _awardDailyNoor();
     await _markDayOpenSatisfied();
@@ -2575,6 +2675,34 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // cheapest guarantee of that is for the state never to carry it until the
       // night is done.
       final day = localDay.dateString;
+      // The day was already taken, so the row this run built is gone — but the
+      // WORDS in it are the reader's and were about to be dropped on the floor.
+      // Fold them into the day's entry as an append instead (2026-08-07); see
+      // [foldRefusedMuhasabahIntoThread] for why this is not a second row.
+      //
+      // Null on every ordinary path: a night that wrote its own row never gets
+      // here, and a refused one still folds nothing when the answer is blank,
+      // duplicates what the entry holds, overflows the twenty-append budget or
+      // is refused by the server.
+      //
+      // **Its OWN catch, and not the method's.** This runs before the state
+      // write, so a throw caught out there would take the whole tail with it —
+      // no `tonightEntry`, no replay flag, no anchor — and leave the reader on a
+      // completion screen with nothing on it at all. That is strictly worse than
+      // the notice they get today, produced by the code that exists to stop
+      // losing things. The fold is bookkeeping; the artifact outranks it.
+      SavedReflection? folded;
+      if (!wrote) {
+        try {
+          folded = await foldRefusedMuhasabahIntoThread(
+            entryLocalDay: day,
+            text: userText,
+            now: debugDailyLoopClock,
+          );
+        } catch (e) {
+          debugPrint('[daily_loop] second-run answer not folded in: $e');
+        }
+      }
       // ⚠️ Both reads resolve BEFORE the assignment, and the `state` the
       // `copyWith` is applied to is read AFTER them. Dart evaluates a method's
       // receiver before its arguments, so `state = state.copyWith(x: await …)`
@@ -2582,7 +2710,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // every state change that landed while the awaits were in flight. That is
       // not theoretical: it broke four daily-loop suites the first time this was
       // written this way.
-      final tonight = await readMuhasabahEntryForDay(day);
+      //
+      // `folded` is the same row the read would return — the append commits to
+      // the cache before it hands the entry back, so the two agree, and a
+      // mutation swapping this for a plain read leaves every test green. It is
+      // preferred only because holding the row we were just given cannot drift
+      // from it, and because the read is a prefs hop we have already paid for.
+      final tonight = folded ?? await readMuhasabahEntryForDay(day);
       final anchor = await findMuhasabahTimeMachineAnchor(day);
       // A write to a disposed StateNotifier throws. Unlike `_initialize`, this
       // catch does not re-write state, so the throw is swallowed rather than
@@ -2597,10 +2731,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // saved" case the completion screen already handles, and flagging it
         // would make the screen apologise for an entry it is not showing.
         tonightEntryIsReplay: !wrote && tonight != null,
+        tonightAnswerFolded: folded != null,
         timeMachineEntry: anchor,
       );
+      // AFTER the commit and only on a committed one, exactly like
+      // [appendToTonight] — and from here rather than inside the fold for the
+      // same reason `saveMuhasabahReflection` owns its own emit: this is the
+      // only line that knows an append actually landed.
+      if (folded != null) _emitFoldedAppend(folded);
     } catch (e) {
       debugPrint('[daily_loop] muhasabah journal entry not written: $e');
+    }
+  }
+
+  /// The fold, counted as what it is: an append, never a second journal entry.
+  ///
+  /// `journal_entry_created` would be wrong here — the row count is still one,
+  /// and counting the fold would inflate the journal's own denominator with
+  /// entries that do not exist. [AnalyticsEvents.surfaceSecondMuhasabah]
+  /// separates it from the two appends a reader chose to make.
+  ///
+  /// `thread.length` and never the text, like every other emit on this path.
+  void _emitFoldedAppend(SavedReflection folded) {
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.muhasabahThreadAppended, {
+        AnalyticsEvents.propSurface: AnalyticsEvents.surfaceSecondMuhasabah,
+        AnalyticsEvents.propThreadLength: folded.thread.length,
+      });
+    } catch (_) {
+      // Telemetry never costs the append.
     }
   }
 
@@ -3029,6 +3188,32 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         }
       }
 
+      // Re-resolve the variant for the restored deck, from the SAME category
+      // the blob persisted (never a re-derivation — `checkinProblemCategory` is
+      // absent from pre-W4 blobs and from every re-roll, and null is the honest
+      // answer there).
+      //
+      // **Re-resolving is safe, and gives the identical id.** `select` is pure
+      // (D12): the seen set only moves in `markCompleted`, which runs on
+      // "Ameen". This branch is reached only while `checkinDone && !deeperDone`
+      // — i.e. before any Ameen for this deck — so the seen set has not moved
+      // since `discoverName` resolved, and the same deck + same seen-set + same
+      // category is by construction the same answer. That property is exactly
+      // why D12 marks on completion rather than on selection.
+      //
+      // The one visible cost is a second `deck_variant_selected` event for one
+      // encounter, which is what a resumed reveal genuinely looks like.
+      DeckVariantSelection? variant;
+      if (deck != null) {
+        try {
+          variant = await DeckVariantSelector.select(
+            deck: deck,
+            surface: DeckVariantSurface.daily,
+            problemCategory: data['checkinProblemCategory'] as String?,
+          );
+        } catch (_) {}
+      }
+
       // Post-await write on the `_initialize` path — see the note there. The
       // `catch (_) { start fresh }` below would otherwise absorb the
       // dispose-time StateError.
@@ -3067,6 +3252,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         revealSource: revealSource,
         revealQueuePosition: (data['revealQueuePosition'] as num?)?.toInt(),
         revealDeck: deck,
+        revealVariant: variant,
       );
 
       // Unchanged rule from `discoverName`: prefetch only when there is no deck

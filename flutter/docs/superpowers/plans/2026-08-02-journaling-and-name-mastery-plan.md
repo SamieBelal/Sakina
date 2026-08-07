@@ -3,7 +3,7 @@
 **Status:** PLAN OF RECORD. All product decisions are closed (D1–D7, founder, 2026-08-02). What remains is build-time judgement.
 **Date:** 2026-08-02
 **Design doc (read first):** [`../specs/2026-08-02-journaling-and-name-mastery-design.md`](../specs/2026-08-02-journaling-and-name-mastery-design.md) — the research, the evidence and the decision rationale live there. This document is only *how and in what order*.
-**Reviewer for all deck content:** the founder (D7), matching the precedent set by the seven approved decks of 2026-07-25/26.
+**Deck content moved out 2026-08-02** → [`2026-08-02-name-story-decks.md`](./2026-08-02-name-story-decks.md). D7 (the founder reviews all deck content) travels with it.
 
 **Line numbers are pointers, not contracts.** They are accurate at HEAD `a4e493c` and will drift.
 
@@ -21,10 +21,10 @@ One release, before T0 (D5). Contents:
 | Journal: muhasabah entries, story format, compose, calendar browse | **yes** | dial |
 | In-app resurfacing ("On This Night", recap, answered duʿā) | **yes** | dial |
 | Pack surface | **yes, dark** | dial + reviewed content |
-| Pack *content* (85 decks + taxonomy) | **when reviewed** | founder sign-off, not the release |
+| Deck / pack *content* | **not in this plan** | see [`2026-08-02-name-story-decks.md`](./2026-08-02-name-story-decks.md) |
 | Push notifications for resurfacing | **NO** | `COPY_VERSION = "reel_v1"` freeze, independent of this plan |
 
-**The load-bearing sequencing fact:** T0 is gated by Waves A–F. It is **not** gated by Wave G (deck content), because the pack surface ships behind a dial and lights up server-side when decks clear review. Do not let content slip the release, and do not let the release date compress the content bar — that pressure is precisely what produces the irreverence failure in design §8.2.
+**The load-bearing sequencing fact:** T0 is gated by Waves A–F. It is **not** gated by deck content — the pack surface ships behind a dial and lights up server-side once reviewed decks exist. Content lives in its own plan now precisely so it can never slip this release, and so this release's date can never compress the content bar. That pressure is what produces the irreverence failure in design §8.2.
 
 ---
 
@@ -35,9 +35,10 @@ A ──▶ B ──┬──▶ C ──┐
           │        ├──▶ E
           └──▶ D ──┘
 F  (independent — start any time)
-G  (independent content track — start any time, never blocks a wave)
 H  (woven into C–F; audited as its own checklist before submission)
 I  (last: pre-ship T0 checklist)
+
+deck content — separate plan entirely, no arrow to or from anything here
 ```
 
 **Hard serialisation: A → B → C.** All three touch the economy/daily-loop hot path, and `daily_loop_provider.dart` has already been the collision point across W3–W6. Do not parallelise them.
@@ -46,7 +47,7 @@ I  (last: pre-ship T0 checklist)
 
 **F ∥ everything** — new tables, new screens, no edits to the daily loop.
 
-**G ∥ everything** — content only; touches `docs/superpowers/content/decks/` and `assets/content/name_stories.json`.
+**Deck content is not a wave in this plan at all.** It is daily-loop content that happens to also feed Wave F later — see [`2026-08-02-name-story-decks.md`](./2026-08-02-name-story-decks.md).
 
 ---
 
@@ -264,52 +265,15 @@ Clone `wardrobe_grid.dart` / `wardrobe_tile.dart` and the two pure resolvers in 
 
 ---
 
-## Wave G — Deck + question content (parallel track)
+## Wave G — MOVED OUT (2026-08-02)
 
-**Scale the existing pipeline; do not invent one.** Protocol: `docs/superpowers/specs/2026-07-25-name-stories-deck-format.md`. Precedent: the seven approved drafts in `docs/superpowers/content/decks/`. Gate: `test/content/name_stories_ship_gate_test.dart` (a bad deck is a **build failure**).
+**Deck content is now its own plan: [`2026-08-02-name-story-decks.md`](./2026-08-02-name-story-decks.md).**
 
-**Decks ship in app releases, batched.** `name_stories_service.dart:14` — *"Asset-only by design: there is no `name_stories` table."* Moving decks to `PublicCatalogKeys` would take them out from behind the build-time ship gate, on the highest-risk content in the product. Not without a server-side equivalent of that gate first.
+Split at the founder's direction, and the reason is worth recording rather than treating as filing. **A deck is not pack content — it is daily-loop content today.** `discoverName()` calls `deckForName()` (`daily_loop_provider.dart:1410`) and an approved deck short-circuits the AI reflection entirely, so a transcribed deck ships value into the nightly muhasabah immediately, with no packs and no flag.
 
-### G0 — Pilot 5 decks, then stop
-Run five end-to-end and have the founder sign them before committing to 85. If the packets are wrong, five is a cheap way to find out.
+It follows that deck work never depended on this plan and this plan never depended on it. Keeping them in one document implied a coupling that does not exist, and would have made the deck backlog look like it was gating a release it has nothing to do with.
 
-### G1 — Per-deck pipeline
-1. **Draft agent** — finds candidate stories from tiered sources, proposes 2–3, selects the most affecting, writes the deck in the approved beat format with a `Claim | Source | Grading | Status` table.
-2. **Mechanical verification — not judgement.** Every scripture claim resolves to a live fetch of the exact canonical URL (quran.com / sunnah.com) and matches by text. **No match → automatic fail.** This is the safeguard; an agent's opinion is not.
-3. **Adversarial blind review** — a second agent told to *refute*, not shown the prior verdict.
-4. **Review packet** → founder signs.
-5. Transcribe verbatim into `assets/content/name_stories.json`; CI ship gate enforces structure and safety.
-
-### G2 — Binding source rules
-- **Agents retrieve and cite; they never compose scripture.** Standing `CLAUDE.md` rule.
-- **Two LLMs agreeing is not verification** — it is the same prior twice. Fabricated hadith with plausible isnād and a plausible Bukhari number is a known model failure, and an LLM reviewer will often accept one.
-- **Tier the sources.** Qur'an and canonical collections are authorities for *text*. Yaqeen and similar are authorities for *framing only* — never the citation for a hadith; cite the collection.
-- **Grading is a required column.** Ṣaḥīḥ/ḥasan only for anything presented as prophetic narration.
-- `./scripts/check_no_fake_strings.sh` before any release carrying new decks.
-
-### G0 results — what the pilot proved (2026-08-02)
-
-**The pipeline works, and the adversarial step is the load-bearing part.** Five decks drafted; blind adversarial verification returned: 1 reject, 3 fix-then-sign, 1 sign.
-
-**The good news is the thing we most feared did not happen.** Scripture authenticity was clean across all five — every āyah and ḥadīth real, correctly numbered, correctly attributed to collection *and* narrator, correctly graded, quoted verbatim. No fabrication. Even the two grade claims most likely to be an LLM over-claim (Ibn Mājah 3850 "ṣaḥīḥ (Darussalam)", Tirmidhī 3540 "ḥasan (Darussalam)") checked out against the archived pages. **Fetch-first-write-second holds.**
-
-**The bad news, and the reason the adversarial step is mandatory rather than optional: the drafter's own ✅ marks contained two demonstrably false claims.**
-- It flagged catalog id 51's duʿā to the founder as "one word away from a narrated supplication", claiming no provenance and asking for a migration decision. **Abū Dāwūd 1516 (ṣaḥīḥ) is that exact wording** — id 11 carries the Tirmidhī 3434 route, id 51 carries the Abū Dāwūd route. Both are narrated. The correct action was the opposite of what was proposed.
-- It recorded a ✅ for "letter-for-letter identical to quran.com `text_imlaei`" on 18:10 when the strings differ (`مِن لَّدُنكَ` vs `مِنْ لَدُنْكَ`; immaterial religiously, but the check did not pass).
-
-Neither error is dangerous on its own. The pattern is: **a founder signing against a ✅ table is signing against claims that are sometimes wrong.** Hence — an independent verifier who does not read the drafter's packet is a hard requirement, not a nicety.
-
-**Three process rules earned by the pilot:**
-1. **Start each batch from a story inventory of every already-shipped deck.** The expensive step is not drafting, it is collision-checking. The pilot's own collision check caught `ar-rahman@1` and missed `ash-shafi@1`, which already tells the same Ayyūb story from the same two āyāt with the same takeaway — and already contains "You are the Most Merciful of the merciful", i.e. Ar-Raḥīm's own hook.
-2. **Quoted translations are part of the theological surface.** `al-kareem@1` pasted a published English of Bukhārī 1145 verbatim and correctly — but that English interpolates "to us" (absent from `إِلَى السَّمَاءِ الدُّنْيَا`) and renders `تَعَالَى` as "the Superior" rather than "the Exalted", flattening the one word that negates spatiality. A deck can adjudicate a contested attribute *by choice of translation* while believing it has adjudicated nothing. **Re-render contested passages from the Arabic; do not paste a published translation unchecked.**
-3. **`renderedDuaSources` does not forbid unpinned sources.** A deck citing a duʿā source not in that map will not fail CI, so the citation can be silently dropped later — the exact regression the map exists to prevent. Add every citing deck to it at transcription time, and consider making the gate reject unpinned citations.
-
-**Known limits of the verification, recorded because the founder signs against it:** ḥadīth checking is not independent of sunnah.com *as a corpus* — sunnah.com 403s automated fetching, so both the drafter and the verifier used Wayback archives of the exact URLs (and a mirror), all deriving from the same digitisation. No printed edition or Arabic-primary database (Shamela, Dorar) was consulted, and **no isnād was audited** — published grade lines were accepted.
-
-### G3 — Batches
-Five at a time, adversarially reviewed, founder-signed. ~85 decks remain (14 of 99 exist). Then the pack question bank under the same discipline.
-
----
+**What stays here:** Wave F, the pack *surface*. It is a second consumer of decks, not their reason. It ships dark behind `packs_enabled` and lights up when reviewed content exists — so the content long pole never holds the release.
 
 ## Wave H — Instrumentation (woven, audited as a checklist)
 

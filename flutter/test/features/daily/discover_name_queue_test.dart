@@ -105,8 +105,14 @@ void main() {
       expect(notifier.state.engagedCard!.id, 22);
       expect(notifier.state.revealSource, revealSourceQueue);
       expect(notifier.state.revealQueuePosition, 2);
-      // Wave 3 fills this; it must be null here so the AI prefetch still runs.
-      expect(notifier.state.revealDeck, isNull);
+      // Was `isNull` with the note "Wave 3 fills this" — a placeholder from
+      // before decks existed, and incidental to what this test is named for.
+      // Wave 3 has long since landed and the 2026-08-05 merge took deck
+      // coverage to 99/99, so id 22 now resolves. Rather than delete the line,
+      // it now asserts the thing this test IS about: the deck served is the
+      // RPC's Name, not whatever pickNextCard would have chosen. Deck-vs-AI
+      // path selection itself is covered by queue_deck_reveal_test.dart.
+      expect(notifier.state.revealDeck?.nameId, 22);
       expect(queueCalls, ['select', 'rpc:${NameQueueService.unsealRpcName}']);
       expect(debugLastPickExclude, isNull,
           reason: 'a resolved queue row must not consult pickNextCard at all');

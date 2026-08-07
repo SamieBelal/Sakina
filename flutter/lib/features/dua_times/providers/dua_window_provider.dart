@@ -700,12 +700,27 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       final precise = await _resolvePreciseState(schedule);
       if (_disposed) return;
       await _rearmLapseNoticeIfRecovered(precise.state);
+      // Resolve the awaited value BEFORE touching `state`. Dart evaluates the
+      // receiver ahead of the arguments, so `state.copyWith(x: await …)` reads
+      // `state` first and writes that pre-await snapshot back — silently
+      // reverting anything that landed while the await was in flight. The
+      // symptom is a field mysteriously reset with no code that resets it,
+      // which points nowhere near the cause. Found by a repo-wide sweep after
+      // the same shape cost four suites in the daily loop (Wave C, 2026-08-02).
+      //
+      // MERGE NOTE 2026-08-05: master added the `precise` lines above while
+      // still writing `preciseBannerSnoozed: await _isBannerSnoozed(now)`
+      // inline, which is exactly the shape that sweep removed. Taking either
+      // side alone was wrong — master's `precise` is required by
+      // `_emitPreciseState` below, and master's inline await reintroduces the
+      // bug. Both are kept, with the await hoisted.
+      final snoozed = await _isBannerSnoozed(now);
       if (_disposed) return;
       state = state.copyWith(
         schedule: schedule,
         now: now,
         building: false,
-        preciseBannerSnoozed: await _isBannerSnoozed(now),
+        preciseBannerSnoozed: snoozed,
         preciseState: precise.state,
       );
       _syncTicker();

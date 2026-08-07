@@ -52,12 +52,35 @@ void main() {
   const deckedNameId = 35;
   const deckedDeckId = 'al-wakeel@1';
 
-  /// An aspiration-shaped Name: in the catalog, taught by no approved deck.
+  /// A Name with no approved deck.
+  ///
+  /// This used to be a real gap in the catalogue — id 50 was undecked, so the
+  /// real asset exercised the AI-fallback branch for free. The 2026-08-05 merge
+  /// took deck coverage to **99/99**, so no such id exists any more and the
+  /// assertion below started failing against a catalogue that had simply got
+  /// better.
+  ///
+  /// The branch it covers is still live in `daily_loop_provider`
+  /// (`deck == null` → keep the AI path), and losing coverage of it because the
+  /// content improved would be the wrong trade. So the deck is removed from the
+  /// asset *for this test* instead of relying on a coverage accident — which
+  /// also means the next wave cannot silently delete this branch's only test.
   const undeckedNameId = 50;
 
   final stories = NameStoriesService(
     loadAsset: (_) async =>
         File(NameStoriesService.assetPath).readAsStringSync(),
+  );
+
+  /// The real asset with [undeckedNameId]'s deck stripped out.
+  final storiesWithoutUndecked = NameStoriesService(
+    loadAsset: (_) async {
+      final raw = File(NameStoriesService.assetPath).readAsStringSync();
+      final decks = (jsonDecode(raw) as List<dynamic>)
+          .where((d) => (d as Map<String, dynamic>)['name_id'] != undeckedNameId)
+          .toList();
+      return jsonEncode(decks);
+    },
   );
 
   late FakeSupabaseSyncService fakeSync;
@@ -170,7 +193,7 @@ void main() {
         "queue's Name forced", () async {
       queueUnsealing(undeckedNameId);
 
-      final notifier = makeNotifier();
+      final notifier = makeNotifier(storiesOverride: storiesWithoutUndecked);
       addTearDown(notifier.dispose);
       await notifier.discoverName();
       await settle();

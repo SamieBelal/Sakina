@@ -575,10 +575,17 @@ const List<CollectibleName> allCollectibleNames = [
         "You may not understand the plan, but Al-Hakeem's wisdom never errs.",
     hadith:
         'Yusuf (AS) said: "Indeed my Lord is subtle in what He wills. Indeed He is the All-Knowing, the All-Wise." (Quran 12:100)',
-    duaArabic: 'اللَّهُمَّ يَا لَطِيفُ الْطُفْ بِي فِي أُمُورِي كُلِّهَا',
-    duaTransliteration: 'Allahumma ya Lateefu, lutf bi fi umuri kulliha',
+    // Recut 2026-08-05 from the shared `yā Laṭīf` duʿā, which invoked neither
+    // this Name nor its pair's. Ṣaḥīḥ Muslim 2696 — the Prophet ﷺ teaching a
+    // bedouin words to say; closes on `بِاللَّهِ الْعَزِيزِ الْحَكِيمِ`.
+    // Byte-identical with assets/content/collectible_names.json and the
+    // `collectible_names` row — edit all three or none (see 323ecd3).
+    duaArabic:
+        'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ اللَّهُ أَكْبَرُ كَبِيرًا وَالْحَمْدُ لِلَّهِ كَثِيرًا سُبْحَانَ اللَّهِ رَبِّ الْعَالَمِينَ لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَزِيزِ الْحَكِيمِ',
+    duaTransliteration:
+        "La ilaha illallahu wahdahu la shareeka lah, Allahu akbaru kabeera, wal-hamdu lillahi katheera, subhanallahi rabbil 'alameen, la hawla wa la quwwata illa billahil 'Azeezil Hakeem",
     duaTranslation:
-        'O Allah, O Gentle One, be gentle with me in all my affairs.',
+        'There is no god but Allah, the One, having no partner with Him. Allah is the Greatest of the great and all praise is due to Him. Exalted is Allah (He is free from imperfection), the Lord of the worlds, there is no Might and Power but that of Allah, the All-Powerful and the Wise.',
   ),
   CollectibleName(
     id: 27,
@@ -1131,11 +1138,11 @@ const List<CollectibleName> allCollectibleNames = [
     hadith:
         'The Prophet ﷺ said: "The strong one is not the one who overcomes others physically. The strong one is the one who controls himself in a fit of anger." (Bukhari & Muslim)',
     duaArabic:
-        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
     duaTransliteration:
-        'La hawla wa la quwwata illa billahil \'Aliyyil \'Azeem',
+        'La hawla wa la quwwata illa billah',
     duaTranslation:
-        'There is no power and no strength except through Allah, the Most High, the Most Magnificent.',
+        'There is neither might nor power except with Allah.',
   ),
   CollectibleName(
     id: 63,
@@ -1147,11 +1154,11 @@ const List<CollectibleName> allCollectibleNames = [
         'When everything around you is shaking, Al-Mateen is the unshakeable ground.',
     hadith: 'The Prophet ﷺ said: "O \'Abdullah bin Qais! Shall I teach you a sentence which is from the treasures of Paradise? (It is): La hawla wa la quwwata illa billah — there is neither might nor power except with Allah." All strength is Allah\'s alone. (Sahih al-Bukhari 6610 — Sahih)',
     duaArabic:
-        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+        'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
     duaTransliteration:
-        'La hawla wa la quwwata illa billahil \'Aliyyil \'Azeem',
+        'La hawla wa la quwwata illa billah',
     duaTranslation:
-        'There is no power and no strength except through Allah, the Most High, the Most Magnificent.',
+        'There is neither might nor power except with Allah.',
   ),
   CollectibleName(
     id: 64,
@@ -1498,11 +1505,11 @@ const List<CollectibleName> allCollectibleNames = [
     lesson: 'Every good thing in your life traces back to Al-Barr.',
     hadith: '',
     duaArabic:
-        'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ قُلُوبُ',
+        'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ الْقُلُوبُ',
     duaTransliteration:
-        'Ya Barr, thabbintni \'ala birrik waj\'al imani rasikhana hina tartajifu qulub',
+        'Ya Barr, thabbitni \'ala birrik waj\'al imani rasikhan hina tartajiful-qulub',
     duaTranslation:
-        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when my heart trembles.',
+        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when the hearts tremble.',
   ),
   CollectibleName(
     id: 86,

@@ -23,7 +23,18 @@ void main() {
 
     test('loads every approved deck', () async {
       final decks = await service.decks();
-      expect(decks, hasLength(14));
+
+      // Counted from the asset, not hardcoded. The literal 14 that used to sit
+      // here was really two claims wearing one number: "the loader drops
+      // nothing" (the point of this test) and "there are 14 decks" (a fact
+      // about content that changes every batch). Only the first belongs here,
+      // and pinning the second meant a content-only change turned this file
+      // red for a reason that had nothing to do with the loader.
+      final rawCount = (jsonDecode(realAsset()) as List).length;
+      expect(rawCount, greaterThan(0), reason: 'the asset itself is empty');
+      expect(decks, hasLength(rawCount),
+          reason: 'the loader dropped a deck the asset carries');
+
       expect(decks.every((d) => d.reviewVerdict == 'good'), isTrue);
     });
 
@@ -64,16 +75,28 @@ void main() {
 
     test('deckForName finds by catalog id, null when absent', () async {
       expect((await service.deckForName(36))?.deckId, 'al-lateef@1');
-      expect(await service.deckForName(99), isNull);
+      // Absent means OUT OF RANGE, not "an id that happens to be undecked".
+      // This used to assert `deckForName(99)` was null, which held only while
+      // some of the 99 Names had no deck. The 2026-08-05 merge took coverage to
+      // 99/99 and the assertion became false — it was testing the state of the
+      // catalogue, not the lookup. The catalogue is 1-99, so 0 can never
+      // resolve and the invariant survives the next wave too. (Same lesson the
+      // test below already records about pinning deck ids literally.)
+      expect(await service.deckForName(0), isNull);
+      expect(await service.deckForName(1000), isNull);
     });
 
     test('sorting never mutates the shared cache', () async {
+      // Snapshot the cache order BEFORE the sorting call, so an in-place sort
+      // inside decksForChip shows up as a diff rather than as agreement with a
+      // hardcoded deck id. The ids used to be pinned literally here, which made
+      // this test fail every time a wave added a deck that sorts near the top —
+      // churn that says nothing about the invariant the test is named for.
+      final before = (await service.decks()).map((d) => d.deckId).toList();
       final first = (await service.decksForChip('sign')).map((d) => d.deckId);
-      final all = (await service.decks()).map((d) => d.deckId).toList();
+      final after = (await service.decks()).map((d) => d.deckId).toList();
       expect(first, ['ar-rahman@1', 'al-lateef@1']);
-      // The cached list keeps its asset order (sign decks are 11th and 12th).
-      expect(all.first, 'as-salam@1');
-      expect(all[10], 'ar-rahman@1');
+      expect(after, before);
     });
   });
 

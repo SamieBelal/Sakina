@@ -264,10 +264,40 @@ List<BeatScreen> buildBeatScreens(
 /// small — so it stays, and the transliteration stays with it so a reader who
 /// cannot read Arabic still knows which Name this is. What goes is the meaning
 /// line alone, which is the sentence the card had just finished delivering.
+///
+/// [selection] is the swap seam: **deck beat kind → already-resolved variant
+/// id**, e.g. `{'bridge': 'anxiety', 'reflection': 'guilt'}`. A named beat
+/// renders that variant's text in place of its `primary`; everything else — an
+/// unnamed beat, an id the beat does not carry, a beat with no variants at all —
+/// renders `primary`. `variants.isEmpty → primary` is the main path, not an edge
+/// case.
+///
+/// **`selection: null` is byte-identical to the pre-personalisation output for
+/// every shipped deck**, pinned across all 99 in
+/// `test/widgets/beat_reveal_deck_test.dart`. The three live call sites pass
+/// nothing and are unaffected.
+///
+/// Three things about the shape, each load-bearing:
+///
+///  * **Per beat kind, not one id per deck.** Whether the bridge and the
+///    reflection get the SAME id is an open founder decision (plan §7, "paired
+///    vs independent"). A single deck-wide id would hard-code *paired* into the
+///    signature and make *independent* a breaking change; a map expresses both,
+///    and the seam does not have to know which one won.
+///  * **Resolved ids only.** This function looks a given id up on a given beat
+///    and does nothing else — no chip mapping, no rotation, no seen set, no
+///    fallback ladder. That policy lives in the selector service, because the
+///    docstring above promises nothing is reordered, merged or dropped here and
+///    the same promise has to cover *which words*, not just which beats.
+///  * **Read only inside the two personalisable cases.** A selection naming
+///    `verse` or `dua` cannot swap anything even on a hand-edited asset: the
+///    other branches never consult it. The gate keeps `variants` off those
+///    kinds; this keeps the builder from caring if it ever failed to.
 List<BeatScreen> buildBeatScreensFromDeck(
   NameStoryDeck deck, {
   bool includePairSynergy = true,
   String? meaningAlreadyShown,
+  Map<String, String>? selection,
 }) {
   final screens = <BeatScreen>[];
 
@@ -276,7 +306,10 @@ List<BeatScreen> buildBeatScreensFromDeck(
 
     switch (beat.kind) {
       case 'bridge':
-        screens.add(BeatScreen(kind: BeatKind.keyLine, primary: beat.primary));
+        screens.add(BeatScreen(
+          kind: BeatKind.keyLine,
+          primary: beat.textForVariant(selection?[beat.kind]),
+        ));
       case 'recognition':
         screens.add(
           BeatScreen(kind: BeatKind.recognition, primary: beat.primary),
@@ -323,6 +356,16 @@ List<BeatScreen> buildBeatScreensFromDeck(
         // Includes the pair-synergy beat: it is a takeaway carrying a `synergy`
         // label, not a kind of its own.
         screens.add(BeatScreen(kind: BeatKind.takeaway, primary: beat.primary));
+      case 'reflection':
+        // Drawn with the takeaway template on purpose: it is a closing prose
+        // screen, and giving it its own `BeatKind` is a design decision about
+        // how a reflective question should look, not a plumbing one. Mapping it
+        // here keeps the beat visible today; a dedicated template can replace
+        // this line without touching the asset or the gate.
+        screens.add(BeatScreen(
+          kind: BeatKind.takeaway,
+          primary: beat.textForVariant(selection?[beat.kind]),
+        ));
       default:
         // Unknown kind: the ship gate rejects these at build time, so reaching
         // here means a hand-edited asset. Skip the beat rather than crash the

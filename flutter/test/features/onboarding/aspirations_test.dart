@@ -39,7 +39,16 @@ void main() {
 
   /// Every Name id reachable as a queue position 1 or 2 — the union of all
   /// chip pairs, which by construction includes the comfort pair.
-  Set<int> pairNameIds() => decks.map((d) => d.nameId).toSet();
+  ///
+  /// **Filtered to chip-carrying decks, and that filter is the whole point.**
+  /// This used to read every deck, which was the same set only because every
+  /// deck was then half of a chip pair. Batch 1 + 2 broke that: 10 decks landed
+  /// with `chip_keys: []`, and a deck outside every chip is never seeded as a
+  /// pair, so its Name cannot duplicate anything in the 7-id seed below.
+  /// Reading all decks made this set — and the `hasLength` guard on it — grow
+  /// with the deck catalogue rather than with the thing being guarded.
+  Set<int> pairNameIds() =>
+      decks.where((d) => d.chipKeys.isNotEmpty).map((d) => d.nameId).toSet();
 
   test('the taxonomy is 5 options with stable, unique keys', () {
     expect(aspirations, hasLength(5));
@@ -59,6 +68,11 @@ void main() {
     final pairs = pairNameIds();
     // Guard the guard: if the pairs set were empty this test would pass
     // vacuously and let a real collision through.
+    //
+    // 14 = 7 chips x 2 positions, so this tracks the CHIP taxonomy and not the
+    // deck count. Adding decks must not move it; if this number ever has to
+    // change, a chip was added or removed and the collision rule below needs
+    // re-thinking rather than the constant needs bumping.
     expect(pairs, hasLength(14));
     expect(pairs, containsAll(<int>[2, 36]), reason: 'the comfort pair');
 

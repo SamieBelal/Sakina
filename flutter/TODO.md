@@ -357,6 +357,7 @@ Nothing is missing from the schema. What follows is data/config operations only.
 | 2 | Before you press Release | `reverse_trial_close.sql` **step 2a** — the gate, read-only | ☐ |
 | 3 | Launch day, after the build is live | `t0_flip_all_to_reel_v1.sql` | ☐ |
 | 4 | Any time after rollout | `reverse_trial_close.sql` **step 2b** — delete the key | ☐ |
+| 5 | ~~Any time~~ | `fix_catalog_duas_51_85.sql` — repairs the Al-Barr (id 85) duʿā | ✅ **APPLIED** 2026-08-02 via MCP; verified id 85 repaired, id 51 untouched |
 | — | **Never** (for the free tier) | `softener_1_notice.sql`, `softener_2_flip.sql` | superseded by D12 |
 
 **Why the softener scripts are dead here:** D12 replaced the 30-day-notice migration with
@@ -915,6 +916,11 @@ release later, inside the legacy-deletion sweep already scheduled for then.
 [`docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md`](./docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md),
 with the research and closed decisions in
 [`docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md`](./docs/superpowers/specs/2026-08-02-journaling-and-name-mastery-design.md).
+Name-story deck **content** is a separate plan —
+[`docs/superpowers/plans/2026-08-02-name-story-decks.md`](./docs/superpowers/plans/2026-08-02-name-story-decks.md) —
+because a deck is daily-loop content today, not pack content: `deckForName()` short-circuits
+the AI reflection on the muhasabah reveal, so a transcribed deck ships value with no packs
+and no flag.
 
 **The one-line diagnosis, so nobody re-derives it:** the muhasabah leaves **no artifact** —
 `user_checkin_history` has no column for the answer text and the AI reflection is never

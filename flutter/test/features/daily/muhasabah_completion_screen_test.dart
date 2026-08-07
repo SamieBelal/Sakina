@@ -135,6 +135,7 @@ void main() {
     SavedReflection? tonight,
     SavedReflection? anchor,
     bool isReplay = false,
+    bool folded = false,
   }) =>
       DailyLoopState(
         loaded: true,
@@ -146,6 +147,7 @@ void main() {
         checkinNameArabic: 'الحليم',
         tonightEntry: tonight,
         tonightEntryIsReplay: isReplay,
+        tonightAnswerFolded: folded,
         timeMachineEntry: anchor,
       );
 
@@ -248,6 +250,68 @@ void main() {
       expect(find.text(MuhasabahCompletionCopy.nameLabel), findsOneWidget);
       expect(find.text(MuhasabahCompletionCopy.nameLabelReplay), findsNothing);
       expect(find.text(MuhasabahCompletionCopy.replayNotice), findsNothing);
+      expect(find.text(MuhasabahCompletionCopy.replayNoticeFolded), findsNothing);
+    });
+  });
+
+  // ── The fold (2026-08-07) ─────────────────────────────────────────────────
+  //
+  // A second muḥāsabah the same day no longer discards what the reader wrote:
+  // the answer is folded into the day's entry as a thread append. This screen is
+  // where the difference has to be legible, because "Today already had an entry,
+  // so this is the one that was kept" is a sentence that reads as *your writing
+  // is gone* — which, until the fold existed, it was.
+  //
+  // MUTATION: render `replayNotice` unconditionally → the first test fails.
+  group('a folded second run says where the words went', () {
+    testWidgets('the notice reports the append, not a discard', (t) async {
+      await pump(t, completed(
+        tonight: entry(thread: const [
+          ReflectionThreadEntry(at: '', text: 'I went back and said sorry.'),
+        ]),
+        isReplay: true,
+        folded: true,
+      ));
+
+      expect(find.text(MuhasabahCompletionCopy.replayNoticeFolded),
+          findsOneWidget);
+      expect(find.text(MuhasabahCompletionCopy.replayNotice), findsNothing,
+          reason: 'the words were NOT dropped, and the screen must stop '
+              'implying they were');
+    });
+
+    testWidgets('and the folded words are on screen to prove it', (t) async {
+      await pump(t, completed(
+        tonight: entry(thread: const [
+          ReflectionThreadEntry(at: '', text: 'I went back and said sorry.'),
+        ]),
+        isReplay: true,
+        folded: true,
+      ));
+
+      expect(find.text('I went back and said sorry.'), findsOneWidget,
+          reason: 'a reassurance the reader cannot verify on the same screen '
+              'is worth nothing');
+    });
+
+    testWidgets('a replay that folded NOTHING keeps the honest old notice',
+        (t) async {
+      // Nothing was appended — a duplicate answer, a full thread, a refused
+      // write. Claiming the append here would be the same lie in the other
+      // direction.
+      await pump(t, completed(tonight: entry(), isReplay: true));
+
+      expect(find.text(MuhasabahCompletionCopy.replayNotice), findsOneWidget);
+      expect(find.text(MuhasabahCompletionCopy.replayNoticeFolded), findsNothing);
+    });
+
+    testWidgets('the Name label still stops saying "you met"', (t) async {
+      // The fold changes where the WORDS went. It does not make the row's Name
+      // the one this run revealed, so the 2026-08-06 fix must survive it.
+      await pump(t, completed(tonight: entry(), isReplay: true, folded: true));
+
+      expect(find.text(MuhasabahCompletionCopy.nameLabelReplay), findsOneWidget);
+      expect(find.text(MuhasabahCompletionCopy.nameLabel), findsNothing);
     });
   });
 

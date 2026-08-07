@@ -923,9 +923,10 @@ abstract final class AnalyticsEvents {
   ///
   /// Props: [propSurface] ([surfaceMuhasabah] = the completion screen,
   /// [surfaceJournal] = D3's compose sheet — the one number that says whether
-  /// the Journal's compose control earns its place), [propThreadLength] (the
-  /// count AFTER the append, so "appended once" is separable from "kept going"
-  /// without a session aggregate).
+  /// the Journal's compose control earns its place, [surfaceSecondMuhasabah] =
+  /// the fold, which no reader asked for by tapping anything),
+  /// [propThreadLength] (the count AFTER the append, so "appended once" is
+  /// separable from "kept going" without a session aggregate).
   static const String muhasabahThreadAppended = 'muhasabah_thread_appended';
 
   /// The night's forward resolve was written or changed (C4).
@@ -1071,6 +1072,17 @@ abstract final class AnalyticsEvents {
   /// [surfaceMuhasabah]'s sibling for the Journal — which of the two surfaces
   /// an append came from.
   static const String surfaceJournal = 'journal';
+
+  /// The third append surface, and the only one no reader ever chose: a SECOND
+  /// muḥāsabah on a day that already had one, whose answer was folded into the
+  /// day's existing entry rather than dropped (2026-08-07).
+  ///
+  /// Deliberately NOT [surfaceMuhasabah], which means *the reader tapped
+  /// "Something else for today" on the completion screen*. Sharing that value
+  /// would bury the entire behaviour inside a number that already exists — and
+  /// this one answers a question of its own: how often does anyone run the night
+  /// twice? That is the demand for a second reveal, measured for the first time.
+  static const String surfaceSecondMuhasabah = 'second_muhasabah';
 
   static const String propHasEntry = 'has_entry';
   static const String propHasTimeMachine = 'has_time_machine';
@@ -1795,4 +1807,97 @@ abstract final class AnalyticsEvents {
   /// Which position in the seven-day queue this Name was. Answers whether users
   /// get through the queue or stall at position 2.
   static const String propQueuePosition = 'queue_position';
+
+
+  /// A Name-story deck's two personalisable beats were resolved for one
+  /// encounter. Emitted by `DeckVariantSelector.select`.
+  ///
+  /// **ONE event on both surfaces, segmented by [propSource] — never two event
+  /// names (D13).** Onboarding picks the deck BY the chip, so its variant is
+  /// contextual copy rather than a personalisation decision; a shared event
+  /// name with parallel streams would let onboarding volume swamp the only
+  /// signal that means anything, and a second event name would fork every
+  /// series. One event, segmented by property, is also the house pattern (see
+  /// `docs/analytics/`).
+  ///
+  /// Props: [propDeckId], [propSource], [propVariantId],
+  /// [propReflectionMatched], [propEncounterIndex], [propProblemCategory],
+  /// [propCategoryUnmatched].
+  ///
+  /// **Alarm at >35% [deckVariantSourceFallback]**, onboarding and daily
+  /// counted separately. Under the deterministic selector fallback should be
+  /// near zero — a non-zero rate means a deck shipped without variants, or the
+  /// seen-set/category map is broken.
+  static const String deckVariantSelected = 'deck_variant_selected';
+
+  /// The selected variant id, or `__primary__` when the beats' own authored
+  /// `primary` was the pool member chosen. Never an array index — a persisted
+  /// position stops meaning the same thing the moment a release reorders the
+  /// variants (D8).
+  ///
+  /// **Segment [deckVariantSourceChip] / [deckVariantSourceCategory] by this.**
+  /// Both cover two different things that are equally hits: the deck had a
+  /// variant written for the named category (`variant_id` = the category), or
+  /// it deliberately had none because its `primary` already answers that
+  /// category (`variant_id` = `__primary__`, 195 of 693 deck×category pairs).
+  static const String propVariantId = 'variant_id';
+
+  /// Whether the reflection beat carried the same id as the bridge and was
+  /// swapped too. Selection is PAIRED (D9), and coverage is deliberately
+  /// uneven, so this is how often the pairing actually reached both beats
+  /// rather than falling the closing line through to `primary`.
+  static const String propReflectionMatched = 'reflection_matched';
+
+  /// How many times this deck's flow had been COMPLETED before this encounter;
+  /// 0 on the first.
+  ///
+  /// **This is the property §6 of the plan calls `generation`.** That name is
+  /// listed there once and never defined anywhere in the plan, so rather than
+  /// invent a meaning for it, this ships the one number that was cheap,
+  /// unambiguous and actually answers the question repeat-encounters raise:
+  /// does the copy keep changing as a reader meets a Name again?
+  static const String propEncounterIndex = 'encounter_index';
+
+  /// Whether the taxonomy failed to place what the user said — i.e.
+  /// [propProblemCategory] is `unmatched`, `none`, or anything outside the
+  /// seven live `problemCategory` values.
+  ///
+  /// **Collected from day one** (§6). It costs nothing and it is the entire
+  /// input to the still-deferred D7: if the unmatched rate is low, the offline
+  /// keyword map is doing the job and the LLM classifier (Wave 6) never has to
+  /// happen.
+  static const String propCategoryUnmatched = 'category_unmatched';
+
+  /// [propProblemCategory] when the caller had no category at all — distinct
+  /// from `unmatched`, which means the matcher ran and placed nothing. Kept as
+  /// a value rather than a null so the property's space stays closed.
+  static const String deckVariantCategoryNone = 'none';
+
+  /// The reader got an exact answer for a category they named by TAPPING an
+  /// onboarding chip. See [deckVariantSelected] for why this is a property
+  /// value and not its own event, and [propVariantId] for the two shapes an
+  /// exact answer takes.
+  static const String deckVariantSourceChip = 'chip';
+
+  /// The same, where the category was derived on-device from what the user
+  /// typed (`matchChipKeyForText`) against a deck drawn independently — the
+  /// only source where a hit means personalisation rather than contextual copy.
+  static const String deckVariantSourceCategory = 'category';
+
+  /// No exact answer for what the user said: they named nothing the taxonomy
+  /// could place, so they got the deck's no-category `default` (or, failing
+  /// that, its `primary`). Also the deck-carries-no-variants shape.
+  ///
+  /// **Deliberately NOT used for "the deck has no variant for category C".**
+  /// That is the authoring contract working as designed — `primary` IS the text
+  /// written for C — and it is 28% of all deck×category pairs, which would
+  /// swamp the >35% alarm with successes. This value is meant to track roughly
+  /// the unmatched rate plus real breakage, which is what makes the alarm
+  /// readable.
+  static const String deckVariantSourceFallback = 'fallback';
+
+  /// The reader had already met every line written for what they named, so they
+  /// got some other category's line instead. Repeat encounters only — a first
+  /// encounter can never land here.
+  static const String deckVariantSourceRotation = 'rotation';
 }
