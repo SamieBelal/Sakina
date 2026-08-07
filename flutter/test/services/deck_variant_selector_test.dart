@@ -939,6 +939,53 @@ void main() {
       expect(reread.encounterIndex, 1);
     });
 
+    test('ONBOARDING is signed out, and its rotation must not leak between '
+        'accounts', () async {
+      // Found in review, 2026-08-07. The onboarding reveal fires
+      // `markCompleted` on page 1 of the reel flow; sign-up is pages 15-17 and
+      // there is no anonymous Supabase session anywhere in `lib/`. So the only
+      // state onboarding EVER writes in is `currentUserId == null`, where
+      // `scopedKey` returns the bare key — and the sibling test below, which
+      // is the one that claims to pin the scoping, only ever exercises the
+      // signed-IN case.
+      //
+      // The failure it misses is the first thing a second user on a shared
+      // device sees: they name a weight, and the reveal answers with the
+      // generic line because the previous user's rotation already consumed it.
+      final d = deck('al-qahhar@1');
+
+      // User A onboards — signed out, as onboarding always is.
+      SupabaseSyncService.instance = FakeSupabaseSyncService(userId: null);
+      final a = await DeckVariantSelector.select(
+        deck: d,
+        surface: DeckVariantSurface.onboarding,
+        problemCategory: 'guilt',
+      );
+      await DeckVariantSelector.markCompleted(a);
+
+      // A signs up. The first read with a uid CLAIMS the bare entry for A —
+      // which is both what preserves A's own rotation and what stops it being
+      // lying around for the next person.
+      SupabaseSyncService.instance = FakeSupabaseSyncService(userId: 'user-a');
+      await DeckVariantSelector.select(
+        deck: d,
+        surface: DeckVariantSurface.daily,
+        problemCategory: 'guilt',
+      );
+
+      // B onboards on the same device — signed out, as onboarding always is.
+      SupabaseSyncService.instance = FakeSupabaseSyncService(userId: null);
+      final b = await DeckVariantSelector.select(
+        deck: d,
+        surface: DeckVariantSurface.onboarding,
+        problemCategory: 'guilt',
+      );
+
+      expect(b.variantId, a.variantId,
+          reason: "B's first reveal must be the line written for the weight "
+              'they just named, not whatever A had already consumed');
+    });
+
     test('the key is ACCOUNT-SCOPED — two accounts on one device do not '
         'inherit each other\'s rotation', () async {
       final d = deck('al-qahhar@1');

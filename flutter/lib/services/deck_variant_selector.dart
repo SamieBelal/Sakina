@@ -348,6 +348,10 @@ abstract interface class DeckVariantStore {
 /// suffix is `:<uid>`, which is also what `clearScopedPreferencesForUser` keys
 /// its sign-out sweep on, so these entries are cleaned up with everything else.
 ///
+/// ONBOARDING is the exception, because it runs before sign-up and therefore
+/// has no uid to scope with — see [_adoptOnboardingEntry] for what that broke
+/// and how the entry is claimed once an account exists.
+///
 /// Every operation swallows its failures. A prefs error must cost the rotation,
 /// never the reveal: a failed read degrades to "first encounter" (the reader
 /// gets an authored line either way) and a failed write degrades to "this
@@ -376,7 +380,7 @@ class SharedPreferencesDeckVariantStore implements DeckVariantStore {
   Future<DeckVariantDeckState> read(String deckId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_key(deckId));
+      final raw = await _adoptOnboardingEntry(prefs, deckId);
       if (raw == null) return const DeckVariantDeckState();
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return DeckVariantDeckState(
@@ -386,6 +390,55 @@ class SharedPreferencesDeckVariantStore implements DeckVariantStore {
     } catch (e) {
       debugPrint('[deck_variant_selector] seen-set read failed: $e');
       return const DeckVariantDeckState();
+    }
+  }
+
+  /// Reads the entry, first CLAIMING any unscoped one left behind by
+  /// onboarding.
+  ///
+  /// **Onboarding is always signed out, so it always writes the bare key.** The
+  /// reveal fires `markCompleted` on page 1 of the reel flow; sign-up is pages
+  /// 15-17 and there is no anonymous Supabase session anywhere in the app. So
+  /// `scopedKey` has no uid to append and the rotation lands at
+  /// `sakina_deck_variants_<deckId>` with no suffix.
+  ///
+  /// Two things went wrong with that, and this fixes both:
+  ///
+  ///  * **A second account on the same device inherited the first one's
+  ///    rotation.** User A onboards and names a weight; user B signs up on the
+  ///    same phone, names the same weight, and the reveal answers with the
+  ///    generic line because A already consumed the authored one. That is the
+  ///    first thing B ever sees, and it is the exact failure this class's
+  ///    docstring claims the scoping prevents.
+  ///  * **The sign-out sweep could never reach it.**
+  ///    `clearScopedPreferencesForUser` matches on the `:<uid>` suffix, so an
+  ///    unscoped entry survived every sign-out forever.
+  ///
+  /// The claim is the same move `SupabaseSyncService.migrateLegacyStringCache`
+  /// makes for every other pre-auth cache: once a uid exists, the bare entry
+  /// becomes that account's and the bare key is removed. It runs on READ rather
+  /// than at sign-in because there is no sign-in hook this service can see, and
+  /// a read is guaranteed to happen before the rotation can matter.
+  ///
+  /// **The residual case, stated rather than hidden:** a user who onboards and
+  /// never signs up leaves the bare entry behind, because nothing ever calls
+  /// this with a uid. A second onboarding on that device still inherits it.
+  /// Closing that needs a device-scoped pre-auth key, which is a bigger change
+  /// than the bug justifies — the common path is that people sign up.
+  Future<String?> _adoptOnboardingEntry(
+    SharedPreferences prefs,
+    String deckId,
+  ) async {
+    final base = '$baseKeyPrefix$deckId';
+    try {
+      // Signed out: the bare key IS our key, and there is nothing to claim.
+      if (supabaseSyncService.currentUserId == null) {
+        return prefs.getString(base);
+      }
+      return await supabaseSyncService.migrateLegacyStringCache(prefs, base);
+    } catch (_) {
+      // Supabase not initialised (a widget test, a very early launch).
+      return prefs.getString(base);
     }
   }
 
