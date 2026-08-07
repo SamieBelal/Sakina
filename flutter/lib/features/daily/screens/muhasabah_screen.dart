@@ -6,12 +6,22 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/motion_context.dart';
+import 'package:sakina/core/constants/app_motion.dart';
+import 'package:sakina/features/journal/journal_resurfacing.dart';
+import 'package:sakina/features/journal/widgets/weekly_recap_card.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
+import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
+import 'package:sakina/features/daily/widgets/azm_field.dart';
+import 'package:sakina/features/daily/widgets/time_machine_card.dart';
+import 'package:sakina/features/daily/widgets/tonight_entry_summary.dart';
 import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
@@ -336,6 +346,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   ? state.checkinAnswers.firstOrNull
                   : null,
               isReAsk: state.awaitingReAnswer,
+              // ʿazm, come back round (Wave C, C4). The resolve the user wrote
+              // at the end of their last night opens this one. Null when they
+              // have not written one lately, and suppressed on a re-ask — a
+              // rephrase is mid-night, not the opening of one.
+              openingLine:
+                  state.awaitingReAnswer ? null : state.lastNightAzm,
               // Without this the question surface is a dead end on any
               // transient failure: `discoverName()` catches into `state.error`
               // and returns normally, so this widget rebuilds with its commit
@@ -945,7 +961,80 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // COMPLETED
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// The night's landing (Wave C, C2).
+  ///
+  /// It used to be a receipt: an illustration, the words "Muhāsabah Complete",
+  /// a premium-gated card re-roll and a way home. Nothing on it was the thing
+  /// the user had just written, because nothing was saved. Now that Wave B
+  /// persists the night, this screen's job is to show it back, keep it open, and
+  /// resurface one night from the archive.
+  ///
+  /// Four additions, in the order the night reads:
+  ///   * what was saved — the words, the Name, the duʿā ([TonightEntrySummary])
+  ///   * the same-prompt time machine ([TimeMachineCard]), which renders nothing
+  ///     when no anchor exists — correct for a new user
+  ///   * the ʿazm ([AzmField]), resurfaced as tomorrow night's opening line
+  ///   * "add to tonight" ([AddToTonightCard]) — appends only; see
+  ///     [DailyLoopNotifier.appendToTonight] for why that is load-bearing
+  ///
+  /// **`Seek Another Name` is untouched.** It is a card re-roll, premium-gated
+  /// for `reel_v1`, and conflating it with the journaling path is precisely the
+  /// confusion this rework exists to remove — so it keeps its own behaviour, its
+  /// own gate and its own in-flight guard, and the journaling affordances sit
+  /// above it rather than replacing it. The single forward action out of the
+  /// night remains "Return to Home".
   Widget _buildCompleted(DailyLoopState state) {
+    final entry = state.tonightEntry;
+    // One clock read for the completion screen's copy. The muḥāsabah is
+    // local-DAY keyed, not night-gated, so a 9am reader gets a correct entry —
+    // and used to be told "Tonight is written down". See
+    // [MuhasabahCompletionCopy.dayNoun].
+    final completionHour = DateTime.now().hour;
+    final anchor = state.timeMachineEntry;
+    // The completion screen's SECOND time-varying card, and the reason it
+    // exists is a timing problem the plan did not price.
+    //
+    // `TimeMachineCard` is the mechanic the design ranks #1 of fifteen, but it
+    // is structurally impossible before night 31 (offsets are 30/90/365, exact
+    // days only). Measured evidence says that is the wrong window to be empty:
+    // Duolingo's retention PM reports the curve flattens after day 7, and the
+    // JMIR 2024 scoping review (18 studies, n=525,824) finds abandonment is
+    // "sharper immediately after acquisition". So the highest-traffic surface
+    // in the whole wave had nothing that varied for its first thirty nights.
+    //
+    // The fix is How We Feel's shipped pattern — a post-entry CARD STACK rather
+    // than one conditional card. `resolveWeeklyRecap` already fires at >= 2
+    // entries in a 7-day window, so it pays out inside week one, and it was
+    // already built; it was simply only wired to the Journal tab, which a new
+    // user has little reason to open.
+    //
+    // NOT a lowered time-machine threshold: its power is that it cannot be
+    // peeked at and is gated on having a past. The two never render together
+    // (see below) so the screen never becomes a feed.
+    final weeklyRecap = resolveWeeklyRecap(
+      entries: ref.watch(reflectProvider).savedReflections,
+      todayLocalDay: entry?.entryLocalDay,
+    );
+    // ── The arrival ─────────────────────────────────────────────────────────
+    //
+    // This screen said "Tonight is written down." on a surface that did not
+    // move at all — the emotional peak of the night, arriving with less
+    // ceremony than a list row. Everywhere else in the app an arriving surface
+    // settles; this one cut.
+    //
+    // ONE settle, not a sequence. The copy already carries the moment; motion's
+    // only job is to let it land. Deliberately NOT a celebration: the research
+    // on this is unambiguous — *"if a user is tracking their mood, they do not
+    // need confetti explosions and celebratory chimes when they enter a
+    // negative emotion"* — and after "I keep sinning and going back" a
+    // congratulation would be tonally offensive. `AppMotion`'s own doc bans
+    // bounce on this path for the same reason.
+    //
+    // Non-blocking by construction: this is the screen's own entrance, not an
+    // overlay. There is nothing to dismiss and nothing gated behind it, which
+    // is the failure Finch is criticised by name for ("can't-skip celebration
+    // screens"). Under reduced motion it collapses to a near-instant fade with
+    // no travel.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
       child: Column(
@@ -976,7 +1065,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Muhāsabah Complete',
+                  MuhasabahCompletionCopy.headerFor(completionHour),
                   style: AppTypography.headlineMedium.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
@@ -984,7 +1073,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "You've reflected, gone deeper, and connected with Allah today.",
+                  entry == null
+                      // No row on the day: an offline night, a refused write, or
+                      // a legacy completion restored from a blob. Never claim to
+                      // have saved something that is not there.
+                      ? "You've reflected, gone deeper, and connected with Allah today."
+                      : MuhasabahCompletionCopy.subheaderFor(completionHour),
                   style: AppTypography.bodyMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -998,8 +1092,83 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   DailyRewardCeremony(result: state.rewardClaimResult),
                 ],
+                if (entry != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  const Divider(color: AppColors.dividerLight, height: 1),
+                  const SizedBox(height: AppSpacing.lg),
+                  // The day already had an entry and this one was refused, so
+                  // what follows is an EARLIER run of the night — a different
+                  // Name from the one just revealed. Saying so is the whole
+                  // point: the alternative is a screen that shows another
+                  // night's Name with no acknowledgement that it did.
+                  if (state.tonightEntryIsReplay) ...[
+                    Text(
+                      MuhasabahCompletionCopy.replayNotice,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  TonightEntrySummary(
+                    entry: entry,
+                    isReplay: state.tonightEntryIsReplay,
+                  ),
+                  if (anchor != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    TimeMachineCard(
+                      anchor: anchor,
+                      tonightLocalDay: entry.entryLocalDay,
+                    ),
+                  ]
+                  // Only when the time machine did not answer. A night that
+                  // surfaces a year-old entry should not also summarise the
+                  // week — the whole posture of `journal_resurfacing.dart` is
+                  // that "a resurfacing feature that fires every day is a
+                  // feed", and stacking both is how a card stack becomes one.
+                  else if (weeklyRecap != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    WeeklyRecapCard(recap: weeklyRecap),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  AzmField(
+                    // Keyed on the entry so a re-roll (which rebuilds this
+                    // screen against a possibly different row) rebuilds the
+                    // field with the right stored value instead of keeping the
+                    // previous State's controller text.
+                    key: ValueKey('azm-${entry.id}'),
+                    initialValue: entry.azm,
+                    onSave: (azm) => ref
+                        .read(dailyLoopProvider.notifier)
+                        .setTonightAzm(azm),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const Divider(color: AppColors.dividerLight, height: 1),
+                  const SizedBox(height: AppSpacing.lg),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      MuhasabahCompletionCopy.addToCtaFor(completionHour),
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AddToTonightCard(
+                    thread: entry.thread,
+                    onAppend: (text) =>
+                        ref.read(dailyLoopProvider.notifier).appendToTonight(
+                              text,
+                              surface: AnalyticsEvents.surfaceMuhasabah,
+                            ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xl),
-                // Seek Another Name — primary CTA
+                // Seek Another Name — the card re-roll, NOT the journaling path
+                // (see this method's doc). Behaviour, gating and the
+                // `_discoverInFlight` guard are untouched by Wave C.
                 GestureDetector(
                   onTap: () async {
                     // Synchronous re-entry guard — see field doc. Set BEFORE
@@ -1102,7 +1271,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       context.go('/');
                     },
                     child: Text(
-                      'Return to Home',
+                      MuhasabahCompletionCopy.returnHome,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textTertiaryLight,
                       ),
@@ -1116,7 +1285,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           const SizedBox(height: 32),
         ],
       ),
-    );
+    )
+        .animate()
+        .fadeIn(duration: context.motion(AppMotion.entrance), curve: AppMotion.enter)
+        .slideY(
+          begin: 0.02,
+          end: 0,
+          duration: context.motion(AppMotion.entrance),
+          curve: AppMotion.enter,
+        );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

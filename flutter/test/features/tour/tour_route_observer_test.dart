@@ -46,7 +46,7 @@ void main() {
         // named routes so the guided tour suppresses itself over them.
         'DailyCapSheet',
         'WarmupExhaustedSheet',
-        'UpgradeRequiredSheet',
+        // 'UpgradeRequiredSheet' dropped 2026-08-02 with the journal save cap.
       });
     });
 

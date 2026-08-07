@@ -1,23 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/journal/widgets/chunked_section_view.dart';
+import 'package:sakina/features/journal/widgets/edit_entry_sheet.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/share_card.dart';
 
-class ReflectionDetailPage extends StatelessWidget {
+class ReflectionDetailPage extends ConsumerWidget {
   const ReflectionDetailPage(
       {required this.reflection, this.onRemove, super.key});
 
+  /// The entry as it was when this page was pushed.
+  ///
+  /// Read through [_live] rather than directly, so an edit made from this page
+  /// is on screen the instant it commits. A route argument is a snapshot, and
+  /// before the edit existed there was nothing that could make one go stale.
   final SavedReflection reflection;
   final VoidCallback? onRemove;
 
+  /// The current row for this id, falling back to the pushed snapshot.
+  ///
+  /// The fallback is what covers delete: the moment `onRemove` fires the id
+  /// leaves the list, and this page is still mounted for the frame before its
+  /// `pop` lands. Falling back keeps that frame rendering the entry the user was
+  /// looking at instead of throwing.
+  SavedReflection _live(WidgetRef ref) {
+    final saved = ref.watch(
+      reflectProvider.select((s) => s.savedReflections),
+    );
+    for (final r in saved) {
+      if (r.id == reflection.id) return r;
+    }
+    return reflection;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reflection = _live(ref);
     final hasReflectionBody = reflection.hasBeats ||
         reflection.reframe.isNotEmpty ||
         reflection.story.isNotEmpty ||
@@ -51,6 +78,12 @@ class ReflectionDetailPage extends StatelessWidget {
                         color: AppColors.textSecondaryLight,
                       ),
                       const Spacer(),
+                      IconButton(
+                        onPressed: () => _onEdit(context, ref, reflection),
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        color: AppColors.textSecondaryLight,
+                        tooltip: JournalEditCopy.title,
+                      ),
                       if (onRemove != null)
                         IconButton(
                           onPressed: () async {
@@ -246,7 +279,7 @@ class ReflectionDetailPage extends StatelessWidget {
                           .slideY(begin: 0.03, end: 0, duration: 600.ms, delay: 200.ms),
                       if (reflection.verses.isNotEmpty) ...[
                         const SizedBox(height: 32),
-                        _verses(delay: 300),
+                        _verses(reflection, delay: 300),
                       ],
                     ] else ...[
                       const SizedBox(height: 32),
@@ -268,7 +301,66 @@ class ReflectionDetailPage extends StatelessWidget {
 
   /// Cardless Quran verse block: gold accent bar above a small label, then each
   /// verse as Arabic (RTL) + translation + reference, separated by whitespace.
-  Widget _verses({int delay = 0}) {
+  /// Opens the edit sheet and commits what comes back.
+  ///
+  /// Three things have to happen on a committed edit, and only the first is
+  /// obvious:
+  ///
+  ///  1. the write itself (`editReflectionText` — server first, then the cache,
+  ///     then every live `ReflectNotifier`, which is what re-renders this page);
+  ///  2. `adoptEditedEntry`, because the daily loop holds its OWN copy of
+  ///     tonight's row and of the time-machine anchor, and neither is reached by
+  ///     the notifier broadcast — without it, editing tonight's words here and
+  ///     going back to the completion screen shows the old text;
+  ///  3. the event, emitted here rather than inside the write, so it counts an
+  ///     edit a person made and not a row a sync touched.
+  Future<void> _onEdit(
+    BuildContext context,
+    WidgetRef ref,
+    SavedReflection entry,
+  ) async {
+    HapticFeedback.lightImpact();
+    await showEditEntrySheet(
+      context,
+      initialText: entry.userText,
+      onSave: (text) async {
+        final updated = await editReflectionText(id: entry.id, text: text);
+        if (updated == null) return false;
+        ref.read(dailyLoopProvider.notifier).adoptEditedEntry(updated);
+        // `updated == entry` when the text came back unchanged: the sheet's save
+        // button was pressed on words nobody altered. That is a successful
+        // close, not an edit, so it must not be counted as one.
+        if (updated.userText != entry.userText) {
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.journalEntryEdited,
+            properties: {
+              AnalyticsEvents.propSource: entry.isMuhasabah
+                  ? AnalyticsEvents.journalSourceMuhasabah
+                  : AnalyticsEvents.journalSourceReflect,
+              AnalyticsEvents.propAgeDays: _ageDays(entry),
+            },
+          );
+        }
+        return true;
+      },
+    );
+  }
+
+  /// Whole days from the entry's own date to now, floored at zero.
+  ///
+  /// Zero for an unparseable date rather than a null or a negative: this is a
+  /// telemetry breakdown, and "today" is the honest bucket for a row whose date
+  /// we cannot read.
+  static int _ageDays(SavedReflection entry) {
+    final written = DateTime.tryParse(entry.date);
+    if (written == null) return 0;
+    final days = DateTime.now().difference(written).inDays;
+    return days < 0 ? 0 : days;
+  }
+
+  /// Takes the entry explicitly rather than reading the field, so it renders the
+  /// same row [build] is rendering. The field is the pre-edit snapshot.
+  Widget _verses(SavedReflection reflection, {int delay = 0}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

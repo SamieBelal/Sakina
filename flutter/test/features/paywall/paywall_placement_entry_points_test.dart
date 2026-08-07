@@ -90,18 +90,23 @@ void main() {
 
     test('every in-app entry point names PaywallPlacement.softInApp', () {
       // The cap sheets, the settings card, the home premium strip, the
-      // collection teaser, the IAP→sub banner and the save-limit sheet are all
-      // mid-app upsells — none of them is the onboarding ceremony.
+      // collection teaser and the IAP→sub banner are all mid-app upsells —
+      // none of them is the onboarding ceremony. (`upgrade_required_sheet.dart`
+      // was in this list until 2026-08-02; it went away with the journal save
+      // cap it existed to upsell — design §9A.)
       const softInAppEntryPoints = <String>[
         'lib/features/home/widgets/home_premium_strip.dart',
         'lib/features/settings/widgets/settings_premium_card.dart',
         'lib/features/collection/screens/collection_screen.dart',
         'lib/features/progress/screens/progress_screen.dart',
         'lib/features/duas/screens/duas_screen.dart',
-        'lib/features/reflect/screens/reflect_screen.dart',
+        // Was `lib/features/reflect/screens/reflect_screen.dart` until
+        // 2026-08-07. The Reflect tab became the Journal's composer; the gating
+        // sheets moved with it unchanged, so this entry point did not go away —
+        // it changed address.
+        'lib/features/journal/screens/new_reflection_screen.dart',
         'lib/features/daily/screens/muhasabah_screen.dart',
         'lib/widgets/iap_to_sub_upsell_banner.dart',
-        'lib/widgets/upgrade_required_sheet.dart',
       ];
       for (final path in softInAppEntryPoints) {
         final source = File(path).readAsStringSync();

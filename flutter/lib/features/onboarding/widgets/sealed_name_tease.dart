@@ -136,9 +136,17 @@ class SealedNameTease extends StatelessWidget {
             framingLabel,
             textAlign: TextAlign.center,
             textDirection: TextDirection.ltr,
+            // `Soft` (70%), not `Faint` (45%). DESIGN.md's opacity ramp
+            // reserves Faint for hints and source lines; this is a whole
+            // sentence. Measured against the canvas gradient, cream at 45%
+            // lands at **2.14-2.84:1** — below AA's 4.5:1 for body text and
+            // below even the 3.0:1 large-text floor on two of the three
+            // gradient stops. At 70% it reaches 4.66:1 at the top of the
+            // gradient. Reflectly's 2-star reviews name exactly this failure
+            // ("the font is small and faint") as why they did not buy.
             style: AppTypography.bodyMedium.copyWith(
               height: 1.45,
-              color: AppColors.sacredInkFaint,
+              color: AppColors.sacredInkSoft,
             ),
           ),
         ],

@@ -13,6 +13,7 @@ class MonthOfLightCell extends StatelessWidget {
     required this.state,
     this.size = 36,
     this.dense = false,
+    this.onTap,
   });
 
   final DateTime? day;
@@ -21,6 +22,14 @@ class MonthOfLightCell extends StatelessWidget {
 
   /// Legend swatches: no day number, tighter glyph.
   final bool dense;
+
+  /// Makes the cell a control (Wave D, D4 — the Journal's browse surface).
+  ///
+  /// Null keeps the cell exactly what it has always been: a read-only swatch
+  /// with an `ExcludeSemantics`'d visual under a descriptive label. When it is
+  /// set the cell becomes a semantic button, because a tappable thing that does
+  /// not announce itself as tappable is worse than an untappable one.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +56,41 @@ class MonthOfLightCell extends StatelessWidget {
       return SizedBox(width: size, height: size, child: cell);
     }
 
+    if (onTap == null) {
+      return Semantics(
+        label: '${day!.day}, ${_semanticFor(state)}',
+        child: ExcludeSemantics(child: cell),
+      );
+    }
+
     return Semantics(
+      button: true,
       label: '${day!.day}, ${_semanticFor(state)}',
-      child: ExcludeSemantics(child: cell),
+      hint: _hintFor(state),
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: cell,
+        ),
+      ),
     );
+  }
+}
+
+/// What tapping this cell will do, in the words the destination uses.
+String _hintFor(MonthCellState state) {
+  switch (state) {
+    case MonthCellState.lit:
+      return 'Open this night';
+    case MonthCellState.todayPending:
+      return "Start tonight's muhasabah";
+    case MonthCellState.missed:
+    case MonthCellState.held:
+    case MonthCellState.excused:
+    case MonthCellState.future:
+      return '';
   }
 }
 

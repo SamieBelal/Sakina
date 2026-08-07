@@ -56,7 +56,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-1',
@@ -88,7 +87,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(offTopic: true),
         now: () => fixedNow,
         createId: () => 'reflection-offtopic',
@@ -116,7 +114,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-gated',
@@ -139,7 +136,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => throw Exception('boom'),
         now: () => fixedNow,
         createId: () => 'reflection-error',
@@ -164,7 +160,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'reflection-bypass',

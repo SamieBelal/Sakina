@@ -11,6 +11,11 @@ import 'package:sakina/core/constants/duas.dart';
 // comparable with `acquisition_promise.problem_category` instead of forking a
 // second vocabulary (plan §9 guardrails).
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
+// The reflect provider owns `user_reflections` — its row shape, its clamps and
+// its local cache. The nightly muḥāsabah is written through that same path
+// (`buildSavedReflection` + `saveMuhasabahReflection`) rather than a second
+// writer, so one code path owns the table.
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_events.dart';
@@ -205,6 +210,59 @@ class DailyLoopState {
   /// problem for build-a-dua.
   final GatedFeature? warmupJustExhausted;
 
+  // ------------------------------------------------------------------
+  // The journal entry the night leaves behind (Wave C).
+  //
+  // ⚠️ ALL THREE CARRY THE USER'S OWN WORDS. They may be rendered, stored on
+  // the user's own RLS row and cached locally; they may NEVER become an
+  // analytics property, a People attribute or a log line. The names
+  // `tonightEntry`, `timeMachineEntry`, `lastNightAzm` and `azm` are listed in
+  // `freeTextFields` in `test/services/no_free_text_reaches_analytics_test.dart`
+  // precisely because that guard is otherwise blind to free text once it lands
+  // on state. Add any new one there in the same change that introduces it.
+  // ------------------------------------------------------------------
+
+  /// Tonight's persisted muḥāsabah entry — the words, the Name, the duʿā, the
+  /// thread and the ʿazm.
+  ///
+  /// Null until [DailyLoopNotifier.completeDeeper] writes the row (or a cold
+  /// restart rehydrates it), and null on a night whose write the server refused.
+  /// Its presence is what "add to tonight" appends to: no entry, nothing to add
+  /// to, and the affordance does not render.
+  final SavedReflection? tonightEntry;
+
+  /// True when [tonightEntry] is a row that was ALREADY on the day before this
+  /// completion ran — i.e. `saveMuhasabahReflection` refused the write because
+  /// the day's one muḥāsabah slot was taken.
+  ///
+  /// **The completion screen makes a claim about tonight, and this is what
+  /// keeps it true.** `_persistMuhasabahEntry` deliberately shows "the entry
+  /// that IS on the day" rather than the one it just built, which is right: the
+  /// journal's row is the artifact. But that entry carries ANOTHER night's
+  /// Name, and the screen labels it *"The Name you met"* — so a reader who had
+  /// just been shown Al-Majeed was told they met Al-Wadud. Observed on
+  /// 2026-08-06.
+  ///
+  /// Reachable in production whenever the server refuses the insert on
+  /// `uniq_muhasabah_per_local_day`: a second device, or a completion whose
+  /// sync lands after another device has already claimed the day. The
+  /// `!checkinDone` gate blocks the same-device replay, so this is rare — but
+  /// `saveMuhasabahReflection` has always returned the boolean that detects it,
+  /// and it was simply dropped on the floor.
+  final bool tonightEntryIsReplay;
+
+  /// The user's own entry from 30 / 90 / 365 nights ago — nearest available,
+  /// at most one (C3).
+  ///
+  /// **Populated only once the night is complete.** That is the enforcement of
+  /// "cannot be peeked at before completing": rather than gate a widget, the
+  /// state simply never carries the anchor before [DailyLoopStep.completed].
+  final SavedReflection? timeMachineEntry;
+
+  /// The ʿazm from the most recent night before tonight, resurfaced as tonight's
+  /// opening line (C4). Null when the user has not written one lately.
+  final String? lastNightAzm;
+
   // Error
   final String? error;
 
@@ -252,6 +310,10 @@ class DailyLoopState {
     this.streakLapseRestorable = false,
     this.lapsePreLapseStreak = 0,
     this.warmupJustExhausted,
+    this.tonightEntry,
+    this.tonightEntryIsReplay = false,
+    this.timeMachineEntry,
+    this.lastNightAzm,
     this.error,
   });
 
@@ -324,6 +386,10 @@ class DailyLoopState {
     /// merge cannot express "back to null", and a sticky flag would re-fire the
     /// sheet on the next rising edge the screen observes.
     bool clearWarmupJustExhausted = false,
+    SavedReflection? tonightEntry,
+    bool? tonightEntryIsReplay,
+    SavedReflection? timeMachineEntry,
+    String? lastNightAzm,
     String? error,
 
     /// Explicit clear for [DailyLoopState.error], matching
@@ -411,6 +477,11 @@ class DailyLoopState {
       warmupJustExhausted: clearWarmupJustExhausted
           ? null
           : (warmupJustExhausted ?? this.warmupJustExhausted),
+      tonightEntry: tonightEntry ?? this.tonightEntry,
+      tonightEntryIsReplay:
+          tonightEntryIsReplay ?? this.tonightEntryIsReplay,
+      timeMachineEntry: timeMachineEntry ?? this.timeMachineEntry,
+      lastNightAzm: lastNightAzm ?? this.lastNightAzm,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -603,6 +674,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // Pick quest dua
       final questDua = _pickQuestDua(hour);
 
+      // Every write below this line is post-await, and `_initialize` is
+      // fire-and-forget from the constructor — so the notifier can be disposed
+      // (route popped, container torn down) while those awaits are still in
+      // flight, and a write to a disposed StateNotifier throws. Same guard
+      // [_applyRewardClaimResult] already carries, for the same reason.
+      if (!mounted) return;
       state = state.copyWith(
         greeting: greeting,
         todaysQuestion: question,
@@ -624,14 +701,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // Restore persisted state for today
       await _loadTodayState();
 
+      // …and the journal context that hangs off it (Wave C). AFTER
+      // `_loadTodayState`, because whether the time-machine anchor may be
+      // restored at all depends on the step it just restored.
+      await _hydrateJournalContext();
+
       // Re-read economy values in case hydration completed while we were
       // loading. This covers the sign-out → re-login path where _initialize
       // first reads default/empty cache, then hydration finishes before we
       // reach this point.
       await refreshEconomyState();
 
+      if (!mounted) return;
       state = state.copyWith(loaded: true);
     } catch (e) {
+      // The guard matters MORE here than above: this handler is the one that
+      // escapes. A post-dispose write inside the `try` lands in this `catch`,
+      // which then writes again — and THAT throw has nowhere to go but the
+      // fire-and-forget future, where it surfaces as an unhandled async error
+      // and fails whichever test happens to be running.
+      if (!mounted) return;
       state = state.copyWith(loaded: true, error: e.toString());
     }
   }
@@ -2139,6 +2228,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       final xpState = await getXp();
       final tokenState = await getTokens();
       final displayTitle = await getDisplayTitle(xpState.level);
+      // Post-await write, and this one is awaited from `_initialize` — see the
+      // note there. Otherwise the dispose-time StateError is swallowed as
+      // "stale values are better than crashing", which it is not.
+      if (!mounted) return;
       state = state.copyWith(
         streakCount: streakState.currentStreak,
         xpTotal: xpState.totalXp,
@@ -2276,6 +2369,18 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // gacha card reveal already showed the Name.
         reflectStep: 1,
         clearError: true,
+        // A deck night has no AI reflection, and `completeDeeper` now PERSISTS
+        // whatever is on state. `reflectResult` survives a cycle — only
+        // `resetToday()` and the off-topic re-ask null it — and the bypass CTAs
+        // (`discoverNameWithBypass` / `discoverNameWithFirstBypass`) start a new
+        // cycle WITHOUT `resetToday()`. Leave it and a decked night writes the
+        // PREVIOUS night's reframe/story/beat_data/duʿa against tonight's Name,
+        // user_text and date — plausible enough that nobody would spot it.
+        //
+        // The comment above ("no `reflectResult` is ever needed") was true right
+        // up until the journal entry started reading it; the assumption expired
+        // silently. Clearing it here keeps the deck path's promise literal.
+        clearReflectResult: true,
       );
       return;
     }
@@ -2355,6 +2460,348 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     await _persistTodayState();
     await _awardDailyNoor();
     await _markDayOpenSatisfied();
+    // LAST, deliberately. Everything above is already committed by the time it
+    // runs, so a refused or unreachable journal write costs a row and nothing
+    // else. See [_persistMuhasabahEntry].
+    await _persistMuhasabahEntry();
+    _emitCompletionShown();
+  }
+
+  /// One event per completed night (Wave H) — the denominator every other Wave
+  /// C number is read against.
+  ///
+  /// Emitted from here rather than from `_buildCompleted`'s build method for
+  /// the obvious reason (a screen rebuilds; a night completes once) and from
+  /// AFTER [_persistMuhasabahEntry] rather than inside it for a less obvious
+  /// one: that method returns early when there is nothing to save, and a
+  /// completion that produced no artifact is precisely the case
+  /// [AnalyticsEvents.propHasEntry] exists to count.
+  ///
+  /// Reads state, so it carries the entry and anchor the persist step just
+  /// resolved. Nothing here touches the user's words.
+  void _emitCompletionShown() {
+    try {
+      final entry = state.tonightEntry;
+      final anchor = state.timeMachineEntry;
+      final offset = _anchorOffsetDays(entry, anchor);
+      onAnalyticsEvent?.call(AnalyticsEvents.muhasabahCompletionShown, {
+        AnalyticsEvents.propHasEntry: entry != null,
+        AnalyticsEvents.propHasTimeMachine: anchor != null,
+        if (offset != null) AnalyticsEvents.propOffsetDays: offset,
+        AnalyticsEvents.propThreadLength: entry?.thread.length ?? 0,
+        AnalyticsEvents.propHasAzm: (entry?.azm ?? '').trim().isNotEmpty,
+      });
+    } catch (_) {
+      // Best-effort, like every other emit on this path: telemetry must never
+      // sit between the user finishing the night and the screen saying so.
+    }
+  }
+
+  /// Nights between tonight and the resurfaced anchor — 30, 90 or 365, or null
+  /// when either day is missing or unparseable.
+  static int? _anchorOffsetDays(
+      SavedReflection? tonight, SavedReflection? anchor) {
+    final today = parseLocalDayString(tonight?.entryLocalDay ?? '');
+    final then = parseLocalDayString(anchor?.entryLocalDay ?? '');
+    if (today == null || then == null) return null;
+    return today.difference(then).inDays;
+  }
+
+  /// Writes tonight's muḥāsabah as a durable journal entry (Wave B).
+  ///
+  /// Until this existed a completed muḥāsabah left NO artifact: the check-in
+  /// row carries no answer text (the discover path writes `q1='discover'` with
+  /// q2-q4 empty) and the AI reflection was never persisted at all — the user's
+  /// own words survived only in the device-local per-day blob written by
+  /// [_persistTodayState], which is keyed by the day and never read again once
+  /// the day rolls over.
+  ///
+  /// **`entry_local_day` comes from [resolveUserLocalDay], never from
+  /// `saved_at`.** The streak, the launch gate and the reward ladder all key on
+  /// a day boundary; a timestamp disagrees with them near midnight, and this
+  /// column is what the Wave C time machine joins on (`- 30 / -90 / -365`).
+  ///
+  /// **Best-effort, exactly like [_awardDailyNoor].** By the time it runs the
+  /// streak, the quests and the Noor award are already committed: a lost row is
+  /// recoverable (the server-side unique index makes tomorrow's replay safe,
+  /// and nothing downstream depends on it existing), a lost streak is not.
+  /// [saveMuhasabahReflection] already returns false rather than throwing on a
+  /// refused write; this catch covers the local-day resolution and the prefs
+  /// hop as well.
+  Future<void> _persistMuhasabahEntry() async {
+    try {
+      final name = state.checkinName?.trim() ?? '';
+      final nameArabic = state.checkinNameArabic?.trim() ?? '';
+      final userText = _muhasabahUserText(state);
+      // Nothing was revealed and nothing was written — a bare lifecycle flip
+      // (a legacy `skipAll`, a test harness driving the notifier directly).
+      // An empty row is not an artifact; it is noise that would occupy the
+      // day's one muḥāsabah slot.
+      if (name.isEmpty && userText.isEmpty) return;
+
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      // The return value is load-bearing and used to be discarded. False means
+      // the day's one muḥāsabah slot was already taken, so whatever comes back
+      // from `readMuhasabahEntryForDay` below belongs to a DIFFERENT run of the
+      // night — see [DailyLoopState.tonightEntryIsReplay].
+      final wrote = await saveMuhasabahReflection(
+        buildSavedReflection(
+          userText: userText,
+          // Null on the deck path, which has no AI response at all — the
+          // pre-authored beats ARE the content. The night still deserves its
+          // entry: the user's words, the Name and the day.
+          response: state.reflectResult,
+          // …and on that path THIS is the content. Passing it was the whole of
+          // the 2026-08-07 fix: `revealDeck` was already on state at this line,
+          // holding the beats, verses and duʿā the reader had just been shown,
+          // and none of it reached the row. The archive rendered a cover and a
+          // Name because that is all the row had.
+          deck: state.revealDeck,
+          date: debugDailyLoopClock().toIso8601String(),
+          name: name.isEmpty ? null : name,
+          nameArabic: nameArabic.isEmpty ? null : nameArabic,
+          source: reflectionSourceMuhasabah,
+          entryLocalDay: localDay.dateString,
+        ),
+      );
+
+      // Whether the write landed or the day already had its row, what the
+      // completion screen shows back — and what "add to tonight" appends to —
+      // is the entry that IS on the day. Read it rather than assume the one we
+      // just built is it.
+      //
+      // The time-machine anchor is resolved HERE and nowhere earlier: C3's
+      // design is that it cannot be peeked at before completing, and the
+      // cheapest guarantee of that is for the state never to carry it until the
+      // night is done.
+      final day = localDay.dateString;
+      // ⚠️ Both reads resolve BEFORE the assignment, and the `state` the
+      // `copyWith` is applied to is read AFTER them. Dart evaluates a method's
+      // receiver before its arguments, so `state = state.copyWith(x: await …)`
+      // captures the PRE-await snapshot and writes it back — silently undoing
+      // every state change that landed while the awaits were in flight. That is
+      // not theoretical: it broke four daily-loop suites the first time this was
+      // written this way.
+      final tonight = await readMuhasabahEntryForDay(day);
+      final anchor = await findMuhasabahTimeMachineAnchor(day);
+      // A write to a disposed StateNotifier throws. Unlike `_initialize`, this
+      // catch does not re-write state, so the throw is swallowed rather than
+      // escaping as an unhandled async error — but the completion screen then
+      // silently loses tonight's entry. The dispose window here is a real user
+      // action: navigating away while the Supabase round-trip is in flight.
+      if (!mounted) return;
+      state = state.copyWith(
+        tonightEntry: tonight,
+        // Only a row we did NOT write is a replay. A refused write with no row
+        // to fall back on (`tonight == null`) is the ordinary "nothing was
+        // saved" case the completion screen already handles, and flagging it
+        // would make the screen apologise for an entry it is not showing.
+        tonightEntryIsReplay: !wrote && tonight != null,
+        timeMachineEntry: anchor,
+      );
+    } catch (e) {
+      debugPrint('[daily_loop] muhasabah journal entry not written: $e');
+    }
+  }
+
+  /// Adopts an entry that was edited SOMEWHERE ELSE — the Journal's edit sheet,
+  /// which writes through `editReflectionText` and has no view of this notifier.
+  ///
+  /// Two copies of a muḥāsabah row can be on screen at once: this notifier's
+  /// `tonightEntry` (the completion screen, and the source of the compose
+  /// control's meaning) and `timeMachineEntry` (the "On This Night" anchor).
+  /// Without this, editing tonight's words from the Journal and returning to the
+  /// completion screen would show the pre-edit text until the next launch.
+  ///
+  /// Matches on id and touches nothing else, so an edit to an unrelated entry is
+  /// a no-op rather than a state write.
+  void adoptEditedEntry(SavedReflection updated) {
+    if (!mounted) return;
+    final isTonight = state.tonightEntry?.id == updated.id;
+    final isAnchor = state.timeMachineEntry?.id == updated.id;
+    if (!isTonight && !isAnchor) return;
+    state = state.copyWith(
+      tonightEntry: isTonight ? updated : state.tonightEntry,
+      timeMachineEntry: isAnchor ? updated : state.timeMachineEntry,
+    );
+  }
+
+  /// **"Add to tonight" (Wave C, C1) — a pure text write, and nothing else.**
+  ///
+  /// This is the appended half of the night. It does **not** call
+  /// [discoverName], mark the streak, claim the reward ladder, unseal the queue,
+  /// engage a card or consume an allowance. Every one of those fires exactly
+  /// once per night, at first submit, and the `!state.checkinDone` gate in
+  /// `muhasabah_screen._showsQuestion` is the thing that keeps them there — the
+  /// defence against the "phantom second gacha" bug class documented at the top
+  /// of this file. **Widening that gate is how this feature would break the
+  /// economy; this method is the deliberate alternative, a separate path that
+  /// bypasses it entirely.** Pinned by
+  /// `test/features/daily/muhasabah_thread_append_test.dart`.
+  ///
+  /// The day is resolved fresh on every call, so an append made after local
+  /// midnight belongs to the NEW day's row. If that day has no row yet the
+  /// append is refused — it is never filed against yesterday.
+  ///
+  /// Returns false, without throwing, when there is nothing to append to, when
+  /// the text is blank, when tonight's twenty appends are used up, or when the
+  /// server refuses the write.
+  /// [surface] is telemetry only — [AnalyticsEvents.surfaceMuhasabah] for the
+  /// completion screen, [AnalyticsEvents.surfaceJournal] for D3's compose
+  /// sheet. It changes nothing about the write; it is how "does the Journal's
+  /// compose control get used" stops being a guess.
+  Future<bool> appendToTonight(
+    String text, {
+    String surface = AnalyticsEvents.surfaceMuhasabah,
+  }) async {
+    if (text.trim().isEmpty) return false;
+    try {
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      final updated = await appendToMuhasabahThread(
+        entryLocalDay: localDay.dateString,
+        text: text,
+        now: debugDailyLoopClock,
+      );
+      if (updated == null) return false;
+      // A write to a disposed StateNotifier throws, and this catch does not
+      // re-write state, so it would be swallowed into the debugPrint below and
+      // read as "the append failed" — when it did not. The row is already
+      // committed server-side; only the local echo has nobody left to show it
+      // to. So skip the state write and carry on: the event still fires and
+      // this still returns true, because the append really did happen.
+      if (mounted) state = state.copyWith(tonightEntry: updated);
+      // AFTER the commit and only on a committed one — a blank line, a
+      // rolled-over day with no row, an exhausted budget and a server refusal
+      // all return above, and none of them is an append.
+      //
+      // `thread.length` and never the text. The count is the shape of the
+      // night; the words are the user's and stay on their own row.
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.muhasabahThreadAppended, {
+          AnalyticsEvents.propSurface: surface,
+          AnalyticsEvents.propThreadLength: updated.thread.length,
+        });
+      } catch (_) {
+        // Telemetry never costs the append.
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[daily_loop] append to tonight not written: $e');
+      return false;
+    }
+  }
+
+  /// The night's one line of forward resolve (Wave C, C4).
+  ///
+  /// Same contract as [appendToTonight] in every respect that matters: a pure
+  /// text write against a row that already exists, no economy, resolved against
+  /// the local day at call time. Written once and editable until the day rolls
+  /// over — an ʿazm is a resolve, not a submission.
+  Future<bool> setTonightAzm(String azm) async {
+    try {
+      // Read BEFORE the awaits. This is the "was there already a resolve on
+      // tonight" question, and answering it from post-await state would answer
+      // it about the row this call just wrote.
+      final previous = (state.tonightEntry?.azm ?? '').trim();
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      final updated = await setMuhasabahAzm(
+        entryLocalDay: localDay.dateString,
+        azm: azm,
+      );
+      if (updated == null) return false;
+      // Same reasoning as [appendToTonight]: the resolve is already committed,
+      // so a disposed notifier costs the local echo and nothing else.
+      if (mounted) state = state.copyWith(tonightEntry: updated);
+      final next = updated.azm.trim();
+      // `setMuhasabahAzm` returns the entry UNCHANGED when the text is already
+      // what is stored — a re-save of the same line is not an edit, and
+      // counting it would make the ʿazm look re-worked by anyone who tapped
+      // save twice.
+      if (next != previous) {
+        try {
+          onAnalyticsEvent?.call(AnalyticsEvents.muhasabahAzmSet, {
+            AnalyticsEvents.propFirstTime: previous.isEmpty,
+            AnalyticsEvents.propCleared: next.isEmpty,
+            // Bucketed length, never the line. Same rule and the same helper as
+            // the daily question's answer — `charCountBucket` takes an int
+            // precisely so no refactor can hand it the String.
+            AnalyticsEvents.propCharCountBucket: charCountBucket(next.length),
+          });
+        } catch (_) {
+          // Telemetry never costs the resolve.
+        }
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[daily_loop] azm not written: $e');
+      return false;
+    }
+  }
+
+  /// Test seam for [_hydrateJournalContext].
+  ///
+  /// Cold restarts are exactly what this method exists for, and a test cannot
+  /// reach it through the constructor: `skipInitForTests` — which every
+  /// daily-loop suite uses to stay off Supabase, gating and the AI seam — skips
+  /// `_initialize` and therefore skips this too. The alternative is standing up
+  /// the whole notifier for real, which is a much larger fixture than the
+  /// property under test.
+  @visibleForTesting
+  Future<void> debugHydrateJournalContextForTest() => _hydrateJournalContext();
+
+  /// Rehydrates the Wave C journal context on boot: tonight's entry if the night
+  /// is already written, and the ʿazm from the most recent night before tonight
+  /// so the question surface can open on it.
+  ///
+  /// The time-machine anchor is restored **only** for a day already restored to
+  /// [DailyLoopStep.completed] — a cold restart after "Ameen" must show the same
+  /// screen it was showing, but a day still in progress must not be able to see
+  /// the anchor early.
+  ///
+  /// Best-effort, like every other hydration step: a cache miss or an
+  /// unresolvable timezone costs the opener, never the loop.
+  Future<void> _hydrateJournalContext() async {
+    try {
+      final day =
+          (await resolveUserLocalDay(clock: debugDailyLoopClock)).dateString;
+      // Every read resolves BEFORE the assignment — see the note in
+      // [_persistMuhasabahEntry]. This method runs inside `_initialize`, which
+      // is fire-and-forget from the constructor and therefore routinely
+      // interleaves with a `discoverName()` the caller started immediately
+      // after; an inline `await` here writes the pre-reveal state back over the
+      // reveal.
+      final tonight = await readMuhasabahEntryForDay(day);
+      final azm = await readRecentAzmBefore(day);
+      final anchor = state.currentStep == DailyLoopStep.completed
+          ? await findMuhasabahTimeMachineAnchor(day)
+          : null;
+      // Post-await write on the `_initialize` path — see the note there.
+      // Without this the dispose-time StateError is caught below and logged as
+      // "journal context not hydrated", which reads like a cache miss.
+      if (!mounted) return;
+      state = state.copyWith(
+        tonightEntry: tonight,
+        lastNightAzm: azm,
+        timeMachineEntry: anchor,
+      );
+    } catch (e) {
+      debugPrint('[daily_loop] journal context not hydrated: $e');
+    }
+  }
+
+  /// The user's own words for tonight's entry.
+  ///
+  /// [DailyLoopState.checkinAnswers] is single-element on the live path
+  /// (`submitDailyAnswer` REPLACES rather than appends); the join covers the
+  /// dormant 4-question `answerCheckin` shape, and `checkinAnswer` covers a
+  /// legacy day blob that only ever carried the combined summary.
+  static String _muhasabahUserText(DailyLoopState source) {
+    final answers = source.checkinAnswers
+        .map((a) => a.trim())
+        .where((a) => a.isNotEmpty)
+        .toList();
+    if (answers.isNotEmpty) return answers.join('\n\n');
+    return source.checkinAnswer?.trim() ?? '';
   }
 
   /// Stamps both day-open markers on completion, by **any** entry path (W4
@@ -2582,6 +3029,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         }
       }
 
+      // Post-await write on the `_initialize` path — see the note there. The
+      // `catch (_) { start fresh }` below would otherwise absorb the
+      // dispose-time StateError.
+      if (!mounted) return;
       state = state.copyWith(
         checkinDone: checkinDone,
         deeperDone: deeperDone,

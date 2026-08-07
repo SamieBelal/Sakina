@@ -10,6 +10,7 @@ import 'package:sakina/features/daily/widgets/daily_question_chip_list.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_header.dart';
+import 'package:sakina/features/daily/widgets/daily_question_opening_line.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 
@@ -43,6 +44,7 @@ class DailyQuestionPrompt extends StatefulWidget {
     required this.onDefer,
     this.entrySource = questionEntryDayOpen,
     this.initialText,
+    this.openingLine,
     this.isReAsk = false,
     this.commitBeat = AppMotion.feedback,
     this.errorText,
@@ -84,6 +86,20 @@ class DailyQuestionPrompt extends StatefulWidget {
   /// *"that was deleted"*. The caret goes to the END so the keyboard opens
   /// ready to append rather than to overwrite.
   final String? initialText;
+
+  /// The ʿazm from the user's most recent night, resurfaced above the question
+  /// (Wave C, C4). Null when they have not written one lately.
+  ///
+  /// **The user's own words, so it never leaves this widget.** It is rendered
+  /// and nothing else — no analytics call on this surface may take it, or any
+  /// value derived from it. The three events this widget owns carry buckets and
+  /// categories only; see `daily_question_analytics.dart`.
+  ///
+  /// Rendered ABOVE the header, quieter than it, and without a prompt to act on
+  /// it. A resolve handed back with a "did you?" attached is a debt collector,
+  /// and the whole surface is built to have nothing guilt-shaped on it. It
+  /// simply reminds the user what they said, and then asks tonight's question.
+  final String? openingLine;
 
   /// Whether this mount is a re-ask rather than the day's first question.
   ///
@@ -375,6 +391,17 @@ class DailyQuestionPromptState extends State<DailyQuestionPrompt>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ʿazm, resurfaced (Wave C, C4) — above the question, quieter than
+            // it, and asking nothing. See [DailyQuestionPrompt.openingLine].
+            if ((widget.openingLine ?? '').trim().isNotEmpty) ...[
+              rise(
+                DailyQuestionOpeningLine(
+                    text: widget.openingLine!.trim()),
+                delay: Duration.zero,
+                travel: AppMotion.riseLarge,
+              ),
+              SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+            ],
             rise(
               DailyQuestionHeader(
                 title: DailyQuestionCopy.header,

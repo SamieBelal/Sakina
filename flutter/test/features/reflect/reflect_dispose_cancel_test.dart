@@ -73,7 +73,6 @@ void main() {
       reflectProvider.overrideWith((ref) => ReflectNotifier(
             loadOnInit: false,
             dependencies: ReflectDependencies(
-              getFollowUpQuestions: (_) async => const [],
               reflect: (_) => neverCompletes.future,
               now: () => fixedNow,
               createId: () => 'r-1',
@@ -132,7 +131,6 @@ void main() {
       reflectProvider.overrideWith((ref) => ReflectNotifier(
             loadOnInit: false,
             dependencies: ReflectDependencies(
-              getFollowUpQuestions: (_) async => const [],
               reflect: (_) => Completer<ai.ReflectResponse>().future,
               now: () => fixedNow,
               createId: () => 'r-2',
@@ -191,7 +189,6 @@ void main() {
       reflectProvider.overrideWith((ref) => ReflectNotifier(
             loadOnInit: false,
             dependencies: ReflectDependencies(
-              getFollowUpQuestions: (_) async => const [],
               reflect: (_) => Completer<ai.ReflectResponse>().future,
               now: () => fixedNow,
               createId: () => 'r-3',

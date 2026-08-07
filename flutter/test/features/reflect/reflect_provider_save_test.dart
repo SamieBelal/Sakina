@@ -6,6 +6,8 @@
 //
 // See docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md (P2-5).
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,7 +80,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'r-rejected',
@@ -120,7 +121,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'r-journal',
@@ -140,5 +140,80 @@ void main() {
     expect(journal.single.props[AnalyticsEvents.propEntryType],
         AnalyticsEvents.entryTypeReflection);
     expect(journal.single.props[AnalyticsEvents.propAuto], false);
+    // Wave H. The muḥāsabah now writes into this same table and fires this same
+    // event, so without `source` the two are one undifferentiated number — and
+    // a Reflect save and a night are not the same act. Property, not a second
+    // event name: forking it would split every historical journal chart at T0.
+    expect(journal.single.props[AnalyticsEvents.propSource],
+        AnalyticsEvents.journalSourceReflect);
+
+    // And the user's words are not in the payload. `setUserText` put them on
+    // state one line before the emit, which is exactly the shape of the two
+    // violations `no_free_text_reaches_analytics_test` was written for.
+    expect('${journal.single.props}'.contains('anxious'), isFalse);
   });
+
+  // The 5-entry free-tier save cap was removed 2026-08-02 (design §9A). The
+  // weekly allowance pool is spent at GENERATION time — `markUsed` runs before
+  // `_saveReflection` — so a second ration on KEEPING the reflection only
+  // destroyed output the user had already paid for. These cases pin that a
+  // free (non-premium) user keeps accumulating well past the old ceiling.
+  for (final existing in [5, 9, 49]) {
+    test(
+        'a free user with $existing saved reflections saves the '
+        '${existing + 1}th', () async {
+      final seeded = List.generate(
+        existing,
+        (i) => SavedReflection(
+          id: 'r-$i',
+          date: fixedNow.toIso8601String(),
+          userText: 'text-$i',
+          name: 'As-Salam',
+          nameArabic: 'السلام',
+          reframePreview: 'preview-$i',
+        ).toJson(),
+      );
+      SharedPreferences.setMockInitialValues({
+        'saved_reflections:user-uncapped': jsonEncode(seeded),
+      });
+
+      SupabaseSyncService.debugSetInstance(
+        FakeSupabaseSyncService(userId: 'user-uncapped'),
+      );
+      await GatingService().debugSetHadTrial(true);
+
+      // loadOnInit: true so the seeded cache hydrates into state, exactly as
+      // it would for a returning free user with a full journal.
+      final notifier = ReflectNotifier(
+        dependencies: ReflectDependencies(
+          reflect: (_) async => successResponse(),
+          now: () => fixedNow,
+          createId: () => 'r-next',
+        ),
+      );
+      addTearDown(notifier.dispose);
+
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.state.savedReflections, hasLength(existing),
+          reason: 'precondition: the seeded journal hydrated');
+
+      notifier.setUserText('I feel anxious');
+      await notifier.submit();
+
+      expect(
+        notifier.state.savedReflections,
+        hasLength(existing + 1),
+        reason: 'no free-tier row cap: the save must land',
+      );
+      // Reflections are stored newest-first.
+      expect(notifier.state.savedReflections.first.id, 'r-next');
+
+      final prefs = await SharedPreferences.getInstance();
+      final persisted = jsonDecode(
+        prefs.getString('saved_reflections:user-uncapped')!,
+      ) as List<dynamic>;
+      expect(persisted, hasLength(existing + 1),
+          reason: 'the new reflection must survive a relaunch too');
+    });
+  }
 }

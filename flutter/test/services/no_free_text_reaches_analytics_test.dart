@@ -78,7 +78,61 @@ void main() {
     // The `.text` sweep above only sees a controller. Once free text lands on
     // state it looks like any other field, so those are named explicitly —
     // honest and maintainable beats clever and wrong.
-    const freeTextFields = ['duaTopicsOther', 'intakeNote', 'firstProblemText'];
+    //
+    // Wave C (journaling) put four more on state. `tonightEntry` and
+    // `timeMachineEntry` are whole `SavedReflection`s — the user's answer, their
+    // appends and their resolve — and `lastNightAzm` / `azm` are the resolve on
+    // its own. Storing them on the user's own RLS row is permitted (design D2);
+    // putting any of them, or anything derived from them, into telemetry is not.
+    //
+    // **This list is an ALLOWLIST OF KNOWN NAMES, and that is its ceiling.** It
+    // cannot see a field nobody added to it, so it is the mitigation for plan
+    // risk 6 and not a solution to it: every wave that puts user text on state
+    // owes this list a line in the same PR. Wave H's audit added the ones below
+    // the Wave C block — several of them (`userText`, `checkinAnswers`,
+    // `buildNeed`) predate Wave C entirely and were simply never named.
+    const freeTextFields = [
+      'duaTopicsOther',
+      'intakeNote',
+      'firstProblemText',
+      // Wave C — the night's row, on the daily loop's state.
+      'tonightEntry',
+      'timeMachineEntry',
+      'lastNightAzm',
+      'azm',
+      // Wave H audit. Pre-existing and unnamed until now:
+      // `ReflectState.userText` is the Reflect free-write body verbatim, and
+      // `SavedReflection.userText` is the same text on the row.
+      'userText',
+      // `DailyLoopState.checkinAnswers` / `checkinAnswer` — the muḥāsabah
+      // answer. `daily_question_answered` already sends `charCountBucket` of
+      // it, which is the only permitted shape.
+      'checkinAnswers',
+      'checkinAnswer',
+      // `DuasState.buildNeed` / `findNeed` / `browseQuery` and
+      // `SavedBuiltDua.need` — what the user typed they needed a duʿā for.
+      // Wave E put `need` on a resurfacing card, so it now travels.
+      'buildNeed',
+      'findNeed',
+      'browseQuery',
+      'need',
+      // Wave C's appends, as a list on the row. `thread.length` is fine and is
+      // what `muhasabah_thread_appended` sends; `thread` itself is the words.
+      'thread',
+      // Wave E. `WeeklyRecap.oneLine` is documented as "one line the user
+      // wrote, verbatim" — the single most quotable string in the app.
+      'oneLine',
+      // Wave E / C locals that WRAP a whole entry: `resolveOnThisNight`'s
+      // result and the time-machine anchor. Named because a card's props are
+      // the obvious thing to hand an emit.
+      'onThisNight',
+      'anchor',
+      // The same trap one level up: `WeeklyRecap` CONTAINS `oneLine`, and since
+      // 2026-08-06 the Journal hands the whole object to a route and emits
+      // alongside it. `entry_count` and `beat_count` are read off it explicitly
+      // and are fine; the object itself never is.
+      'recap',
+    ];
     final offenders = <String>[];
 
     for (final file in Directory('lib')
@@ -86,8 +140,14 @@ void main() {
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))) {
       final source = file.readAsStringSync();
+      // `onAnalyticsEvent?.call` is in this sweep and was not before Wave H.
+      // The first sweep has always included it, and the omission here was the
+      // hole that mattered most: every provider in Waves B–E emits through the
+      // static hook and NOT through `track()`, so the four Wave C fields this
+      // list was created for were being checked at call sites they can never
+      // reach. The ONE emit path they can reach was unscanned.
       for (final match in RegExp(
-        r'(track|trackOnboardingAnswer\w*|setUserProperties)\s*\(',
+        r'(track|trackOnboardingAnswer\w*|setUserProperties|onAnalyticsEvent\?\.call)\s*\(',
       ).allMatches(source)) {
         final end = source.indexOf(';', match.start);
         final call =

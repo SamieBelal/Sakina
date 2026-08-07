@@ -64,6 +64,14 @@ not a bug, for every row here.
 
 **T0+24h check (someone has to run this manually — it is not automatable from here):** the share of `onboarding_started` carrying `onboarding_flow`, `contract` and `reel_hook_source`. Anything below ~95% is an ordering bug, not sampling noise — a debug-only assert in `AnalyticsService.track()` guards this in dev/test builds, but production coverage still has to be eyeballed once.
 
+**T0+24h check, journaling release (added Wave H, 2026-08-02).** The events below have **no history at all** — every one of them starts at zero at T0, so their first 24 hours is the only chance to notice they are wired wrong before a keep read is built on them. Three things, in this order:
+
+1. **Super-property coverage.** `journal_entry_created`, `muhasabah_completion_shown` and `journal_resurfacing_shown` should each carry `app_version` and `onboarding_flow` on ~100% of events, not ~95%. Unlike `onboarding_started`, none of these can fire before boot — they need a completed night or an opened Journal — so *any* unlabelled slice here is a real ordering bug, not the by-construction gap the row above tolerates.
+2. **`source` coverage on `journal_entry_created`.** Break down by `entry_type` **first**. Within `entry_type = reflection`, `source` must be 100% present and split `reflect` / `muhasabah`; a third value, or an `(undefined)` slice, means a writer bypassed `buildSavedReflection`. Within `built_dua` / `saved_dua`, `source` is expected **absent** — that is correct, not a gap (see below).
+3. **The completion event is the denominator, so check it against a known number.** `muhasabah_completion_shown` should track `check_in_completed{path: 'discover'}` closely (same nightly loop, one step later). A large gap means completions are not reaching the emit. Within it, `has_entry = false` is the number that matters: it is the rate at which a completed night leaves **no journal row**, and it is the only visible signal of an offline or server-refused write.
+
+Two of these are absolute, not comparative — there is no pre-side. Snapshot them at T0+24h, because by T0+1wk a bad number is indistinguishable from a real one.
+
 ### `acquisition_problem_category` vs `problem_category` — same vocabulary, different question
 
 Both use the identical 7-chip taxonomy (`anxiety`/`heavy`/`guilt`/`far_from_allah`/`rizq`/`unseen`/`unspoken`, or `unmatched`) — deliberately, so cross-tabbing them is exactly one breakdown. They are **not** the same property and must never be treated as interchangeable:
@@ -109,6 +117,11 @@ Every event also carries the super properties above. Build funnels by chaining t
 | Reflect (W6-D) | `reflect_started` → `reflect_completed{off_topic}` | see "Reflect, the browse surface, and `dua_read`" below |
 | Names browse (W6-D) | `names_browse_viewed` | fires from `CollectionScreen`, not `NamesScreen` — see below |
 | Duʿā read (W6-D) | `dua_read{dua_id, source}` | see below for the exact interaction it means |
+| Journal writes | `journal_entry_created{entry_type, auto, source}` | **`source` is new (Wave H) and present only when `entry_type = reflection`** — see the journaling section below |
+| The night (Wave C) | `muhasabah_completion_shown{has_entry, has_time_machine, offset_days, thread_length, has_azm}` → `muhasabah_thread_appended{surface, thread_length}` · `muhasabah_azm_set{first_time, cleared, char_count_bucket}` | see below |
+| The archive (Wave D) | `journal_entry_opened{origin, format, source}` · `journal_compose_tapped{action, entry_point}` · `journal_browse_opened` | see below |
+| Resurfacing (Wave E) | `journal_resurfacing_shown{on_this_night, weekly_recap, answered_prompt, offset_days}` · `journal_recap_opened{entry_count, beat_count}` | session-aggregated, once per Journal visit; `weekly_recap` now means the CADENCE-GATED answer — see below |
+| Find + fix (2026-08-06) | `journal_searched{result_count, has_results}` · `journal_entry_edited{source, age_days}` | search is debounced (one event per settled query) and **never carries the query**; `origin: journal_search` is a fourth value on `journal_entry_opened` — see below |
 
 ---
 
@@ -316,6 +329,95 @@ emit site today, despite the property shape implying multiple sources. The
 first related duʿā renders pre-expanded (it anchors the guided-tour heart), so
 its initial state does NOT count as a read — only a subsequent collapse→expand
 does.
+
+---
+
+## Journaling, the archive and resurfacing (2026-08-02, plan Wave H)
+
+Waves B–E gave the nightly muḥāsabah a durable artifact, turned the Journal into an archive and added three in-app resurfacing surfaces. **All of it emitted nothing.** This is what it emits now, and — more usefully — what it deliberately does not.
+
+### `journal_entry_created` was EXTENDED, not forked
+
+The nightly muḥāsabah is a journal entry, so it fires the journal's event. `source` (`reflect` | `muhasabah`) is what tells the two writers of `user_reflections` apart. A sibling event name would have split every historical journal chart in two at T0, which is the same mistake `check_in_completed` was protected from in W4.
+
+| | |
+|---|---|
+| `entry_type = reflection`, `source = reflect` | a Reflect save. `auto: false` — the user chose to keep it. |
+| `entry_type = reflection`, `source = muhasabah` | the night. `auto: true` — the user wrote the words, but nothing asked them to save; same semantics as the auto-saved built duʿā. |
+| `entry_type = built_dua` / `saved_dua` | **no `source` property, by design.** These are `user_built_duas` rows; that table has no `source` column and no muḥāsabah concept, and minting a third value would make `source` mean "table column" on some events and "surface" on others. Break down by `entry_type` first; `source` splits the reflection slice. |
+
+**The event counts rows that were KEPT.** It fires from `saveMuhasabahReflection`, the one function that owns the muḥāsabah row — so a same-day replay (deduped by `uniq_muhasabah_per_local_day`) and a server-refused insert both emit **nothing**. An emit at the call site would have counted both as journal entries that do not exist.
+
+### The night (Wave C)
+
+`muhasabah_completion_shown` fires **once per completed night**, from `completeDeeper()`. It is the denominator for everything else here, and `has_entry: false` is its most valuable slice — a night that completed and left no row (offline, or a refused write) is otherwise completely invisible.
+
+`muhasabah_thread_appended` and `muhasabah_azm_set` are the two writes that keep the night open. Both are **per durable write, not per interaction**: a blank append, an append after local-day rollover with no row yet, an exhausted twenty-append budget, a server refusal and an ʿazm re-saved unchanged are all silent. `thread_length` is the count *after* the append, so "appended once" is separable from "kept going" without a session aggregate.
+
+**`surface` on `muhasabah_thread_appended` is load-bearing.** The completion screen (`muhasabah`) and the Journal's compose sheet (`journal`) share one write, and this property is the only thing separating them — it is how D3's compose control is shown to earn its place, or not.
+
+### The archive (Wave D)
+
+`journal_entry_opened{origin, format, source}` is **one event with three doors**, not three events: `origin` ∈ `journal_feed` | `journal_calendar` | `on_this_night`, `format` ∈ `story` | `detail`. Re-reading is Wave D's whole thesis, and three event names would have made "entries re-read" a union query forever.
+
+`journal_browse_opened` exists purely as the denominator for `origin = journal_calendar`. Without it, a calendar nobody converts from reads identically to one nobody opens.
+
+`journal_compose_tapped{action, entry_point}` — one control, three meanings (`start_tonight` / `add_to_tonight` / `free_write`), rendered in two places (`fab` / `empty_state`). Both are properties for the same reason: the meanings are mutually exclusive at any moment, and the empty-state rendering is aimed at a different user than the FAB.
+
+### Finding and fixing an entry (2026-08-06)
+
+Two controls landed after Wave E closed the archive: a **search** over the whole
+journal, and an **edit** of the user's own words on a saved entry.
+
+`journal_searched{result_count, has_results}` is **debounced (700ms), one event
+per settled query** — `p` `pa` `pai` `pain` is one search and not four. Emitting
+per keystroke would have made the has-results ratio meaningless, since every
+prefix of a real query is a miss.
+
+* **`has_results: false` is the slice that matters.** A search that finds
+  nothing is either a journal that does not contain the memory or a matcher that
+  cannot reach it, and only the ratio over time tells you which. The matcher
+  searches the user's own words (answer, thread appends, ʿazm) and the Name; it
+  deliberately does NOT search the reframe or the story, which say *Allah*,
+  *heart* and *mercy* on every entry — see `journal_search.dart`.
+* **Conversion is `journal_entry_opened{origin: journal_search}`**, a fourth
+  value on the existing event rather than a second event here. "People find
+  things and read them" stays separable from "people scroll and read things"
+  without a union query.
+* **The query never leaves the device — not the text, and not its length.** A
+  journal search box is a second place to type the same confessional text the
+  answer-text rule already keeps off the wire, and a doctrine that protected the
+  entry but not the search for it would be a strange one. Pinned by a test.
+
+`journal_entry_edited{source, age_days}` fires **only on a committed change**: a
+blank edit, an unchanged re-save, an entry missing from the cache and a server
+refusal are all silent, exactly like `muhasabah_thread_appended`. `age_days` is
+the question the feature exists to answer — *"people fix tonight's typo"* and
+*"people revisit a night from March"* are different features wearing the same
+button, and only the distribution separates them. Never the text, before or
+after.
+
+### Resurfacing (Wave E) — and what is deliberately dark
+
+`journal_resurfacing_shown{on_this_night, weekly_recap, answered_prompt, offset_days}` fires **once per Journal visit**, latched, after the local day resolves. Session-aggregated rather than a `shown` per card: all three resolve in the same build, all three are passive, and a per-card emit from `build` would count rebuilds. **The all-false row is the common case and is the honest denominator** — every Wave E resolver returns null far more often than not, by design.
+
+**Marking a duʿā answered emits nothing, and that is a decision, not a gap.** It is pinned by a test (`built_dua_answered_status_test.dart`: *"marking answered writes no economy and no analytics"*) and stated in the provider's doc comment: *a user recording that Allah answered them is not a metric, and the moment it earns something it stops being that and starts being a thing to farm.* *"Not yet"* (the snooze) is silent for the same reason.
+
+The consequence, so nobody goes looking: **the answered-duʿā funnel has a top and no bottom.** `answered_prompt: true` tells you the app asked; nothing tells you what the user said. If that ever needs answering, the honest route is a server-side count of `user_built_duas.status = 'answered'` — which is already stored — and not a client event.
+
+One more thing is deliberately uninstrumented:
+
+* **A calendar day that is lit but has no entry** (every night completed before Wave B, plus any refused write) renders a snackbar and emits nothing. It is a data-quality question, and it is answerable server-side by comparing `user_checkin_history` days to `user_reflections` muḥāsabah days — a client event would be a worse measurement of the same thing.
+
+### The weekly recap became a door (2026-08-06)
+
+It used to have no interaction event because it had no interaction. In the **Journal** it is now a one-line door — the user's own quoted line, then *"— your last seven nights"* — onto four screens on the sacred canvas, so it has one:
+
+`journal_recap_opened{entry_count, beat_count}` fires on the tap. `journal_resurfacing_shown{weekly_recap: true}` is its denominator, the same relationship `journal_browse_opened` has with `origin: journal_calendar`. Both properties are **structural**: `entry_count` is entries in the seven-day window and `beat_count` is how many screens the recap actually built, because empty themes and an empty one-line are SKIPPED rather than rendered blank (a low `beat_count` is how "the story is thin" becomes visible without reading anybody's week). **The quoted line never travels with the tap, and neither does a theme or a Name** — the door leads with the user's own words, and the answer-text rule does not stop applying because the words are being summarised.
+
+**`weekly_recap` on the visit event changed meaning, and only forwards.** It now reports the CADENCE-GATED answer — what the archive actually opened with — not what the window rule would have allowed. Before this, `resolveWeeklyRecap` fired whenever two entries fell inside a **rolling** seven days, which for anyone writing regularly is every single day, with content that barely moved between one day and the next: the exact failure `journal_resurfacing.dart` opens by naming ("a resurfacing feature that fires every day is a feed"). The Journal now shows it **at most once per calendar week**, persisted locally per user; every failure mode of that gate is fail-open, so an unreadable marker costs a repeat rather than a silenced feature. Expect `weekly_recap: true` to drop sharply at the release, and read no signal into the drop — it is the gate, and the true rate is per-user-per-week, not per-visit.
+
+**The muḥāsabah completion screen did not change.** It still renders the full `WeeklyRecapCard`, still gated on the time machine having stayed quiet, and it has no `journal_recap_opened` because it has no door: that screen is already a reflective moment with exactly one forward action, and sending someone into a second full-screen flow mid-completion would break the night.
 
 ---
 

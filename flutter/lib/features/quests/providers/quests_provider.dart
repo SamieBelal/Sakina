@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
@@ -96,7 +98,12 @@ const List<BeginnerQuest> beginnerQuests = [
     xpReward: 75,
     tokenReward: 50,
     scrollReward: 5,
-    route: '/reflect',
+    // The Journal's composer, not a tab — there is no Reflect tab to send them
+    // to since 2026-08-07. Deep-linking straight at the composer rather than at
+    // `/journal` is deliberate: a quest that says "write a reflection" and lands
+    // you on an archive you then have to find a `+` in is a quest that has not
+    // finished its sentence.
+    route: newReflectionRoutePath,
   ),
   BeginnerQuest(
     id: BeginnerQuestId.firstBuiltDua,
