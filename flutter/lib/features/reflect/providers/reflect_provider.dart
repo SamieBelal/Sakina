@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
+// A deck night's content. Model-only (`name_story_deck.dart` imports nothing),
+// so this cannot introduce a cycle. See [buildSavedReflection].
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
@@ -621,9 +624,24 @@ class SavedReflection {
 /// [response] is nullable because the deck path has no AI response at all: the
 /// pre-authored beats ARE the content, and the night still deserves an entry
 /// carrying the user's words, the Name and the duʿā.
+///
+/// [deck] is how that content actually arrives (2026-08-07). Until this
+/// parameter existed the sentence above was aspirational: a deck night reached
+/// here with `response == null` and nothing else, so every field below
+/// collapsed to `''` and the row went out carrying the user's words and the
+/// Name and *nothing else* — `beat_data` null, no verses, no duʿā. The night
+/// was complete and correct; only its artifact was empty, and the archive
+/// re-read it as a two-screen story: a cover and a Name.
+///
+/// The mapping mirrors `buildBeatScreensFromDeck` so a re-read lands on the
+/// same beats the reader was shown live, in the same order. It is deliberately
+/// lossy where the row shape cannot hold the deck's structure — a row has one
+/// `takeaway` and one reframe pair, a deck may carry several of each — and the
+/// flattening below states which one wins in each case.
 SavedReflection buildSavedReflection({
   required String userText,
   required ai.ReflectResponse? response,
+  NameStoryDeck? deck,
   String? id,
   String? date,
   String? name,
@@ -634,7 +652,50 @@ SavedReflection buildSavedReflection({
   String azm = '',
   DateTime Function()? now,
 }) {
-  final reframe = response?.reframe ?? '';
+  // ── The deck path's content, flattened into the row's shape ──
+  //
+  // ONLY when there is no response. A response and a deck never coexist on a
+  // real night (`startDeeper` short-circuits the AI prefetch the moment it has
+  // a deck), and if they ever did, the response is the thing the reader was
+  // actually shown. This is also the guard that keeps the older regression
+  // fixed: a stale response from a PREVIOUS night must never be written under
+  // tonight's Name, and reading the deck instead of the response cannot
+  // reintroduce that.
+  final List<NameStoryBeat> deckBeats = response == null
+      ? (deck?.beats ?? const <NameStoryBeat>[])
+      : const <NameStoryBeat>[];
+
+  List<NameStoryBeat> beatsOfKind(Set<String> kinds) =>
+      deckBeats.where((b) => kinds.contains(b.kind)).toList();
+
+  String firstPrimaryOf(String kind) {
+    for (final b in deckBeats) {
+      if (b.kind == kind) return b.primary;
+    }
+    return '';
+  }
+
+  final deckStory = beatsOfKind({'story'});
+  final deckVerses = beatsOfKind({'verse', 'comfort_verse'});
+  final deckDuas = beatsOfKind({'dua'});
+  final deckTakeaways = beatsOfKind({'takeaway'});
+
+  // The pair-synergy beat is a takeaway wearing a `synergy` label, and it is
+  // about the OTHER Name of the pair — so a real takeaway outranks it for the
+  // single slot the row has. Falls back to it only when it is the only one.
+  final deckTakeaway = deckTakeaways
+      .where((b) => !b.isPairSynergy)
+      .followedBy(deckTakeaways)
+      .map((b) => b.primary)
+      .firstWhere((p) => p.isNotEmpty, orElse: () => '');
+
+  // `bridge` renders as the key line and `recognition` as the reframe body —
+  // the same two slots, in the same order, that the deck flow draws them in.
+  final deckKeyLine = firstPrimaryOf('bridge');
+  final deckReframeBody = firstPrimaryOf('recognition');
+
+  final reframe = response?.reframe ??
+      [deckKeyLine, deckReframeBody].where((s) => s.isNotEmpty).join('\n\n');
   final preview =
       reframe.length > 150 ? '${reframe.substring(0, 150)}...' : reframe;
 
@@ -650,8 +711,22 @@ SavedReflection buildSavedReflection({
     nameArabic: _clampText(nameArabic ?? response?.nameArabic, _nameArabicMaxChars),
     reframePreview: _clampText(preview, _reframePreviewMaxChars),
     reframe: _clampText(reframe, _reframeMaxChars),
-    story: _clampText(response?.story, _storyMaxChars),
-    verses: (response?.verses ?? const <ReflectVerse>[])
+    // The prose column, for the legacy `splitIntoBeats` fallback and the
+    // export. On a deck night the structured `storyBeats` below are what a
+    // re-read actually renders; this is the same lines joined.
+    story: _clampText(
+      response?.story ?? deckStory.map((b) => b.primary).join('\n\n'),
+      _storyMaxChars,
+    ),
+    verses: (response?.verses ??
+            deckVerses.map((b) => ReflectVerse(
+                  arabic: b.arabic,
+                  // A deck verse carries its translation on `primary` and its
+                  // citation on `source` — the slots `buildBeatScreensFromDeck`
+                  // reads them from.
+                  translation: b.primary,
+                  reference: b.source,
+                )))
         .take(_versesMaxCount)
         .map((v) => ReflectVerse(
               arabic: _clampText(v.arabic, _verseArabicMaxChars),
@@ -659,12 +734,18 @@ SavedReflection buildSavedReflection({
               reference: _clampText(v.reference, _verseReferenceMaxChars),
             ))
         .toList(),
-    duaArabic: _clampText(response?.duaArabic, _duaArabicMaxChars),
-    duaTransliteration:
-        _clampText(response?.duaTransliteration, _duaTransliterationMaxChars),
-    duaTranslation:
-        _clampText(response?.duaTranslation, _duaTranslationMaxChars),
-    duaSource: _clampText(response?.duaSource, _duaSourceMaxChars),
+    duaArabic: _clampText(
+        response?.duaArabic ?? deckDuas.firstOrNull?.arabic,
+        _duaArabicMaxChars),
+    duaTransliteration: _clampText(
+        response?.duaTransliteration ?? deckDuas.firstOrNull?.transliteration,
+        _duaTransliterationMaxChars),
+    duaTranslation: _clampText(
+        response?.duaTranslation ?? deckDuas.firstOrNull?.primary,
+        _duaTranslationMaxChars),
+    duaSource: _clampText(
+        response?.duaSource ?? deckDuas.firstOrNull?.source,
+        _duaSourceMaxChars),
     relatedNames: (response?.relatedNames ?? const <ai.RelatedName>[])
         .take(_relatedNamesMaxCount)
         .map((r) => {
@@ -672,15 +753,25 @@ SavedReflection buildSavedReflection({
               'nameArabic': _clampText(r.nameArabic, _nameArabicMaxChars),
             })
         .toList(),
-    reframeKey: _clampText(response?.reframeKey, _beatKeyMaxChars),
-    reframeBody: _clampText(response?.reframeBody, _beatBodyMaxChars),
-    storyTitle: _clampText(response?.storyTitle, _beatTitleMaxChars),
-    storyBeats: (response?.storyBeats ?? const <String>[])
+    reframeKey:
+        _clampText(response?.reframeKey ?? deckKeyLine, _beatKeyMaxChars),
+    reframeBody:
+        _clampText(response?.reframeBody ?? deckReframeBody, _beatBodyMaxChars),
+    // The title is drawn on the FIRST story screen and the source under the
+    // LAST — see `buildBeatScreensFromReflection`. Taking them from the same
+    // two beats keeps a re-read identical to the live reading.
+    storyTitle: _clampText(
+        response?.storyTitle ?? deckStory.firstOrNull?.label,
+        _beatTitleMaxChars),
+    storyBeats: (response?.storyBeats ?? deckStory.map((b) => b.primary))
         .take(_storyBeatsMaxCount)
         .map((b) => _clampText(b, _beatLineMaxChars))
         .toList(),
-    storySource: _clampText(response?.storySource, _beatSourceMaxChars),
-    takeaway: _clampText(response?.takeaway, _beatTakeawayMaxChars),
+    storySource: _clampText(
+        response?.storySource ?? deckStory.lastOrNull?.source,
+        _beatSourceMaxChars),
+    takeaway:
+        _clampText(response?.takeaway ?? deckTakeaway, _beatTakeawayMaxChars),
     source: source,
     entryLocalDay: entryLocalDay,
     thread: thread.take(_threadMaxCount).toList(),

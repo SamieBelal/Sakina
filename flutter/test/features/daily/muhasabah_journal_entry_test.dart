@@ -30,6 +30,7 @@ import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
+import 'package:sakina/widgets/beat_reveal/beat_reveal_models.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
 
@@ -430,10 +431,214 @@ void main() {
     final row = reflectionInserts().single;
     expect(row['user_text'], 'Tonight is a different weight entirely.');
     expect(row['name'], 'As-Salam');
-    expect(row['beat_data'], isNull,
-        reason: "a deck night must never carry another night's beats");
-    expect(row['story'], anyOf(isNull, isEmpty),
-        reason: 'the stale story must not survive either');
+
+    // 2026-08-07: this used to assert `beat_data` was NULL, because a deck
+    // night wrote no beats of any kind — which turned out to be the separate
+    // bug that made the archive re-read a deck night as two screens. A deck
+    // night now carries the DECK's beats.
+    //
+    // The invariant this test was written for is untouched, and is what the
+    // assertions below check: tonight's deck, never the previous night's
+    // response. `beat_data isNull` was only ever a proxy for it.
+    final beats = (row['beat_data'] as Map).cast<String, dynamic>();
+    expect(beats['storyBeats'], ['The cave.'],
+        reason: "tonight's deck, and only it");
+    expect(beats['storyTitle'], anyOf(isNull, isEmpty),
+        reason: 'the deck beat carries no label — the stale AI title must not '
+            'wander in to fill the empty slot');
+    expect(beats['takeaway'], anyOf(isNull, isEmpty));
+    expect(row['story'], isNot(contains('The companions rose')));
+    expect(row['reframe'], isNot(contains('Al-Halim withholds')));
+    expect(row['dua_source'], isNot('Bukhari 220'));
+  });
+
+  // 2026-08-07 — reported from a device: the latest muḥāsabah opened as a
+  // TWO-screen story (the cover and the Name) where the night before it opened
+  // as a full one.
+  //
+  // The two nights took different paths. The AI night had a `ReflectResponse`
+  // and `buildSavedReflection` wrote every field from it. The deck night had a
+  // `NameStoryDeck` on `state.revealDeck` — pre-authored beats, verses, a duʿā,
+  // a takeaway, all of it already on state at write time — and
+  // `buildSavedReflection` reads NONE of it, because it only ever looked at
+  // `response`. So the row went to the server with `reframe=''`, `story=''`,
+  // `dua_arabic=''`, `verses=[]` and `beat_data=null`: the user's words and the
+  // Name, and nothing else. The archive rendered exactly what it was given.
+  //
+  // The night was a complete, correct muḥāsabah. Only the artifact was empty —
+  // which is the precise failure this whole wave exists to end.
+  group('a deck night keeps the deck', () {
+    /// A full pre-authored deck: one of every kind the flow renders.
+    const richDeck = NameStoryDeck(
+      deckId: 'ash-shafi@1',
+      nameId: 12,
+      transliteration: 'Ash-Shafi',
+      chipKeys: [],
+      positionInPair: 1,
+      beats: [
+        NameStoryBeat(kind: 'bridge', primary: 'The wound is not the verdict.'),
+        NameStoryBeat(
+            kind: 'recognition', primary: 'You have carried this a long time.'),
+        NameStoryBeat(
+          kind: 'name_intro',
+          arabic: 'الشافي',
+          transliteration: 'Ash-Shafi',
+          primary: 'The Healer',
+        ),
+        NameStoryBeat(
+          kind: 'story',
+          label: 'The Cure of Ayyub',
+          primary: 'Ayyub lost everything and did not lose his tongue.',
+          source: "(Qur'an 21:83)",
+        ),
+        NameStoryBeat(
+          kind: 'story',
+          primary: 'He asked once, and asked plainly.',
+          source: "(Qur'an 21:84)",
+        ),
+        NameStoryBeat(
+          kind: 'verse',
+          arabic: 'وَإِذَا مَرِضْتُ فَهُوَ يَشْفِينِ',
+          primary: 'And when I am ill, it is He who cures me.',
+          source: 'Ash-Shuara 26:80',
+        ),
+        NameStoryBeat(
+          kind: 'dua',
+          arabic: 'اللَّهُمَّ اشْفِنِي',
+          transliteration: 'Allahumma-shfini',
+          primary: 'O Allah, heal me.',
+          source: 'Bukhari 5675',
+        ),
+        NameStoryBeat(
+            kind: 'takeaway', primary: 'Returning is not the same as failing.'),
+      ],
+      sources: [],
+      author: 'test',
+      reviewedBy: 'test',
+      reviewedAt: '2026-08-07',
+      reviewVerdict: 'good',
+    );
+
+    DailyLoopNotifier deckNight() => notifierWith(answeredNight.copyWith(
+          checkinAnswers: ['I keep sinning and going back'],
+          checkinName: 'Ash-Shafi',
+          checkinNameArabic: 'الشافي',
+          revealDeck: richDeck,
+        ));
+
+    test('the row carries the deck it was read from', () async {
+      useZone('America/Los_Angeles');
+      final notifier = deckNight();
+      await notifier.startDeeper();
+      await notifier.completeDeeper();
+
+      final row = reflectionInserts().single;
+      expect(row['user_text'], 'I keep sinning and going back');
+      expect(row['name'], 'Ash-Shafi');
+
+      final beats = (row['beat_data'] as Map).cast<String, dynamic>();
+      expect(beats['storyBeats'], [
+        'Ayyub lost everything and did not lose his tongue.',
+        'He asked once, and asked plainly.',
+      ]);
+      expect(beats['storyTitle'], 'The Cure of Ayyub');
+      expect(beats['storySource'], "(Qur'an 21:84)",
+          reason: 'the source shown on the LAST story screen, matching '
+              'buildBeatScreensFromReflection');
+      expect(beats['takeaway'], 'Returning is not the same as failing.');
+      expect(beats['reframeKey'], 'The wound is not the verdict.');
+      expect(beats['reframeBody'], 'You have carried this a long time.');
+    });
+
+    test('the duʿā and the verse survive too', () async {
+      useZone('America/Los_Angeles');
+      final notifier = deckNight();
+      await notifier.startDeeper();
+      await notifier.completeDeeper();
+
+      final row = reflectionInserts().single;
+      expect(row['dua_arabic'], 'اللَّهُمَّ اشْفِنِي');
+      expect(row['dua_transliteration'], 'Allahumma-shfini');
+      expect(row['dua_translation'], 'O Allah, heal me.');
+      expect(row['dua_source'], 'Bukhari 5675');
+
+      final verses =
+          (row['verses'] as List).map((v) => (v as Map)).toList();
+      expect(verses, hasLength(1));
+      expect(verses.single['arabic'], 'وَإِذَا مَرِضْتُ فَهُوَ يَشْفِينِ');
+      expect(verses.single['translation'],
+          'And when I am ill, it is He who cures me.');
+      expect(verses.single['reference'], 'Ash-Shuara 26:80');
+    });
+
+    test('the archive can re-read it as a full story, not a cover and a Name',
+        () async {
+      useZone('America/Los_Angeles');
+      final notifier = deckNight();
+      await notifier.startDeeper();
+      await notifier.completeDeeper();
+
+      final saved = (await cachedReflections()).single;
+      final screens = buildBeatScreensFromReflection(saved);
+      final kinds = screens.map((s) => s.kind).toList();
+
+      expect(kinds.first, BeatKind.entryCover);
+      expect(kinds, contains(BeatKind.name));
+      expect(kinds, contains(BeatKind.keyLine));
+      expect(kinds.where((k) => k == BeatKind.story), hasLength(2));
+      expect(kinds, contains(BeatKind.takeaway));
+      expect(kinds, contains(BeatKind.verse));
+      expect(kinds, contains(BeatKind.dua));
+      expect(screens.length, greaterThan(2),
+          reason: 'the reported symptom was exactly two screens');
+      expect(duaScreenIndex(screens), isNot(-1),
+          reason: '"skip to duʿā" has somewhere to go again');
+    });
+
+    test('a deck night STILL does not inherit the previous AI night', () async {
+      // The invariant the older regression test was written for. The fix adds
+      // the deck's own beats; it must not reopen the door to another night's.
+      useZone('America/Los_Angeles');
+      final notifier = deckNight();
+      await notifier.startDeeper();
+      await notifier.completeDeeper();
+
+      final row = reflectionInserts().single;
+      expect(row['story'], isNot(contains('The companions rose')));
+      expect(row['reframe'], isNot(contains('Al-Halim withholds')));
+      expect(row['dua_source'], isNot('Bukhari 220'));
+    });
+
+    test('a deck with no renderable content still writes the night', () async {
+      // The floor: an empty deck must degrade to what the legacy fallback
+      // already wrote, not throw and not lose the entry.
+      useZone('America/Los_Angeles');
+      final notifier = notifierWith(answeredNight.copyWith(
+        checkinAnswers: ['A quiet night.'],
+        checkinName: 'As-Salam',
+        checkinNameArabic: 'السلام',
+        revealDeck: const NameStoryDeck(
+          deckId: 'empty@1',
+          nameId: 6,
+          transliteration: 'As-Salam',
+          chipKeys: [],
+          positionInPair: 1,
+          beats: [],
+          sources: [],
+          author: 'test',
+          reviewedBy: 'test',
+          reviewedAt: '2026-08-07',
+          reviewVerdict: 'good',
+        ),
+      ));
+      await notifier.startDeeper();
+      await notifier.completeDeeper();
+
+      final row = reflectionInserts().single;
+      expect(row['user_text'], 'A quiet night.');
+      expect(row['name'], 'As-Salam');
+      expect(row['beat_data'], isNull);
+    });
   });
 
   test('a bare lifecycle flip writes no empty row', () async {

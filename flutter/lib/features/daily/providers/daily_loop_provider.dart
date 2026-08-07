@@ -2551,6 +2551,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           // pre-authored beats ARE the content. The night still deserves its
           // entry: the user's words, the Name and the day.
           response: state.reflectResult,
+          // …and on that path THIS is the content. Passing it was the whole of
+          // the 2026-08-07 fix: `revealDeck` was already on state at this line,
+          // holding the beats, verses and duʿā the reader had just been shown,
+          // and none of it reached the row. The archive rendered a cover and a
+          // Name because that is all the row had.
+          deck: state.revealDeck,
           date: debugDailyLoopClock().toIso8601String(),
           name: name.isEmpty ? null : name,
           nameArabic: nameArabic.isEmpty ? null : nameArabic,
