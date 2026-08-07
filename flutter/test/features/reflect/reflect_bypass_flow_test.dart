@@ -72,7 +72,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
         createId: () => 'r-1',
@@ -120,7 +119,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => throw Exception('OpenAI 503'),
         now: () => fixedNow,
         createId: () => 'r-2',
@@ -160,7 +158,6 @@ void main() {
     final notifier = ReflectNotifier(
       loadOnInit: false,
       dependencies: ReflectDependencies(
-        getFollowUpQuestions: (_) async => const [],
         reflect: (_) async {
           reflectFired = true;
           return successResponse();

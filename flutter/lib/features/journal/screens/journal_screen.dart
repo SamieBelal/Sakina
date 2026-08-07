@@ -16,17 +16,18 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 // `premiumStateProvider` — the compose sheet's cost line differs for a
-// subscriber. See [showRadialComposeMenu].
-import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+// subscriber. See [showComposeMenu].
 import 'package:sakina/features/daily/widgets/add_to_tonight_card.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/journal/content/new_reflection_copy.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
+import 'package:sakina/features/journal/providers/reflection_allowance_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/features/journal/journal_search.dart';
 import 'package:sakina/features/journal/journal_themes.dart';
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
-import 'package:sakina/features/journal/widgets/radial_compose_menu.dart';
+import 'package:sakina/features/journal/widgets/compose_menu.dart';
 import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -41,6 +42,7 @@ import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/reflection_story_page.dart';
 import 'package:sakina/features/journal/screens/weekly_recap_story_page.dart';
@@ -159,6 +161,15 @@ final DateTime _undatedEntrySortKey =
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
+
+/// One line of the header's stat block.
+///
+/// [accent] is the trailing fragment that lifts out of the tertiary grey —
+/// today only the streak's number. [spaced] adds a gap ABOVE the line, used to
+/// separate a fact about the future from the facts about the past. Both are
+/// optional and both default to "plain", so a new line added here is quiet
+/// unless someone decides otherwise. See `_statsLines`.
+typedef _StatLine = ({String lead, String? accent, bool spaced});
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key});
@@ -393,14 +404,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                       curve: AppMotion.enter,
                     ),
                 const SizedBox(height: 6),
-                Text(
-                  _statsLine(total, reflections, duasCount),
-                  style: AppTypography.bodySmall
-                      .copyWith(color: AppColors.textTertiaryLight),
-                ).animate().fadeIn(
-                      duration: context.motion(AppMotion.entrance),
-                      delay: context.motion(AppMotion.beat),
-                    ),
+                // One `Text` per line rather than a single `\n`-joined string,
+                // so each keeps its own baseline spacing and a long one
+                // ellipsises on its own instead of pushing the next down.
+                ..._buildStatsBlock(total, reflections, duasCount),
               ],
             ),
           ),
@@ -793,7 +800,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   String? _topTheme(List<SavedReflection> reflections) =>
       journalTopTheme(reflections);
 
-  /// The lifetime counts, as one quiet line under the title.
+  /// The lifetime counts, as quiet lines under the title.
   ///
   /// This used to be a bordered box of four icon tiles — ~72px of the first
   /// screen spent on numbers nobody opens the Journal to read. The counts are
@@ -801,28 +808,152 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// worth a card: they are context for the title, so they render as the
   /// title's subtitle and the screen starts ~92px higher.
   ///
-  /// The streak segment is dropped while [_journalStatsProvider] is in flight
-  /// or has failed, rather than holding the whole line behind a loader. A line
-  /// that grows by one clause when the fetch lands is invisible; the 120px
-  /// spinner that used to sit here was not.
-  String _statsLine(
+  /// ## Lines, not one dot-joined run
+  ///
+  /// Everything used to be `join('  ·  ')` into a single `Text`, which wrapped
+  /// wherever the width ran out — mid-clause. On a 390pt phone that produced
+  /// *"19 entries · 9 duʿās · 7 Names · best"* / *"streak 10 · 9 free to try"*:
+  /// a streak broken across two rows, and a budget fact reading as the tail of
+  /// a count. Dot separators only work while the run fits on one line; past
+  /// that they stop grouping and start colliding.
+  ///
+  /// So the facts are grouped by KIND, one line each:
+  ///
+  ///  1. **What is in the archive** — entries, duʿās, Names. One fact in three
+  ///     parts, so these keep their dots.
+  ///  2. **The streak.** An achievement, not an inventory item.
+  ///  3. **The allowance.** A budget, and the only line here about what the
+  ///     user can still DO rather than what they have already done.
+  ///
+  /// ## Three lines of identical grey is a list, not a hierarchy
+  ///
+  /// Splitting them fixed the wrap and introduced a new problem: three runs of
+  /// the same size, weight and colour, which reads as flat. Two devices fix it,
+  /// and deliberately not three — the point is a focal point, not a carnival:
+  ///
+  ///  * **One accent, on the streak's NUMBER.** `goldInk` is the app's
+  ///    achievement colour and the contrast-safe one (`secondary` sits at about
+  ///    2.1:1 on this background, which is why the 6px type dots use `goldInk`
+  ///    too). The word stays tertiary; only the number lifts. A pill was the
+  ///    obvious alternative and is the wrong one — this screen already removed
+  ///    a pill from the theme line precisely because *if it looks like a
+  ///    surface, it opens*, and a streak that cannot be tapped must not look
+  ///    tappable.
+  ///  * **Rhythm on the allowance.** It gets extra space above it rather than a
+  ///    second colour, because it belongs to a different tense: everything
+  ///    above is what has happened, this is what is still available. A gap says
+  ///    that without competing with the accent.
+  ///
+  /// Empty lines are omitted rather than reserved, so a user with no streak and
+  /// no metered allowance sees exactly the one line they had before any of this.
+  List<_StatLine> _statsLines(
     int total,
     List<SavedReflection> reflections,
     int duasCount,
   ) {
-    if (total == 0) return 'Your spiritual diary';
+    if (total == 0) {
+      return const [(lead: 'Your spiritual diary', accent: null, spaced: false)];
+    }
 
     final uniqueNames = reflections.map((r) => r.name).toSet().length;
-    final parts = <String>[
+    final counts = <String>[
       '$total ${total == 1 ? 'entry' : 'entries'}',
       if (duasCount > 0) '$duasCount ${duasCount == 1 ? 'duʿā' : 'duʿās'}',
       if (uniqueNames > 0) '$uniqueNames ${uniqueNames == 1 ? 'Name' : 'Names'}',
     ];
 
-    final best = ref.watch(_journalStatsProvider).valueOrNull?.streak.longestStreak;
-    if (best != null && best > 0) parts.add('best streak $best');
+    final lines = <_StatLine>[
+      (lead: counts.join('  ·  '), accent: null, spaced: false),
+    ];
 
-    return parts.join('  ·  ');
+    // Dropped while [_journalStatsProvider] is in flight or has failed, rather
+    // than holding the whole block behind a loader. A line that appears when
+    // the fetch lands is invisible; the 120px spinner that used to sit here
+    // was not.
+    final best =
+        ref.watch(_journalStatsProvider).valueOrNull?.streak.longestStreak;
+    if (best != null && best > 0) {
+      lines.add((lead: 'Best streak ', accent: '$best', spaced: false));
+    }
+
+    // ── The allowance, at rest ──
+    //
+    // A STATE, not a nudge — which is why it belongs here and not in a banner.
+    // It fires no sheet, asks for nothing, cannot be dismissed and updates
+    // itself, so the first-visit-hint doctrine (whose whole subject is
+    // interruptions, and whose lifetime budget is three) does not govern it and
+    // nothing is spent showing it.
+    //
+    // Rendered ONLY when there is an honest number: absent for subscribers,
+    // absent on the legacy per-day tier, and absent while the resolve is in
+    // flight. See [reflectionAllowanceProvider] — "we don't know" and "there is
+    // nothing to say" deliberately collapse to the same silence, because the
+    // alternative is a line that says "0 left" to someone who has three.
+    //
+    // The LONG form, unlike the compose menu's: this line has the width to say
+    // the noun, and "9 free to try" on its own under a title is a fragment.
+    final allowance = watchReflectionAllowance(ref);
+    if (allowance != null && allowance.hasCount) {
+      lines.add((
+        lead: NewReflectionCopy.remainingLine(allowance),
+        accent: null,
+        spaced: true,
+      ));
+    }
+
+    return lines;
+  }
+
+  /// The stat block, as widgets.
+  ///
+  /// One `Text` per line rather than a single `\n`-joined string, so each keeps
+  /// its own baseline spacing and a long one ellipsises on its own instead of
+  /// pushing the next down.
+  ///
+  /// Built here rather than inline so the loop can see the list's LENGTH, which
+  /// it needs for one reason: the last line takes no trailing gap. The recap
+  /// block underneath brings its own 16pt top padding, so a bottom margin on
+  /// the final line is spent twice — and this block sits inside a budget
+  /// (`journal_archive_test` pins the first card to the top quarter of the
+  /// phone; splitting one wrapped line into three put it 0.4pt over).
+  List<Widget> _buildStatsBlock(
+    int total,
+    List<SavedReflection> reflections,
+    int duasCount,
+  ) {
+    final lines = _statsLines(total, reflections, duasCount);
+    return [
+      for (final (i, line) in lines.indexed)
+        Padding(
+          padding: EdgeInsets.only(
+            top: line.spaced ? 4 : 0,
+            bottom: i == lines.length - 1 ? 0 : 2,
+          ),
+          child: Text.rich(
+            TextSpan(
+              text: line.lead,
+              children: line.accent == null
+                  ? null
+                  : [
+                      TextSpan(
+                        text: line.accent,
+                        style: const TextStyle(
+                          color: AppColors.goldInk,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall
+                .copyWith(color: AppColors.textTertiaryLight),
+          ),
+        ).animate().fadeIn(
+              duration: context.motion(AppMotion.entrance),
+              delay: context.motion(AppMotion.beat),
+            ),
+    ];
   }
 
   /// E2's weekly recap, else the lifetime theme line, else nothing.
@@ -1960,18 +2091,52 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   /// screen's one primary control changed identity three times a day without
   /// moving. This does one thing: it opens the chooser. What the chooser holds
   /// is allowed to vary; the control is not.
+  ///
+  /// Handle for MEASURING the FAB, on a wrapper rather than on the button.
+  ///
+  /// `KeyedSubtree` is a proxy — it adds no render object of its own, so its
+  /// rect is the FAB's rect exactly. Wrapping instead of re-keying is what
+  /// leaves `ValueKey('journal-compose-fab')` where six tests already expect to
+  /// find it; a widget gets one key, and this needed two kinds.
+  ///
+  /// Owned by the State (not a library-level global) so two Journals alive at
+  /// once during a route transition cannot collide on one GlobalKey.
+  final GlobalKey _composeFabKey = GlobalKey(debugLabel: 'journal-compose-fab');
+
   Widget _buildComposeButton() {
-    return FloatingActionButton(
-      key: const ValueKey('journal-compose-fab'),
-      onPressed: _openComposeSheet,
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      tooltip: 'Write',
-      child: const Icon(Icons.add_rounded, size: 28),
+    return KeyedSubtree(
+      key: _composeFabKey,
+      child: FloatingActionButton(
+        key: const ValueKey('journal-compose-fab'),
+        onPressed: _openComposeSheet,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        tooltip: 'Write',
+        child: const Icon(Icons.add_rounded, size: 28),
+      ),
     );
   }
 
+  /// The FAB's rect in global coordinates, or null before first layout.
+  ///
+  /// Null is survivable and must be: the alternative is a crash on a tap that
+  /// arrived in the frame before layout settled. The caller skips opening the
+  /// menu rather than opening one anchored at the origin.
+  Rect? get _composeFabRect {
+    final box = _composeFabKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   void _openComposeSheet() {
+    // Measured before anything else, and a hard precondition: every position in
+    // the menu is expressed relative to this rect, so opening without it would
+    // put the whole stack — and the × that covers the button — somewhere the
+    // user never pressed. That is not hypothetical; it is the bug this
+    // replaced.
+    final fabRect = _composeFabRect;
+    if (fabRect == null) return;
+
     HapticFeedback.lightImpact();
     final options = _composeOptions;
     // The denominator. `journal_compose_tapped` still fires per CHOSEN action,
@@ -1983,14 +2148,21 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       properties: {AnalyticsEvents.propOptionCount: options.length},
     );
 
-    showRadialComposeMenu(
+    showComposeMenu(
       context,
       options: options,
-      // Resolved here rather than inside the menu so the menu stays a dumb
-      // widget. `valueOrNull ?? false` while the future is in flight: the free
-      // copy names a cost, and briefly over-stating a cost is a much smaller
-      // error than briefly hiding one.
-      isPremium: ref.read(premiumStateProvider).valueOrNull?.isPremium ?? false,
+      fabRect: fabRect,
+      // The menu's ONLY premium signal, and its only count — one read, so the
+      // two cannot contradict each other. It used to also take an `isPremium`
+      // from `premiumStateProvider`, which caches for the life of the app; a
+      // free user got "9 free to try" in the header and "Included with premium"
+      // in the menu on the same screen. See [JournalComposeCopy.subtitle].
+      //
+      // Already in memory: `_statsLine` watches the same provider on every
+      // build, so by the time a finger reaches the `+` this is a synchronous
+      // read. A `read` and not a `watch` because this is a handler, not a
+      // build.
+      allowance: readReflectionAllowance(ref),
       // Only fires on a CHOICE. A scrim tap, the ×, or the back gesture closes
       // the menu and calls nothing — a dismissed chooser is not a compose, so
       // it gets no event and no navigation.
@@ -2029,10 +2201,30 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         context.go('/muhasabah?$questionEntryQueryParam='
           '$questionEntryHomeCta');
       case JournalComposeAction.newReflection:
-        context.go('/reflect');
+        _openNewReflection();
       case JournalComposeAction.addToTonight:
         _showAddToTonightSheet();
     }
+  }
+
+  /// PUSH, not `go` — and that is the whole difference between this and the
+  /// Reflect tab it replaces.
+  ///
+  /// `go` replaces the location, which is right for a tab and wrong for a
+  /// composition: the user came from their archive and expects to land back in
+  /// it, on the entry they just wrote. Pushing gives them the system back
+  /// gesture for free and makes the return a `pop` this screen can react to.
+  ///
+  /// The await is what refreshes the count. `reflectionAllowanceProvider` is
+  /// resolved once per visit, so a reflection written inside that visit would
+  /// otherwise leave the header and the next menu quoting a number one too high
+  /// — the most embarrassing possible failure of a line whose entire job is to
+  /// be trusted. Invalidating on the way back re-resolves it against a gate
+  /// that has now been charged.
+  Future<void> _openNewReflection() async {
+    await context.push<void>(newReflectionRoutePath);
+    if (!mounted) return;
+    ref.invalidate(reflectionAllowanceProvider);
   }
 
   /// The append sheet.
@@ -2058,8 +2250,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         padding: EdgeInsets.only(
           left: 24,
           right: 24,
-          top: 4,
-          bottom: 24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          top: 8,
+          // **Three terms, and the missing one is why the field sat on the
+          // screen's edge.**
+          //
+          //  * 32 — the sheet's own breathing room under its last control. Was
+          //    24, which is the right number under a paragraph and too tight
+          //    under a 52pt text field: the field is the thing being reached
+          //    for, and a control that close to the edge reads as clipped.
+          //  * `viewInsets.bottom` — the keyboard, when it is up.
+          //  * `padding.bottom` — **the home indicator**, which was simply not
+          //    accounted for. On an indicator device that is 34 of the missing
+          //    points, and it is `padding` rather than `viewPadding` on
+          //    purpose: `padding` collapses to zero when the keyboard covers
+          //    the indicator, so the two terms never double-count.
+          bottom: 32 +
+              MediaQuery.of(sheetContext).viewInsets.bottom +
+              MediaQuery.of(sheetContext).padding.bottom,
         ),
         child: Consumer(
           builder: (context, ref, _) {

@@ -25,7 +25,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
+import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/features/streaks/providers/month_of_light_provider.dart';
@@ -162,9 +165,13 @@ void main() {
         GoRoute(
             path: '/muhasabah',
             builder: (_, __) => const Scaffold(body: Text('MUHASABAH ROUTE'))),
+        // The composer the `+`'s "New reflection" row opens. PUSHED, not
+        // `go`'d — see `JournalScreen._openNewReflection` — so the Journal
+        // stays under it and the user lands back on their archive.
         GoRoute(
-            path: '/reflect',
-            builder: (_, __) => const Scaffold(body: Text('REFLECT ROUTE'))),
+            path: newReflectionRoutePath,
+            builder: (_, __) =>
+                const Scaffold(body: Text('NEW REFLECTION ROUTE'))),
       ],
     );
     addTearDown(router.dispose);
@@ -291,7 +298,7 @@ void main() {
       expect(loop.appendSurfaces, [AnalyticsEvents.surfaceJournal]);
     });
 
-    testWidgets('a full thread offers a new reflection, and it routes to Reflect',
+    testWidgets('a full thread offers a new reflection, and it routes to the composer',
         (t) async {
       final full = muhasabah(
         thread: List.generate(
@@ -307,7 +314,7 @@ void main() {
       );
 
       await composeVia(t, JournalComposeAction.newReflection);
-      expect(find.text('REFLECT ROUTE'), findsOneWidget);
+      expect(find.text('NEW REFLECTION ROUTE'), findsOneWidget);
     });
 
     testWidgets('the empty All tab still carries a direct control', (t) async {
@@ -364,6 +371,86 @@ void main() {
         reason: 'an unconditional ShaderMask would wash out the last line of '
             'every short entry, which is most of them',
       );
+    });
+
+    testWidgets('the header stats are separate lines, never one clumped run',
+        (t) async {
+      await phone(t);
+      await pump(t, reflections: [muhasabah(), muhasabah(), muhasabah()]);
+
+      // The single dot-joined `Text` this replaced wrapped wherever the width
+      // ran out, which is mid-clause: on a 390pt phone it rendered
+      // "19 entries · 9 duʿās · 7 Names · best" / "streak 10 · 9 free to try"
+      // — a streak broken across two rows, and a budget fact reading as the
+      // tail of a count. Dot separators group only while the run fits on one
+      // line; past that they stop grouping and start colliding.
+      //
+      // **Asserted on the SPLIT, not on the height, and the difference matters.**
+      // The first version of this test measured the rendered height, and passed
+      // against a mutation that put every fact back into one string — because
+      // the line carries `maxLines: 1`, so an over-long run ellipsises instead
+      // of wrapping. Short and truncated is not the fix; separate is.
+      final counts = t.widget<Text>(find.textContaining('entries'));
+      // `Text.rich` puts its content in `textSpan`, not `data` — the streak
+      // line now carries a gold accent span, and this block is built by the
+      // same code path.
+      final text = counts.data ?? counts.textSpan!.toPlainText();
+      for (final foreign in ['streak', 'free', 'left this week', 'premium']) {
+        expect(text.toLowerCase(), isNot(contains(foreign)),
+            reason: 'the counts line is carrying "$foreign" — a fact of a '
+                'different kind, which is what made this run overflow: "$text"');
+      }
+    });
+
+    testWidgets('the streak carries the one accent in the stat block',
+        (t) async {
+      // The streak line only renders when `_journalStatsProvider` resolves one,
+      // and that provider is private to the screen — so it is seeded through
+      // the pref `getStreak` actually reads, scoped the way
+      // `SupabaseSyncService.scopedKey` scopes it for user `u1`.
+      SharedPreferences.setMockInitialValues({'sakina_longest_streak:u1': 10});
+      await phone(t);
+      // ONE entry, deliberately. `weeklyRecapMinEntries` is 2, so a second
+      // would open the recap line — whose row overflows by 11px on THIS
+      // surface and throws. That overflow is an artifact of the widget-test
+      // font (square glyphs make its 24-character trail 264px where the real
+      // font gives ~132, against a 310px row), not a bug in the recap; a real
+      // phone has ~127px to spare. Keeping it off screen keeps this test about
+      // the stat block.
+      await pump(t, reflections: [muhasabah()]);
+
+      // Splitting the stats onto their own lines fixed a mid-clause wrap and
+      // created a new problem: three runs of identical tertiary grey, which
+      // reads as a list rather than a hierarchy. ONE accent fixes that, and it
+      // goes on the streak's NUMBER — the only fact in the block that is an
+      // achievement rather than an inventory count or a budget.
+      //
+      // A pill was the obvious alternative and is the wrong one: this screen
+      // already removed a pill from the theme line because *if it looks like a
+      // surface, it opens*, and a streak that cannot be tapped must not look
+      // tappable.
+      await t.pumpAndSettle();
+
+      final streak = find.textContaining('Best streak');
+      expect(streak, findsOneWidget,
+          reason: 'the harness seeds a streak; if that changed, this test is '
+              'no longer measuring anything');
+
+      final spans = t.widget<Text>(streak).textSpan! as TextSpan;
+      final accents = <TextStyle>[];
+      spans.visitChildren((span) {
+        if (span is TextSpan && span.style?.color != null) {
+          accents.add(span.style!);
+        }
+        return true;
+      });
+
+      expect(accents, hasLength(1),
+          reason: 'the streak line should lift exactly one fragment');
+      expect(accents.single.color, AppColors.goldInk,
+          reason: 'goldInk is the achievement accent AND the contrast-safe one '
+              '— `secondary` sits at about 2.1:1 on this background');
+      expect(accents.single.fontWeight, FontWeight.w700);
     });
 
     testWidgets('the archive opens in the top quarter of the screen',

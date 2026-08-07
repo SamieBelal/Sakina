@@ -23,6 +23,8 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_resurfacing.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/journal/widgets/answered_dua_card.dart';
 import 'package:sakina/features/journal/widgets/on_this_night_card.dart';
 import 'package:sakina/features/journal/widgets/weekly_recap_line.dart';
@@ -123,9 +125,13 @@ void main() {
         GoRoute(
             path: '/muhasabah',
             builder: (_, __) => const Scaffold(body: Text('MUHASABAH ROUTE'))),
+        // The Journal's `+` pushes the composer here. Was `/reflect` until
+        // 2026-08-07; that route no longer exists, and a stub for a route the
+        // screen can no longer reach is a harness lying about the app.
         GoRoute(
-            path: '/reflect',
-            builder: (_, __) => const Scaffold(body: Text('REFLECT ROUTE'))),
+            path: newReflectionRoutePath,
+            builder: (_, __) =>
+                const Scaffold(body: Text('NEW REFLECTION ROUTE'))),
       ],
     );
     addTearDown(router.dispose);

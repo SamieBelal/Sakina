@@ -1,5 +1,7 @@
 import 'package:sakina/features/daily/content/muhasabah_completion_copy.dart';
+import 'package:sakina/features/journal/content/new_reflection_copy.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/gating_service.dart';
 
 /// What the Journal's compose control can do right now (Wave D D3; reshaped
 /// 2026-08-07).
@@ -93,14 +95,17 @@ abstract final class JournalComposeCopy {
         // "Begin", matching the Home CTA the user already knows, so the Journal
         // is not teaching a second name for the same thing.
         JournalComposeAction.startTonight => 'Begin Muḥāsabah',
-        // Verbatim the completion screen's label. The same act, reached from a
-        // second place, must not acquire a second name.
-        // Hour-aware for the same reason the completion screen is: the entry
-        // is local-DAY keyed, so a morning reader is adding to *today*. Still
-        // "verbatim the completion screen's label" — both now call
-        // [MuhasabahCompletionCopy.addToCtaFor], so the two cannot drift.
+        // The completion screen's label, elided. The same act, reached from a
+        // second place, must not acquire a second NAME — but it may lose its
+        // day noun, because this card is capped at 168pt and the long form
+        // ("Something else for tonight") would ellipsise mid-word there.
+        //
+        // Both forms live in [MuhasabahCompletionCopy] so the two surfaces
+        // cannot drift, and the short one is hour-independent on purpose: a
+        // menu row whose text changed at 17:00 would be the shape-shifting
+        // control this enum was rebuilt to remove.
         JournalComposeAction.addToTonight =>
-          MuhasabahCompletionCopy.addToCtaFor(DateTime.now().hour),
+          MuhasabahCompletionCopy.addToCtaShort,
         // Was "Free write". It named neither the act nor its price, and the
         // destination is metered — so on a spent day the button said *free* and
         // produced a paywall sheet. "New reflection" names the act; the
@@ -111,20 +116,44 @@ abstract final class JournalComposeCopy {
   /// The line under each row in the compose menu: what it will cost, BEFORE it
   /// is tapped.
   ///
-  /// Kept to ONE short line. These sit on an arc off the FAB, and two arc
-  /// positions on a 390pt phone are only ~77pt apart vertically — a wrapping
-  /// two-line caption made the rows physically overlap, so the upper option
-  /// swallowed taps meant for the lower one.
+  /// Kept to ONE short line. These stack above the FAB 64pt apart, against a
+  /// ~52pt card — a wrapping two-line caption makes the row ~80pt tall and the
+  /// rows physically overlap, at which point the upper option swallows taps
+  /// meant for the lower one. That shipped once; `compose_menu_test` pins it
+  /// now.
   ///
   /// The cost half is the point. `canUse` already refuses a spent free user at
   /// the gate, but refusing after the tap is not the same as saying so before
   /// it — the first is a wall, the second is a choice.
   ///
-  /// [isPremium] only changes the reflection line. Everything else costs the
-  /// same for everyone.
+  /// ## ONE source for "is this person premium", and it is [allowance]
+  ///
+  /// This used to take a separate `isPremium` flag, which the Journal filled
+  /// from `premiumStateProvider`. That shipped a screen contradicting itself: a
+  /// free user's header read *"9 free to try"* while this row read *"Included
+  /// with premium"*.
+  ///
+  /// The two providers are not equivalent and that is the whole bug.
+  /// `premiumStateProvider` is a plain `FutureProvider` — it caches for the
+  /// life of the app and is only invalidated when the lifecycle observer sees a
+  /// foreground or an auth change. `reflectionAllowanceProvider` is
+  /// `autoDispose` and re-resolves on every Journal visit. So the moment
+  /// premium actually lapses — a gift expiring, a subscription ending, a test
+  /// account being changed underneath — the fresh source knows and the cached
+  /// one does not, and the user is told both.
+  ///
+  /// [AllowanceKind.unlimited] IS the premium answer, produced by the same
+  /// `describeAllowance` call that produces the count. Reading it from there
+  /// means the two halves of this line cannot disagree, because they are one
+  /// read.
+  ///
+  /// [allowance] null — unresolved, or a failed resolve — falls back to the
+  /// number-free sentence. That briefly over-states the cost to a subscriber,
+  /// which is the direction to be wrong in: over-stating a cost is a smaller
+  /// error than hiding one.
   static String subtitle(
     JournalComposeAction action, {
-    required bool isPremium,
+    AllowanceSnapshot? allowance,
   }) =>
       switch (action) {
         JournalComposeAction.startTonight =>
@@ -132,17 +161,27 @@ abstract final class JournalComposeCopy {
         // No hedge: `appendToTonight` is a pure text write against a row that
         // already exists. It reveals no Name, marks no streak, claims no
         // reward and spends no allowance.
-        JournalComposeAction.addToTonight => 'Free, as often as you like',
-        JournalComposeAction.newReflection => isPremium
+        //
+        // Shortened from "Free, as often as you like" (2026-08-07). At 26
+        // characters it was the widest string in the menu by a distance and
+        // set the width of every card, since they share a right edge — a 175pt
+        // slab on a 390pt phone, for a caption. "any time" carries the same
+        // unlimited-ness in a third of the room.
+        JournalComposeAction.addToTonight => 'Free, any time',
+        JournalComposeAction.newReflection =>
+          switch (allowance?.kind) {
             // True for a subscriber: the only ceiling is the fair-use one at
             // 30/day, which nobody honest reaches, so quoting it would be
             // inventing a limit the reader does not have.
-            ? 'Included with premium'
-            // Deliberately not a number. The remaining count is async and
-            // varies by cohort, warmup and trial state; a wrong number here is
-            // worse than an honest sentence. See the follow-up note in
-            // `journal_screen._buildComposeSheet`.
-            : 'Uses one reflection',
+            AllowanceKind.unlimited => 'Included with premium',
+            _ => allowance != null && allowance.hasCount
+                // The balance at the instant of the decision, which is the
+                // only instant it is worth knowing.
+                ? NewReflectionCopy.remainingShort(allowance)
+                // The honest fallback. A wrong number on this line is worse
+                // than no number.
+                : 'Uses one reflection',
+          },
       };
 
   /// The empty-state sub-line under the control, when the All tab has nothing

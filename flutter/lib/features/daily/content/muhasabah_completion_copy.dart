@@ -53,12 +53,17 @@ abstract final class MuhasabahCompletionCopy {
 
   /// The affordance, not a button that submits a form.
   ///
-  /// *"Add to tonight"*, never *"Reflect again"* or *"New entry"*: the honest
-  /// answer to "it won't let me do it again" is that tonight's entry is still
-  /// open, not that a second night can be started. A label promising a second
-  /// reflection would be promising a second reveal, which is exactly the thing
-  /// the economy fires once.
-  static const String addToTonight = 'Add to tonight';
+  /// Never *"Reflect again"* or *"New entry"*: the honest answer to "it won't
+  /// let me do it again" is that tonight's entry is still open, not that a
+  /// second night can be started. A label promising a second reflection would
+  /// be promising a second reveal, which is exactly the thing the economy fires
+  /// once.
+  ///
+  /// The wording moved from *"Add to tonight"* to *"Something else for
+  /// tonight"* on 2026-08-07 — see [addToCtaFor] for the survey behind it. The
+  /// constraint above is unchanged; only the half that named a database
+  /// operation was replaced.
+  static const String addToTonight = 'Something else for tonight';
 
   /// Accessible name for the append field.
   static const String addFieldLabel = 'Add to tonight';
@@ -176,5 +181,36 @@ abstract final class MuhasabahCompletionCopy {
       '${dayNoun(hour)} stays open until tomorrow.';
 
   /// [addToTonightCta], with the right noun for the hour.
-  static String addToCtaFor(int hour) => 'Add to ${dayNounLower(hour)}';
+  ///
+  /// **Was "Add to today" until 2026-08-07, and the rename is the point.**
+  /// That label named the MECHANISM — a row exists for this date, put another
+  /// line on it. Surveying the field (Five Minute Journal, Stoic, Day One,
+  /// Rosebud, Niyyah, Hallow) turned up no app that labels this action after
+  /// its storage: the guided journals name the MOMENT ("Evening reflection")
+  /// and the free-form ones name the CONTENT ("What else are you grateful
+  /// for?"). Ours now names the content, and harmonises with the field's own
+  /// placeholder — *"Anything else on your heart…"* — which was already doing
+  /// that job one screen later.
+  ///
+  /// Hour-aware for the reason it always was: the entry is keyed to the local
+  /// DAY, so a reader at 09:00 is adding to *today* even though the ritual is
+  /// called the nightly muḥāsabah.
+  static String addToCtaFor(int hour) =>
+      'Something else for ${dayNounLower(hour)}';
+
+  /// The same label, short enough for the Journal's compose menu.
+  ///
+  /// Not a second name — the same name, elided. The menu's card is capped at
+  /// 168pt (`_labelMaxWidth`) so that the option rows stay annotations on their
+  /// icons rather than becoming a menu with icons stuck on the side; at 13pt
+  /// the long form measures ~192pt and would ellipsise to
+  /// "Something else for tod…", which is worse than eliding on purpose.
+  ///
+  /// Mirrors the split `NewReflectionCopy.remainingLine` / `remainingShort`
+  /// already makes for the same reason, on the same surface.
+  /// Deliberately hour-INDEPENDENT, unlike its long form: the day noun is the
+  /// first thing the elision drops, and a menu row whose text changed at 17:00
+  /// would reintroduce the shape-shifting control that
+  /// [JournalComposeAction] was rebuilt to remove.
+  static const String addToCtaShort = 'Something else';
 }

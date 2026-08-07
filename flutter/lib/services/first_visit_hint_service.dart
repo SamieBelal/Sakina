@@ -47,8 +47,14 @@ const String firstVisitHintSessionOrdinalBaseKey =
 /// The test applied was "is this feature genuinely not self-explanatory?" —
 /// Collection, Journal, the Duas tab and streaks all failed it and get nothing.
 enum FirstVisitHintId {
-  /// The tab name does not convey what the feature does, and Reflect is the
-  /// single biggest payer/free behavioural gap in the app.
+  /// Shown once on the Journal's new-reflection composer.
+  ///
+  /// It used to justify itself by the bottom-nav tab: *"the tab name does not
+  /// convey what the feature does"*. That tab is gone (2026-08-07) and the
+  /// justification survived the surface, because the gap did. The composer's
+  /// header asks a question and its caption says which answers count —
+  /// **neither says what comes BACK**, and the thing that comes back is what
+  /// the user is about to spend an allowance on.
   reflect,
 
   /// The stage is reached by tapping the Home medallion — an unguessable

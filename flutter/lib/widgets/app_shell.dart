@@ -430,16 +430,6 @@ class _AppShellState extends ConsumerState<AppShell> {
           BottomNavigationBarItem(
             icon: const TourAnchor(
               surface: TourSurface.appShell,
-              anchorId: 'tabReflect',
-              child: Icon(Icons.favorite_outline),
-            ),
-            activeIcon:
-                Icon(isOffTab ? Icons.favorite_outline : Icons.favorite),
-            label: 'Reflect',
-          ),
-          BottomNavigationBarItem(
-            icon: const TourAnchor(
-              surface: TourSurface.appShell,
               anchorId: 'tabDuas',
               child: Icon(Icons.auto_awesome_outlined),
             ),
@@ -468,9 +458,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/collection')) return 1;
-    if (location.startsWith('/reflect')) return 2;
-    if (location.startsWith('/duas')) return 3;
-    if (location.startsWith('/journal')) return 4;
+    if (location.startsWith('/duas')) return 2;
+    // Prefix match, and `/journal/new-reflection` is deliberately included:
+    // that route lives outside this shell (root navigator), so it never asks
+    // this function anything — but if it is ever moved inside, "the composer
+    // belongs to the Journal tab" is the answer that stays correct.
+    if (location.startsWith('/journal')) return 3;
     if (location.startsWith('/quests') ||
         location.startsWith('/settings') ||
         location.startsWith('/store')) {
@@ -486,10 +479,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       case 1:
         context.go('/collection');
       case 2:
-        context.go('/reflect');
-      case 3:
         context.go('/duas');
-      case 4:
+      case 3:
         context.go('/journal');
     }
   }

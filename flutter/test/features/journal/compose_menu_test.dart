@@ -32,7 +32,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/journal/journal_compose_action.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/journal/screens/journal_screen.dart';
+import 'package:sakina/features/journal/screens/new_reflection_screen.dart'
+    show newReflectionRoutePath;
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -96,7 +99,14 @@ void main() {
           ReflectionThreadEntry(at: '2026-08-07T2$i:00:00.000Z', text: 'x$i'),
       ];
 
-  Future<void> pump(WidgetTester t, {DailyLoopState? loop}) async {
+  Future<void> pump(
+    WidgetTester t, {
+    DailyLoopState? loop,
+    /// Simulates a home-indicator device. Real phones have one; the default
+    /// test surface does not, which is exactly why a missing safe-area term
+    /// shipped unnoticed.
+    double bottomInset = 0,
+  }) async {
     final router = GoRouter(
       initialLocation: '/journal',
       routes: [
@@ -104,9 +114,13 @@ void main() {
         GoRoute(
             path: '/muhasabah',
             builder: (_, __) => const Scaffold(body: Text('MUHASABAH ROUTE'))),
+        // The composer the `+`'s "New reflection" row opens. PUSHED, not
+        // `go`'d — see `JournalScreen._openNewReflection` — so the Journal
+        // stays under it and the user lands back on their archive.
         GoRoute(
-            path: '/reflect',
-            builder: (_, __) => const Scaffold(body: Text('REFLECT ROUTE'))),
+            path: newReflectionRoutePath,
+            builder: (_, __) =>
+                const Scaffold(body: Text('NEW REFLECTION ROUTE'))),
       ],
     );
     addTearDown(router.dispose);
@@ -121,7 +135,16 @@ void main() {
           dailyLoopProvider.overrideWith(
               (_) => _StubLoop(loop ?? const DailyLoopState(loaded: true))),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              viewPadding: EdgeInsets.only(bottom: bottomInset),
+            ),
+            child: child!,
+          ),
+        ),
       ),
     );
     await t.pump();
@@ -217,7 +240,6 @@ void main() {
     test('a new reflection states that it spends one', () {
       final sub = JournalComposeCopy.subtitle(
         JournalComposeAction.newReflection,
-        isPremium: false,
       );
       expect(sub, contains('reflection'));
       expect(sub.toLowerCase(), isNot(contains('free')),
@@ -228,9 +250,10 @@ void main() {
         () {
       expect(
         JournalComposeCopy.subtitle(JournalComposeAction.newReflection,
-            isPremium: true),
+            allowance: const AllowanceSnapshot(AllowanceKind.unlimited)),
         isNot(JournalComposeCopy.subtitle(JournalComposeAction.newReflection,
-            isPremium: false)),
+            allowance:
+                const AllowanceSnapshot(AllowanceKind.warmup, remaining: 3))),
       );
     });
 
@@ -239,16 +262,20 @@ void main() {
       // reveal, no streak, no allowance. The copy may say so without hedging.
       final sub = JournalComposeCopy.subtitle(
         JournalComposeAction.addToTonight,
-        isPremium: false,
       );
       expect(sub.toLowerCase(), contains('free'));
     });
 
     test('"Free write" is gone from every label', () {
       for (final a in JournalComposeAction.values) {
-        for (final premium in [true, false]) {
+        for (final allowance in <AllowanceSnapshot?>[
+          null,
+          const AllowanceSnapshot(AllowanceKind.unlimited),
+          const AllowanceSnapshot(AllowanceKind.warmup, remaining: 3),
+          const AllowanceSnapshot(AllowanceKind.weeklyPool, remaining: 2),
+        ]) {
           expect(JournalComposeCopy.label(a), isNot(contains('Free write')));
-          expect(JournalComposeCopy.subtitle(a, isPremium: premium),
+          expect(JournalComposeCopy.subtitle(a, allowance: allowance),
               isNot(contains('Free write')));
         }
       }
@@ -318,13 +345,13 @@ void main() {
   // ── Where the rows go ─────────────────────────────────────────────────────
 
   group('each row goes where it says', () {
-    testWidgets('a new reflection routes to Reflect', (t) async {
+    testWidgets('a new reflection routes to the composer', (t) async {
       await pump(t, loop: DailyLoopState(loaded: true, tonightEntry: tonight()));
       await openSheet(t);
 
       await pick(t, JournalComposeAction.newReflection);
 
-      expect(find.text('REFLECT ROUTE'), findsOneWidget);
+      expect(find.text('NEW REFLECTION ROUTE'), findsOneWidget);
     });
 
     testWidgets('the ritual routes to the muḥāsabah', (t) async {
@@ -343,9 +370,32 @@ void main() {
       await pick(t, JournalComposeAction.addToTonight);
 
       expect(find.text('MUHASABAH ROUTE'), findsNothing);
-      expect(find.text('REFLECT ROUTE'), findsNothing);
+      expect(find.text('NEW REFLECTION ROUTE'), findsNothing);
       expect(find.byType(TextField), findsWidgets,
           reason: 'the append is a text write, done in place');
+    });
+
+    testWidgets('the append sheet keeps its field off the screen edge',
+        (t) async {
+      // A phone WITH a home indicator. The bug this pins was invisible without
+      // one: the sheet padded 24pt under its field and stopped there, so on an
+      // indicator device the field sat in the 34pt strip the system owns and
+      // read as clipped.
+      await t.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      await pump(
+        t,
+        loop: DailyLoopState(loaded: true, tonightEntry: tonight()),
+        bottomInset: 34,
+      );
+      await openSheet(t);
+      await pick(t, JournalComposeAction.addToTonight);
+
+      final field = t.getRect(find.byType(TextField).last);
+      final gap = 844 - field.bottom;
+      expect(gap, greaterThan(34 + 24),
+          reason: 'the field ends ${gap.toStringAsFixed(1)}pt from the bottom '
+              'of a screen whose last 34 belong to the home indicator');
     });
 
     // Both of these were found by measuring, not by reading, and both shipped
@@ -371,8 +421,8 @@ void main() {
           final r = t.getRect(inSheet(JournalComposeCopy.label(a)));
           expect(r.left, greaterThanOrEqualTo(0),
               reason: '${JournalComposeCopy.label(a)} ran off the left edge — '
-                  'the shallower the arc angle, the further left the row '
-                  'travels, and the label hangs further left again');
+                  'the label is the widest part of the row and hangs '
+                  'furthest left');
           expect(r.right, lessThanOrEqualTo(390));
         }
       });
@@ -386,17 +436,17 @@ void main() {
       // subject I cannot explain is worse than an honest gap.
       //
       // What IS known, and is covered below: both options stay on screen, and
-      // each one activates itself. The overlap risk is real (the arc positions
-      // are ~77pt apart and a two-line label makes a row ~80pt tall), which is
-      // why `radial_compose_menu` forces both label lines to `maxLines: 1`.
-      // Worth a device look before this ships.
+      // each one activates itself. The overlap risk is real (options sit 64pt
+      // apart and a two-line caption would make a row ~80pt tall), which is why
+      // `compose_menu` forces both label lines to `maxLines: 1` — and is now
+      // pinned outright by the geometry group below.
       testWidgets('each option activates ITSELF, not its neighbour', (t) async {
         await phone(t);
         await pump(t);
         await openSheet(t);
         await pick(t, JournalComposeAction.startTonight);
         expect(find.text('MUHASABAH ROUTE'), findsOneWidget);
-        expect(find.text('REFLECT ROUTE'), findsNothing);
+        expect(find.text('NEW REFLECTION ROUTE'), findsNothing);
       });
 
       testWidgets('and the other one does too', (t) async {
@@ -404,8 +454,248 @@ void main() {
         await pump(t);
         await openSheet(t);
         await pick(t, JournalComposeAction.newReflection);
-        expect(find.text('REFLECT ROUTE'), findsOneWidget);
+        expect(find.text('NEW REFLECTION ROUTE'), findsOneWidget);
         expect(find.text('MUHASABAH ROUTE'), findsNothing);
+      });
+    });
+
+    // ── Geometry ────────────────────────────────────────────────────────────
+    //
+    // Every bug this group pins was found by MEASURING a shipped build, never
+    // by reading the widget tree. All three were invisible to a test that only
+    // asserts a widget is present.
+    group('the geometry, measured', () {
+      Future<void> phone(WidgetTester t) async {
+        await t.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => t.binding.setSurfaceSize(null));
+      }
+
+      /// The × the menu paints over the FAB.
+      final closeStandIn = find.byKey(const ValueKey('journal-compose-close'));
+
+      testWidgets('the × lands exactly on the +, not near it', (t) async {
+        await phone(t);
+        await pump(t);
+
+        // Measured BEFORE the menu opens — this is the button the user pressed.
+        final fab = t.getRect(find.byKey(const ValueKey('journal-compose-fab')));
+        await openSheet(t);
+        final close = t.getRect(closeStandIn);
+
+        // The shipped bug: the menu COMPUTED the FAB's position from
+        // `viewPadding.bottom + margin + diameter/2` — a formula that is right
+        // for a Scaffold with no bottom bar and wrong by the height of one
+        // otherwise. The user saw two controls, a `+` where they had tapped and
+        // an `×` ~60pt below it.
+        //
+        // Pinned as EQUALITY rather than proximity, because "close enough" is
+        // exactly the standard that let a 60pt error through. Anything that
+        // reintroduces a calculation fails here.
+        expect(close, fab,
+            reason: 'the stand-in must cover the real FAB exactly — same '
+                'place, same size — so the one control the user pressed '
+                'appears to turn rather than to be joined by a second one');
+      });
+
+      testWidgets('every card sits right beside its own icon', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        // **The regression this replaces was the opposite rule.** An earlier
+        // pass padded every row out to a shared right edge so the cards formed
+        // a tidy column — and on a 390pt phone that put the top option's bubble
+        // 120pt from its own circle. Tidy, and orphaned.
+        //
+        // Measured as the gap between the card's right edge and the row's,
+        // which is the circle's right edge. Card → gap → circle, so the
+        // distance from card to circle's LEFT edge is the whole slack.
+        for (final a in [
+          JournalComposeAction.startTonight,
+          JournalComposeAction.newReflection,
+        ]) {
+          final row = t.getRect(
+              find.byKey(ValueKey('journal-compose-row-${a.name}')));
+          final card = t.getRect(inSheet(JournalComposeCopy.label(a)));
+          // row.right is the circle's right edge; subtract the circle to get
+          // its left edge, then measure back to the TEXT. The expected value is
+          // `_labelGap` (12) plus the card's own horizontal padding (12) = 24,
+          // because this finder matches the Text rather than the card around
+          // it. The ceiling is set just above that: it is here to catch a
+          // return of the 120pt shim, not to police a point either way.
+          final slack = (row.right - 52) - card.right;
+          expect(slack, lessThan(30),
+              reason: '${JournalComposeCopy.label(a)} floats ${slack.toStringAsFixed(0)}pt '
+                  'from its icon');
+        }
+      });
+
+      testWidgets('a card\'s two lines share a left edge', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        // They were right-aligned once, on the theory that a card hanging off
+        // the right of the screen should hang its text with it. But the title
+        // is the SHORTER of the two strings ("New reflection" against
+        // "Included with premium"), so right-alignment indented the title and
+        // left a ragged left edge inside a 168pt card — visible, not subtle.
+        //
+        // **Asserted STRUCTURALLY, and that is a deliberate retreat.** The
+        // obvious test — compare the two Text rects' `left` — passes either way
+        // here: the widget-test font is square-glyph and far wider than the
+        // real one, so both strings blow past `_labelMaxWidth`, both clamp to
+        // exactly 168pt, and their rects coincide whatever the alignment is.
+        // Mutation-checked: flipping the widget back to `end`/`right` did not
+        // fail the measured version, which is the only reason this one is
+        // shaped like this.
+        //
+        // Both halves are required. `crossAxisAlignment` alone positions the
+        // text BOXES; the boxes hug their content, so a right-positioned box
+        // full of left-aligned text is still indented.
+        for (final a in [
+          JournalComposeAction.startTonight,
+          JournalComposeAction.newReflection,
+        ]) {
+          final title = inSheet(JournalComposeCopy.label(a));
+          final cost = inSheet(JournalComposeCopy.subtitle(a));
+
+          for (final f in [title, cost]) {
+            expect(t.widget<Text>(f).textAlign, TextAlign.left,
+                reason: '"${t.widget<Text>(f).data}" is not left-aligned');
+          }
+
+          final column = t.widget<Column>(
+              find.ancestor(of: title, matching: find.byType(Column)).first);
+          expect(column.crossAxisAlignment, CrossAxisAlignment.start,
+              reason: '${JournalComposeCopy.label(a)}: the card column still '
+                  'pushes its lines to the right edge');
+        }
+      });
+
+      testWidgets('the options stack in ONE column, straight up off the button',
+          (t) async {
+        await phone(t);
+        await pump(t);
+        final fab = t.getRect(find.byKey(const ValueKey('journal-compose-fab')));
+        await openSheet(t);
+
+        // No arc, and no lean either (founder, 2026-08-07). Every circle sits
+        // in the FAB's own column — which is also what gives the cards a shared
+        // right edge for free, where two earlier shapes had to arrange it with
+        // arithmetic and got it wrong both times.
+        //
+        // `row.right` IS the circle's right edge, so comparing rows compares
+        // circles.
+        final rights = [
+          for (final a in [
+            JournalComposeAction.startTonight,
+            JournalComposeAction.newReflection,
+          ])
+            t.getRect(find.byKey(ValueKey('journal-compose-row-${a.name}')))
+                .right,
+        ];
+        expect((rights.first - rights.last).abs(), lessThan(1.0),
+            reason: 'the circles drifted apart horizontally: $rights');
+
+        // And that column is the button's own, so the stack rises out of it
+        // rather than beside it.
+        final circleCentreX = rights.first - 52 / 2;
+        expect((circleCentreX - fab.center.dx).abs(), lessThan(1.0),
+            reason: 'circles at x=$circleCentreX, button at ${fab.center.dx}');
+      });
+
+      testWidgets('the nearest option is close to the ×, not across the screen',
+          (t) async {
+        await phone(t);
+        await pump(t);
+        final fab = t.getRect(find.byKey(const ValueKey('journal-compose-fab')));
+        await openSheet(t);
+
+        // Was a 140pt arc radius, which read as a menu arriving from
+        // elsewhere rather than coming out of the button under the thumb.
+        final nearest = t.getRect(
+            find.byKey(const ValueKey('journal-compose-row-startTonight')));
+        final gap = fab.top - nearest.bottom;
+        expect(gap, greaterThan(0), reason: 'it must not cover the button');
+        expect(gap, lessThan(40),
+            reason: 'the nearest option is ${gap.toStringAsFixed(0)}pt above '
+                'the button — it should look like it came out of it');
+      });
+
+      /// The whole drawn row — card, gap and circle — not the Text inside it.
+      Finder row(JournalComposeAction a) =>
+          find.byKey(ValueKey('journal-compose-row-${a.name}'));
+
+      testWidgets('the two rows never overlap', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        // **Measured on the ROWS, and that is the entire point of this test.**
+        // The first version of it measured `find.text(label)` and passed while
+        // a real phone showed the two white cards fused into a single blob:
+        // the Text widgets cleared each other, the cards around them did not.
+        //
+        // The geometry it guards: options sit `_optionSpacing` (64pt) apart
+        // and the card is ~52pt tall. Grow the card, or tighten the spacing,
+        // and this closes — at which point the upper option, painted last and
+        // therefore on top, starts swallowing taps meant for the lower one.
+        final a = t.getRect(row(JournalComposeAction.startTonight));
+        final b = t.getRect(row(JournalComposeAction.newReflection));
+        expect(a.overlaps(b), isFalse, reason: 'rows overlap: $a vs $b');
+      });
+
+      testWidgets('and clear each other by a real margin, not by a hair',
+          (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        final a = t.getRect(row(JournalComposeAction.startTonight));
+        final b = t.getRect(row(JournalComposeAction.newReflection));
+        final gap = a.top - b.bottom;
+
+        // Non-overlap alone would be satisfied by a single point of clearance,
+        // which is not a design — it is a coincidence waiting for a font bump
+        // or a longer cost string to end it.
+        expect(gap, greaterThan(8),
+            reason: 'only ${gap.toStringAsFixed(1)}pt between the rows');
+      });
+
+      testWidgets('a row stays small enough for the spacing to hold it',
+          (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        // The card is an ANNOTATION on the circles, not the composition. This
+        // is the ceiling that keeps it one: 60pt against 64pt of spacing. The
+        // version that shipped fused at 61.
+        for (final a in [
+          JournalComposeAction.startTonight,
+          JournalComposeAction.newReflection,
+        ]) {
+          expect(t.getRect(row(a)).height, lessThan(60),
+              reason: '${JournalComposeCopy.label(a)} row is too tall for '
+                  '_optionSpacing to separate');
+        }
+      });
+
+      testWidgets('every row stays on screen', (t) async {
+        await phone(t);
+        await pump(t);
+        await openSheet(t);
+
+        for (final a in [
+          JournalComposeAction.startTonight,
+          JournalComposeAction.newReflection,
+        ]) {
+          final r = t.getRect(inSheet(JournalComposeCopy.label(a)));
+          expect(r.left, greaterThanOrEqualTo(0),
+              reason: '${JournalComposeCopy.label(a)} ran off the left edge');
+          expect(r.right, lessThanOrEqualTo(390));
+        }
       });
     });
 
@@ -418,7 +708,7 @@ void main() {
       await t.pumpAndSettle();
 
       expect(find.text('MUHASABAH ROUTE'), findsNothing);
-      expect(find.text('REFLECT ROUTE'), findsNothing);
+      expect(find.text('NEW REFLECTION ROUTE'), findsNothing);
       expect(sheet, findsNothing);
     });
   });

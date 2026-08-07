@@ -144,9 +144,6 @@ String _clampText(String? value, int maxChars) {
   return value.substring(0, maxChars);
 }
 
-typedef ReflectFollowUpLoader = Future<List<ai.FollowUpQuestion>> Function(
-  String userText,
-);
 typedef ReflectResponseLoader = Future<ai.ReflectResponse> Function(
     String text);
 typedef ReflectNow = DateTime Function();
@@ -155,13 +152,11 @@ typedef ReflectIdFactory = String Function();
 String _defaultReflectIdFactory() => _uuid.v4();
 
 class ReflectDependencies {
-  final ReflectFollowUpLoader getFollowUpQuestions;
   final ReflectResponseLoader reflect;
   final ReflectNow now;
   final ReflectIdFactory createId;
 
   const ReflectDependencies({
-    required this.getFollowUpQuestions,
     required this.reflect,
     required this.now,
     required this.createId,
@@ -169,7 +164,6 @@ class ReflectDependencies {
 }
 
 const _defaultReflectDependencies = ReflectDependencies(
-  getFollowUpQuestions: ai.getFollowUpQuestions,
   reflect: ai.reflectWithOpenAI,
   now: DateTime.now,
   createId: _defaultReflectIdFactory,
@@ -179,9 +173,15 @@ const _defaultReflectDependencies = ReflectDependencies(
 // Enums
 // ---------------------------------------------------------------------------
 
-enum ReflectScreenState { input, followup, loading, result, offtopic }
-
-enum ReflectStep { name, reflection, story, dua }
+/// The composer's four states.
+///
+/// `followup` is gone (2026-08-07). It named an interstitial that asked the
+/// user two or three AI-generated questions between their sentence and the
+/// reveal — a shape that predates `BeatRevealFlow`, cost an extra OpenAI
+/// round-trip on the way in, and had no renderer left once the Reflect tab was
+/// folded into the Journal. `ReflectStep` went with it for the same reason: the
+/// beat flow owns its own progression now.
+enum ReflectScreenState { input, loading, result, offtopic }
 
 // ---------------------------------------------------------------------------
 // Saved reflection model
@@ -1249,11 +1249,6 @@ class ReflectState {
   final String userText;
   final ai.ReflectResponse? result;
   final String? error;
-  final ReflectStep currentStep;
-  final List<ai.FollowUpQuestion> followUpQuestions;
-  final List<String> followUpAnswers;
-  final int currentFollowUpIndex;
-  final Set<String> selectedEmotions;
   final List<SavedReflection> savedReflections;
 
   /// Set when the user attempted to reflect but the gating layer blocked the
@@ -1272,11 +1267,6 @@ class ReflectState {
     this.userText = '',
     this.result,
     this.error,
-    this.currentStep = ReflectStep.name,
-    this.followUpQuestions = const [],
-    this.followUpAnswers = const [],
-    this.currentFollowUpIndex = 0,
-    this.selectedEmotions = const {},
     this.savedReflections = const [],
     this.gateResult,
     this.warmupJustExhausted,
@@ -1287,11 +1277,6 @@ class ReflectState {
     String? userText,
     ai.ReflectResponse? result,
     String? error,
-    ReflectStep? currentStep,
-    List<ai.FollowUpQuestion>? followUpQuestions,
-    List<String>? followUpAnswers,
-    int? currentFollowUpIndex,
-    Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
     GateResult? gateResult,
     GatedFeature? warmupJustExhausted,
@@ -1305,11 +1290,6 @@ class ReflectState {
       userText: userText ?? this.userText,
       result: clearResult ? null : (result ?? this.result),
       error: clearError ? null : (error ?? this.error),
-      currentStep: currentStep ?? this.currentStep,
-      followUpQuestions: followUpQuestions ?? this.followUpQuestions,
-      followUpAnswers: followUpAnswers ?? this.followUpAnswers,
-      currentFollowUpIndex: currentFollowUpIndex ?? this.currentFollowUpIndex,
-      selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
       gateResult: clearGateResult ? null : (gateResult ?? this.gateResult),
       warmupJustExhausted: clearWarmupJustExhausted
@@ -1367,16 +1347,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
 
   void setUserText(String text) {
     state = state.copyWith(userText: text);
-  }
-
-  void toggleEmotion(String emotion) {
-    final updated = Set<String>.from(state.selectedEmotions);
-    if (updated.contains(emotion)) {
-      updated.remove(emotion);
-    } else {
-      updated.add(emotion);
-    }
-    state = state.copyWith(selectedEmotions: updated);
   }
 
   /// Clears the gate-blocked flag after the paywall sheet is dismissed.
@@ -1506,19 +1476,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       state = state.copyWith(
           screenState: ReflectScreenState.loading, clearError: true);
 
-      final questions =
-          await _dependencies.getFollowUpQuestions(state.userText);
-
-      if (questions.isNotEmpty) {
-        state = state.copyWith(
-          screenState: ReflectScreenState.followup,
-          followUpQuestions: questions,
-          followUpAnswers: [],
-          currentFollowUpIndex: 0,
-        );
-      } else {
-        await _reflect(_buildCombinedText([]));
-      }
+      await _reflect(state.userText);
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
@@ -1527,53 +1485,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
       );
-    }
-  }
-
-  /// Record a follow-up answer. If last question, triggers reflect.
-  Future<void> answerFollowUp(String answer) async {
-    final updatedAnswers = [...state.followUpAnswers, answer];
-    final isLast =
-        state.currentFollowUpIndex >= state.followUpQuestions.length - 1;
-
-    state = state.copyWith(followUpAnswers: updatedAnswers);
-
-    if (isLast) {
-      await _reflect(_buildCombinedText(updatedAnswers));
-    } else {
-      state =
-          state.copyWith(currentFollowUpIndex: state.currentFollowUpIndex + 1);
-    }
-  }
-
-  /// Skip follow-ups and reflect with just the original text.
-  Future<void> skipFollowUps() async {
-    await _reflect(_buildCombinedText([]));
-  }
-
-  /// Advance result step: name → reflection → story → dua.
-  Future<void> continueStep() async {
-    const nextStep = {
-      ReflectStep.name: ReflectStep.reflection,
-      ReflectStep.reflection: ReflectStep.story,
-      ReflectStep.story: ReflectStep.dua,
-    };
-    final next = nextStep[state.currentStep];
-    if (next != null) {
-      state = state.copyWith(currentStep: next);
-    }
-  }
-
-  /// Go back one result step: dua → story → reflection → name.
-  void previousStep() {
-    const prevStep = {
-      ReflectStep.reflection: ReflectStep.name,
-      ReflectStep.story: ReflectStep.reflection,
-      ReflectStep.dua: ReflectStep.story,
-    };
-    final prev = prevStep[state.currentStep];
-    if (prev != null) {
-      state = state.copyWith(currentStep: prev);
     }
   }
 
@@ -1790,7 +1701,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         state = state.copyWith(
           screenState: ReflectScreenState.result,
           result: response,
-          currentStep: ReflectStep.name,
         );
         if (_consumeFreeUsageOnSuccess) {
           final outcome = await GatingService().markUsed(
@@ -1823,22 +1733,6 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     }
   }
 
-  String _buildCombinedText(List<String> answers) {
-    final buffer = StringBuffer(state.userText);
-    if (state.selectedEmotions.isNotEmpty) {
-      buffer.writeln();
-      buffer.writeln('Emotions: ${state.selectedEmotions.join(', ')}');
-    }
-    for (var i = 0; i < answers.length; i++) {
-      if (i < state.followUpQuestions.length) {
-        buffer
-          ..writeln()
-          ..writeln('Q: ${state.followUpQuestions[i].question}')
-          ..writeln('A: ${answers[i]}');
-      }
-    }
-    return buffer.toString();
-  }
 
   /// Saves the reflection. There is deliberately no free-tier row cap here.
   ///
